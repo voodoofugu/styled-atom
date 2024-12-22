@@ -5,28 +5,22 @@ import terser from "@rollup/plugin-terser";
 import del from "rollup-plugin-delete";
 
 export default {
-  input: "src/nexus.tsx",
+  input: "src/index.tsx",
 
   output: [
     {
-      file: "dist/nexus.js",
+      file: "dist/index.js",
       format: "cjs",
     },
-    // {
-    //   file: "dist/index.js",
-    //   format: "esm",
-    // },
   ],
   plugins: [
     del({ targets: "dist/*" }),
     resolve(),
-    commonjs({
-      ignoreGlobal: true, // Игнорирует преобразование `globalThis` для React
-    }),
+    commonjs(),
     typescript(),
     terser({
       output: {
-        comments: false, // Удаляет все комментарии
+        comments: false,
       },
     }),
   ],

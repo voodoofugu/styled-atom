@@ -1,8 +1,8 @@
 {
-  "name": "styled-atom",
+  "name": "styled-flex",
   "author": "Georg Schilin",
   "version": "1.0.0",
-  "description": "Library for working with styles in React ⭐️",
+  "description": "Library for working with styles in React 💪",
   "license": "MIT",
   "main": "src/index.ts",
   "type": "module",
