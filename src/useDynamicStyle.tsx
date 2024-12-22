@@ -72,7 +72,7 @@ const loadStyles = async (
   const { fileNames, stylesLoaded } = styleObj[id];
 
   if (!fileNames || fileNames.length === 0) {
-    console.warn(`🚫 No files to load for id "${id}"`);
+    console.warn(`No files to load for id "${id}" 👺`);
     return;
   }
 
@@ -82,8 +82,8 @@ const loadStyles = async (
       const { default: cssData } = await importStyle(fileName);
       styleElement.textContent = cssData;
     } catch (error) {
-      console.error(`🚫 Error loading style for ${fileName}:`, error);
-      styleElement.textContent = "🚫";
+      console.error(`Error loading style for ${fileName} 👺`, error);
+      styleElement.textContent = "👺";
     } finally {
       if (
         !prevStyleData ||
@@ -151,3 +151,4 @@ const useDynamicStyle = (importStyle: ImportStyleT) => {
 };
 
 export default useDynamicStyle;
+export { ImportStyleT };
