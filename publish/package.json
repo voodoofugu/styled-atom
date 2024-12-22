@@ -1,0 +1,14 @@
+{
+  "name": "project-name",
+  "version": "1.0.0",
+  "description": "npm package description",
+  "author": "Name",
+  "license": "MIT",
+  "main": "index.js",
+  "type": "module",
+  "types": "./index.d.ts",
+  "keywords": [],
+  "peerDependencies": {
+    "react": "^18.3.1"
+  }
+}
