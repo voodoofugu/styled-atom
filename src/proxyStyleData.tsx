@@ -4,10 +4,10 @@ type StyleData = Record<
     fileNames?: string[];
     stylesLoaded?: boolean;
   }
->;
+> | null;
 type StyleDataT = typeof initialState;
 const initialState = {
-  styleData: null as StyleData | null,
+  styleData: null as StyleData,
 };
 
 type Listener<T> = (value: T) => void;

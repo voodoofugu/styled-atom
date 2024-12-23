@@ -18,11 +18,17 @@ const StyleCore = ({ path, watch }: StyleCoreT) => {
     const storedStyleData = sessionStorage.getItem("styledAtom💫");
 
     if (!storedStyleData) {
-      sessionStorage.setItem("styledAtom💫", JSON.stringify(initialState));
+      sessionStorage.setItem(
+        "styledAtom💫",
+        JSON.stringify(initialState.styleData)
+      );
     }
 
     const unsubscribe = subscribeToAll((updatedState) => {
-      sessionStorage.setItem("styledAtom💫", JSON.stringify(updatedState));
+      sessionStorage.setItem(
+        "styledAtom💫",
+        JSON.stringify(updatedState.styleData)
+      );
     });
 
     return () => {
