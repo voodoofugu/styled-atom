@@ -1,15 +1,12 @@
 import React from "react";
+import { StyleTagT } from "./types";
+
 import useStore from "./useStore";
 
-type StyleTagProps = {
-  fileNames: string[];
-  children?: React.ReactNode;
-};
-
-const StyleTag = ({ fileNames, children }: StyleTagProps) => {
+const StyleTag = ({ fileNames, children }: StyleTagT) => {
   const [styleData, setStyleData] = useStore("styleData");
 
-  const id = `${React.useId()}💫`.replace(/:/g, "");
+  const id = `${React.useId()}⭐️`.replace(/:/g, "");
 
   React.useEffect(() => {
     setStyleData((prevState) => ({
@@ -24,7 +21,7 @@ const StyleTag = ({ fileNames, children }: StyleTagProps) => {
       setStyleData((prevState) => {
         if (!prevState) return null;
         const { [id]: unused, ...rest } = prevState; // eslint-disable-line @typescript-eslint/no-unused-vars
-        return rest;
+        return rest.length ? { ...rest } : null;
       });
     };
   }, [fileNames, id]);

@@ -1,40 +1,34 @@
-type StyleData = Record<
-  string,
-  {
-    fileNames?: string[];
-    stylesLoaded?: boolean;
-  }
-> | null;
-type StyleDataT = typeof initialState;
+import { MainDataT } from "./types";
+
 const initialState = {
-  styleData: null as StyleData,
+  styleData: null,
 };
 
 type Listener<T> = (value: T) => void;
-type ListenersMap = Map<string, Set<Listener<StyleDataT[keyof StyleDataT]>>>;
+type ListenersMap = Map<string, Set<Listener<MainDataT[keyof MainDataT]>>>;
 
-let state: StyleDataT = {} as StyleDataT; // Инициализируем state с значениями по умолчанию
-let proxyState: StyleDataT | null = null;
+let state: MainDataT;
+let proxyState: MainDataT;
 
 const listeners: ListenersMap = new Map();
 
-const initializeState = (initialState: Partial<StyleDataT>) => {
+const initializeState = (initialState: Partial<MainDataT>) => {
   if (proxyState) return;
   // Обновляем состояние, создаём новый объект с объединением
-  state = { ...state, ...initialState } as StyleDataT;
+  state = { ...state, ...initialState } as MainDataT;
 
   proxyState = new Proxy(state, {
     get(target, key: string | symbol) {
       if (typeof key === "string" && key in target) {
-        return target[key as keyof StyleDataT];
+        return target[key as keyof MainDataT];
       }
       return undefined;
     },
-    set(target, key: string | symbol, value: StyleDataT[keyof StyleDataT]) {
+    set(target, key: string | symbol, value: MainDataT[keyof MainDataT]) {
       if (typeof key === "string") {
-        const currentValue = target[key as keyof StyleDataT];
+        const currentValue = target[key as keyof MainDataT];
         if (JSON.stringify(currentValue) !== JSON.stringify(value)) {
-          target[key as keyof StyleDataT] = value; // Обновляем состояние
+          target[key as keyof MainDataT] = value; // Обновляем состояние
 
           // Уведомляем подписчиков
           const keyListeners = listeners.get(key);
@@ -53,18 +47,18 @@ initializeState(initialState);
 const warning = "State is not initialized yet 👺";
 
 // exported functions
-const getState = (): StyleDataT => {
+const getState = (): MainDataT => {
   if (!proxyState) {
     console.warn(warning);
-    return {} as StyleDataT;
+    return {} as MainDataT;
   }
   return { ...proxyState };
 };
 
-const getAllStateValues = (): StyleDataT => {
+const getAllStateValues = (): MainDataT => {
   if (!proxyState) {
     console.warn(warning);
-    return {} as StyleDataT;
+    return {} as MainDataT;
   }
 
   return { ...proxyState };
@@ -74,21 +68,21 @@ const subscribe = <T,>(key: string, listener: Listener<T>): (() => void) => {
   if (!listeners.has(key)) {
     listeners.set(key, new Set());
   }
-  listeners.get(key)?.add(listener as Listener<StyleDataT[keyof StyleDataT]>);
+  listeners.get(key)?.add(listener as Listener<MainDataT[keyof MainDataT]>);
 
   return () =>
     listeners
       .get(key)
-      ?.delete(listener as Listener<StyleDataT[keyof StyleDataT]>);
+      ?.delete(listener as Listener<MainDataT[keyof MainDataT]>);
 };
 
-const subscribeToAll = (listener: Listener<StyleDataT>): (() => void) => {
+const subscribeToAll = (listener: Listener<MainDataT>): (() => void) => {
   const unsubscribeFunctions: (() => void)[] = [];
 
   for (const key in state) {
     unsubscribeFunctions.push(
       subscribe(key, () => {
-        listener({ ...proxyState } as StyleDataT); // Возвращаем копию всего состояния
+        listener({ ...proxyState } as MainDataT); // Возвращаем копию всего состояния
       })
     );
   }
@@ -98,9 +92,9 @@ const subscribeToAll = (listener: Listener<StyleDataT>): (() => void) => {
   };
 };
 
-const setState = <K extends keyof StyleDataT>(
+const setState = <K extends keyof MainDataT>(
   key: K,
-  value: StyleDataT[K]
+  value: MainDataT[K]
 ): void => {
   if (!proxyState) {
     console.warn(warning);
@@ -109,11 +103,4 @@ const setState = <K extends keyof StyleDataT>(
   proxyState[key] = value;
 };
 
-export {
-  getState,
-  getAllStateValues,
-  subscribe,
-  subscribeToAll,
-  setState,
-  StyleDataT,
-};
+export { getState, getAllStateValues, subscribe, subscribeToAll, setState };

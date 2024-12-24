@@ -1,13 +1,13 @@
 import React from "react";
-import { getState, setState, subscribe, StyleDataT } from "./proxyStyleData";
+import { MainDataT } from "./types";
 
-const useStore = <K extends keyof StyleDataT>(
+import { getState, setState, subscribe } from "./proxyStyleData";
+
+const useStore = <K extends keyof MainDataT>(
   stateKey: K
 ): [
-  StyleDataT[K],
-  (
-    update: ((prevState: StyleDataT[K]) => StyleDataT[K]) | StyleDataT[K]
-  ) => void
+  MainDataT[K],
+  (update: ((prevState: MainDataT[K]) => MainDataT[K]) | MainDataT[K]) => void
 ] => {
   // Селектор для получения значения по ключу
   const getSnapshot = () => getState()[stateKey];
@@ -24,13 +24,11 @@ const useStore = <K extends keyof StyleDataT>(
 
   // Функция для обновления состояния
   const updateGlobalState = React.useCallback(
-    (update: ((prevState: StyleDataT[K]) => StyleDataT[K]) | StyleDataT[K]) => {
+    (update: ((prevState: MainDataT[K]) => MainDataT[K]) | MainDataT[K]) => {
       const currentState = getSnapshot();
       const newState =
         typeof update === "function"
-          ? (update as (prevState: StyleDataT[K]) => StyleDataT[K])(
-              currentState
-            )
+          ? (update as (prevState: MainDataT[K]) => MainDataT[K])(currentState)
           : update;
 
       // Устанавливаем новое состояние только при изменении

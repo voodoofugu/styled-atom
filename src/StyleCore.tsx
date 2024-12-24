@@ -1,43 +1,59 @@
 import React from "react";
+import { StyleDataT, StyleCoreT } from "./types";
 
-import useDynamicStyle, { ImportStyleT } from "./useDynamicStyle";
+import useDynamicStyle from "./useDynamicStyle";
 import { getAllStateValues, subscribeToAll } from "./proxyStyleData";
 
-type StyleCoreT = {
-  path: ImportStyleT;
-  watch?: boolean;
+const storageName = "styledAtom💫";
+const emptySpace = "empty⭐️";
+
+const removeStorage = () => {
+  sessionStorage.removeItem(storageName);
+};
+
+const setStorage = (data: StyleDataT | string) => {
+  sessionStorage.setItem(storageName, JSON.stringify(data));
 };
 
 const StyleCore = ({ path, watch }: StyleCoreT) => {
   useDynamicStyle(path);
 
-  React.useEffect(() => {
-    if (!watch) return;
+  const storedStyleData = sessionStorage.getItem(storageName);
+  const initialState = getAllStateValues();
 
-    const initialState = getAllStateValues();
-    const storedStyleData = sessionStorage.getItem("styledAtom💫");
+  if (!watch) {
+    if (storedStyleData) {
+      removeStorage();
+    }
+    return;
+  }
 
-    if (!storedStyleData) {
-      sessionStorage.setItem(
-        "styledAtom💫",
-        JSON.stringify(initialState.styleData)
-      );
+  if (!storedStyleData) {
+    if (!initialState.styleData) {
+      setStorage(emptySpace);
+      return;
     }
 
-    const unsubscribe = subscribeToAll((updatedState) => {
-      sessionStorage.setItem(
-        "styledAtom💫",
-        JSON.stringify(updatedState.styleData)
-      );
-    });
+    setStorage(initialState.styleData);
+  }
 
+  const unsubscribe = subscribeToAll((updatedState) => {
+    if (!updatedState.styleData) {
+      setStorage(emptySpace);
+      return;
+    }
+
+    setStorage(updatedState.styleData);
+  });
+
+  React.useEffect(() => {
     return () => {
       unsubscribe();
       if (storedStyleData) {
-        sessionStorage.removeItem("styledAtom💫");
+        removeStorage();
       }
     };
-  }, [watch]);
+  }, []);
 
   return null;
 };

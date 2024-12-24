@@ -3,15 +3,7 @@ import useStore from "./useStore";
 
 import textToCamelCase from "./textToCamelCase";
 
-type StyleData = Record<
-  string,
-  {
-    fileNames?: string[];
-    stylesLoaded?: boolean;
-  }
->;
-
-type ImportStyleT = (fileName: string) => Promise<{ default: string }>;
+import { StyleDataT, ImportStyleT } from "./types";
 
 const arraysEqual = (arr1: string[], arr2: string[]) =>
   arr1.length === arr2.length && arr1.every((v, i) => v === arr2[i]);
@@ -62,10 +54,7 @@ const loadStyles = async (
   prevStyleData: { fileNames?: string[]; stylesLoaded?: boolean },
   importStyle: ImportStyleT,
   setStyleData: (
-    update:
-      | StyleData
-      | ((prevState: StyleData | null) => StyleData | null)
-      | null
+    update: StyleDataT | ((prevState: StyleDataT) => StyleDataT) | null
   ) => void
 ) => {
   const id = Object.keys(styleObj)[0];
@@ -105,11 +94,11 @@ const loadStyles = async (
 const useDynamicStyle = (importStyle: ImportStyleT) => {
   const [styleData, setStyleData] = useStore("styleData");
 
-  const prevStyleArrayRef = React.useRef<StyleData>({});
+  const prevStyleArrayRef = React.useRef<StyleDataT>({});
 
-  const loadStyleObject = (styleData: StyleData) => {
-    Object.entries(styleData).forEach(([id, styleData]) => {
-      const prevStyleData = prevStyleArrayRef.current[id];
+  const loadStyleObject = (styleData: StyleDataT) => {
+    Object.entries(styleData ?? {}).forEach(([id, styleData]) => {
+      const prevStyleData = prevStyleArrayRef.current?.[id];
 
       let removedFileNames: string[] = [];
       if (prevStyleData) {
@@ -135,7 +124,7 @@ const useDynamicStyle = (importStyle: ImportStyleT) => {
   };
 
   React.useEffect(() => {
-    const prevIds = Object.keys(prevStyleArrayRef.current);
+    const prevIds = Object.keys(prevStyleArrayRef.current ?? {});
 
     const currentIds = styleData ? Object.keys(styleData) : [];
     const removedIds = prevIds.filter((id) => !currentIds.includes(id));
@@ -151,4 +140,3 @@ const useDynamicStyle = (importStyle: ImportStyleT) => {
 };
 
 export default useDynamicStyle;
-export { ImportStyleT };
