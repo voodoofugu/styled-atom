@@ -1,14 +1,24 @@
 {
-  "name": "project-name",
-  "version": "1.0.0",
-  "description": "npm package description",
-  "author": "Name",
+  "name": "styled-atom",
+  "version": "1.0.2",
+  "description": "Library for working with styles in React 💫",
+  "author": "Georg Schilin",
   "license": "MIT",
   "main": "index.js",
   "type": "module",
-  "types": "./index.d.ts",
-  "keywords": [],
+  "types": "index.d.ts",
+  "keywords": [
+    "styled-atom",
+    "styles",
+    "react",
+    "css",
+    "css-in-js"
+  ],
   "peerDependencies": {
     "react": "^18.3.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voodoofugu/styled-atom.git"
   }
 }
