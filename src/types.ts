@@ -7,8 +7,9 @@ export type StyleCoreT = {
 
 export type StyledAtomT = {
   fileNames: string[];
-  children?: React.ReactNode;
+  fallback?: React.ReactNode;
   onLoad?: (loaded: boolean) => void;
+  children?: React.ReactNode;
 };
 
 export type StyleDataT = Record<

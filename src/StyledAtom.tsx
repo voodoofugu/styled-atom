@@ -3,7 +3,7 @@ import { StyledAtomT } from "./types";
 
 import useStore from "./useStore";
 
-const StyledAtom = ({ fileNames, onLoad, children }: StyledAtomT) => {
+const StyledAtom = ({ fileNames, fallback, onLoad, children }: StyledAtomT) => {
   const [styleData, setStyleData] = useStore("styleData");
   const prevStylesLoaded = React.useRef(false);
 
@@ -42,7 +42,7 @@ const StyledAtom = ({ fileNames, onLoad, children }: StyledAtomT) => {
   if (!children) {
     return null;
   }
-  return stylesLoaded ? <>{children}</> : null;
+  return stylesLoaded ? <>{children}</> : fallback || null;
 };
 
 export default StyledAtom;
