@@ -53,7 +53,7 @@ const App = () => (
 
 ## StyledAtom
 
-Now, after mounting `StyleCore`, you can use `StyledAtom`. Just passing the file names to the fileNames array:
+Now, after mounting `StyleCore`, you can use `StyledAtom`. Just passing the file names to the `fileNames` array:
 
 ```javascript
 import { StyledAtom } from "styled-atom";
@@ -63,6 +63,28 @@ const YourComponent = () => {
     <>
       <StyledAtom fileNames={["yourStyle1", "yourStyle2"]} />
       <SomeComponent />
+    </>
+  };
+};
+```
+
+`StyledAtom` can be used as a wrapper for your content, which will be rendered only after the transferred style files are fully loaded.
+You can also pass your upload element to the `fallback`.
+Another `StyledAtom` includes a callback function that is executed after the download of the style files is completed:
+
+```typescript
+const YourComponent = () => {
+  return {
+    <>
+      <StyledAtom
+        fileNames={["yourStyle1", "yourStyle2"]}
+        fallback={<div>Loading...</div>}
+        onLoad={
+          (loaded: boolean) => { console.log(`StyledAtom is loaded: ${loaded}`); }
+        }
+      >
+        <SomeComponent />
+      </StyledAtom>
     </>
   };
 };
