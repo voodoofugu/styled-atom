@@ -6,7 +6,6 @@
 - [Installation](#Installation)
 - [StyleCore](#StyleCore)
 - [StyledAtom](#StyledAtom)
-- [Motivation](#Motivation)
 - [API](#API)
 
 ## About
@@ -50,4 +49,21 @@ const App = () => (
     <YourComponent />
   </>
 );
+```
+
+## StyledAtom
+
+Now, after mounting `StyleCore`, you can use `StyledAtom`. By simply passing the file names to the fileNames array:
+
+```javascript
+import { StyledAtom } from "styled-atom";
+
+const YourComponent = () => {
+  return {
+    <>
+      <StyledAtom fileNames={["yourStyle"]} />
+      <SomeComponent />
+    </>
+  };
+};
 ```
