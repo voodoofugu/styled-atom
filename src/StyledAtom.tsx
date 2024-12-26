@@ -3,7 +3,7 @@ import { StyledAtomT } from "./types";
 
 import useStore from "./useStore";
 
-const StyledAtom = ({ fileNames, children, onLoad }: StyledAtomT) => {
+const StyledAtom = ({ fileNames, onLoad, children }: StyledAtomT) => {
   const [styleData, setStyleData] = useStore("styleData");
   const prevStylesLoaded = React.useRef(false);
 
