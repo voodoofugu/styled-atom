@@ -17,13 +17,13 @@ declare const StyleCore: ({
 }) => null | undefined;
 
 /**
- * `StyleTag` component.
+ * `StyledAtom` component.
  * @param fileNames - Array of style file names.
  * @param children - Optional React children elements.
  * @returns JSX element or null.
- * @see {@link https://www.npmjs.com/package/styled-atom#StyleTag Documentation}
+ * @see {@link https://www.npmjs.com/package/styled-atom#StyledAtom Documentation}
  */
-declare const StyleTag: ({
+declare const StyledAtom: ({
   fileNames,
   children,
 }: {
@@ -31,4 +31,4 @@ declare const StyleTag: ({
   children?: React.ReactNode;
 }) => import("react/jsx-runtime").JSX.Element | null;
 
-export { StyleCore, StyleTag };
+export { StyleCore, StyledAtom };

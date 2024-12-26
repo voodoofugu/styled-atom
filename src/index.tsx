@@ -1,4 +1,4 @@
 import StyleCore from "./StyleCore";
-import StyleTag from "./StyleTag";
+import StyledAtom from "./StyledAtom";
 
-export { StyleCore, StyleTag };
+export { StyleCore, StyledAtom };

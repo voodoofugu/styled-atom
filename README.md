@@ -5,7 +5,7 @@
 - [About](#About)
 - [Installation](#Installation)
 - [StyleCore](#StyleCore)
-- [StyleTag](#StyleTag)
+- [StyledAtom](#StyledAtom)
 - [Motivation](#Motivation)
 - [API](#API)
 

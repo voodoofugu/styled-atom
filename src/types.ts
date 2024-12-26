@@ -1,11 +1,14 @@
+export type ImportStyleT = (fileName: string) => Promise<{ default: string }>;
+
 export type StyleCoreT = {
   path: ImportStyleT;
   watch?: boolean;
 };
 
-export type StyleTagT = {
+export type StyledAtomT = {
   fileNames: string[];
   children?: React.ReactNode;
+  onLoad?: (loaded: boolean) => void;
 };
 
 export type StyleDataT = Record<
@@ -19,5 +22,3 @@ export type StyleDataT = Record<
 export type MainDataT = {
   styleData: StyleDataT;
 };
-
-export type ImportStyleT = (fileName: string) => Promise<{ default: string }>;
