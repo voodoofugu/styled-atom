@@ -10,7 +10,7 @@
 
 ## About
 
-It is a lightweight library for working with CSS in JS.
+It is a lightweight React library for working with CSS in JS.
 
 ## Installation
 
@@ -22,24 +22,13 @@ npm install styled-atom
 
 ## StyleCore
 
-After installing the library, you need to use the Style Core component at the top level of your project by passing the path to the folder with the style files to the path through the call function:
+After installing the library, you need to use the Style Core component at the top level of your project by passing the path to the folder with the style files to the path through the call function.
+You can also pass an optional `watch` parameter to `StyleCore`, which will allow you to monitor `style-atom` data in the `sessionStorage`:
 
 ```typescript
+import React from "react";
 import { StyleCore } from "styled-atom";
 
-const App = () => (
-  <>
-    <StyleCore
-      path={(name: string) => import(`../src/style/css/${name}.css`)}
-    />
-    <YourComponent />
-  </>
-);
-```
-
-You can also pass the watch parameter to `StyleCore`, which will allow you to monitor `style-atom` data in the `sessionStorage`:
-
-```typescript
 const App = () => (
   <>
     <StyleCore
@@ -51,11 +40,22 @@ const App = () => (
 );
 ```
 
+You will see these style tags in the browser:
+!!!!!!!!!!!
+
+```
+<style id="✦0" class="yourStyle1">/</style>
+<style id="✦0" class="yourStyle2">/</style>
+```
+
+🔮 _All the names of your CSS files will be converted to camelCase._
+
 ## StyledAtom
 
 Now, after mounting `StyleCore`, you can use `StyledAtom`. Just passing the file names to the `fileNames` array:
 
 ```javascript
+import React from 'react';
 import { StyledAtom } from "styled-atom";
 
 const YourComponent = () => {
@@ -89,3 +89,8 @@ const YourComponent = () => {
   };
 };
 ```
+
+## API
+
+- `StyleCore`: The component for initializing the library.
+- `StyledAtom`: A component for creating style tags.
