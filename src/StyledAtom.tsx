@@ -28,21 +28,21 @@ const StyledAtom = ({ fileNames, fallback, onLoad, children }: StyledAtomT) => {
     };
   }, [fileNames, id, setStyleData]);
 
-  const stylesLoaded = styleData?.[id]?.stylesLoaded ?? false;
+  const loaded = styleData?.[id]?.loaded ?? false;
 
   React.useEffect(() => {
-    if (onLoad && stylesLoaded && !prevStylesLoaded.current) {
-      onLoad(stylesLoaded);
+    if (onLoad && loaded && !prevStylesLoaded.current) {
+      onLoad(loaded);
       prevStylesLoaded.current = true;
-    } else if (!stylesLoaded) {
+    } else if (!loaded) {
       prevStylesLoaded.current = false;
     }
-  }, [stylesLoaded, onLoad]);
+  }, [loaded, onLoad]);
 
   if (!children) {
     return null;
   }
-  return stylesLoaded ? <>{children}</> : fallback || null;
+  return loaded ? <>{children}</> : fallback || null;
 };
 
 export default StyledAtom;

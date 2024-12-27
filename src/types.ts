@@ -16,7 +16,7 @@ export type StyleDataT = Record<
   string,
   {
     fileNames?: string[];
-    stylesLoaded?: boolean;
+    loaded?: boolean;
   }
 > | null;
 

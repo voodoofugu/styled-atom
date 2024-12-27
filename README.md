@@ -6,11 +6,13 @@
 - [Installation](#Installation)
 - [StyleCore](#StyleCore)
 - [StyledAtom](#StyledAtom)
+- [More](#More)
 - [API](#API)
 
 ## About
 
-It is a lightweight React library for working with CSS in JS.
+`styled-atom` is a CSS in JS React library designed for managing styles dynamically in your projects.
+It allows you to load styles asynchronously, and track their state.
 
 ## Installation
 
@@ -22,8 +24,14 @@ npm install styled-atom
 
 ## StyleCore
 
-After installing the library, you need to use the Style Core component at the top level of your project by passing the path to the folder with the style files to the path through the call function.
-You can also pass an optional `watch` parameter to `StyleCore`, which will allow you to monitor `style-atom` data in the `sessionStorage`:
+`StyleCore` is the foundation of the `styled-atom` library. It initializes the system and ensures styles are properly loaded. Place this component at the root of your application.
+
+### Props:
+
+- **`path` (required):** A function that dynamically imports CSS files. It should return a `Promise` that resolves to the desired CSS file.
+- **`watch` (optional):** If `true`, monitors the style states via `sessionStorage`.
+
+### Example:
 
 ```typescript
 import React from "react";
@@ -40,54 +48,66 @@ const App = () => (
 );
 ```
 
-You will see these style tags in the browser:
-
-```
-<style atom="✦0" name="yourStyle1">/</style>
-<style atom="✦0" name="yourStyle2">/</style>
-```
-
-🔮 _All the names of your CSS files will be converted to camelCase._
-
 ## StyledAtom
 
-Now, after mounting `StyleCore`, you can use `StyledAtom`. Just passing the file names to the `fileNames` array:
+`StyledAtom` is used to apply styles dynamically. It can wrap your components and render them only when all the specified styles are loaded.
 
-```javascript
-import React from 'react';
-import { StyledAtom } from "styled-atom";
+### Props:
 
-const YourComponent = () => {
-  return {
-    <>
-      <StyledAtom fileNames={["your-style1", "your-style2"]} />
-      <SomeComponent />
-    </>
-  };
-};
-```
+- **`fileNames` (required):** An array of CSS file names to load dynamically.
+- **`fallback` (optional):** A React element to render while styles are loading.
+- **`onLoad` (optional):** A callback triggered when styles are loaded. Receives a boolean indicating the success of the operation.
 
-`StyledAtom` can be used as a wrapper for your content, which will be rendered only after the transferred style files are fully loaded.
-You can also pass your upload element to the `fallback`.
-Another `StyledAtom` includes a callback function that is executed after the download of the style files is completed:
+### Example:
 
 ```typescript
-const YourComponent = () => {
-  return {
-    <>
-      <StyledAtom
-        fileNames={["yourStyle1", "yourStyle2"]}
-        fallback={<div>Loading...</div>}
-        onLoad={
-          (loaded: boolean) => { console.log(`StyledAtom is loaded: ${loaded}`); }
-        }
-      >
-        <SomeComponent />
-      </StyledAtom>
-    </>
-  };
-};
+import React from "react";
+import { StyledAtom } from "styled-atom";
+
+const YourComponent = () => (
+  <>
+    <StyledAtom
+      fileNames={["your-style1", "your-style2"]}
+      fallback={<div>Loading...</div>}
+      onLoad={(loaded: boolean) => console.log(`Styles loaded: ${loaded}`)}
+    >
+      <SomeComponent />
+    </StyledAtom>
+  </>
+);
 ```
+
+## More
+
+After the styles are loaded, you will see:
+
+### In the Browser:
+
+```html
+<style atom="✦0" name="yourStyle1">
+  /* CSS content */
+</style>
+<style atom="✦1" name="yourStyle2">
+  /* CSS content */
+</style>
+```
+
+### In sessionStorage under `✦styledAtom✦`:
+
+```
+{
+  "✦0": {
+    "fileNames": ["your-style1"],
+    "loaded": true
+  },
+  "✦1": {
+    "fileNames": ["your-style2"],
+    "loaded": true
+  }
+}
+```
+
+🔮 _If you have used `watch` in `StyleCore`._
 
 ## API
 

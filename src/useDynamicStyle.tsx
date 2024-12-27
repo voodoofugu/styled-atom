@@ -46,16 +46,16 @@ const createStateTag = (id: string, fileName: string) => {
 
 const loadStyles = async (
   styleObj: {
-    [key: string]: { fileNames?: string[]; stylesLoaded?: boolean };
+    [key: string]: { fileNames?: string[]; loaded?: boolean };
   },
-  prevStyleData: { fileNames?: string[]; stylesLoaded?: boolean },
+  prevStyleData: { fileNames?: string[]; loaded?: boolean },
   importStyle: ImportStyleT,
   setStyleData: (
     update: StyleDataT | ((prevState: StyleDataT) => StyleDataT) | null
   ) => void
 ) => {
   const id = Object.keys(styleObj)[0];
-  const { fileNames, stylesLoaded } = styleObj[id];
+  const { fileNames, loaded } = styleObj[id];
 
   if (!fileNames || fileNames.length === 0) {
     console.warn(`No files to load for id "${id}"`, "\n", "✦styledAtom✦");
@@ -80,13 +80,13 @@ const loadStyles = async (
       if (
         !prevStyleData ||
         !arraysEqual(prevStyleData?.fileNames || [], fileNames || []) ||
-        !stylesLoaded
+        !loaded
       ) {
         setStyleData((prevState) => ({
           ...prevState,
           [id]: {
             ...prevState?.[id],
-            stylesLoaded: true,
+            loaded: true,
           },
         }));
       }
