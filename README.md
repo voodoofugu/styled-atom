@@ -92,7 +92,7 @@ After the styles are loaded, you will see:
 </style>
 ```
 
-### In sessionStorage under `✦styledAtom✦`:
+### In sessionStorage under ✦styledAtom✦:
 
 ```
 {
@@ -106,8 +106,6 @@ After the styles are loaded, you will see:
   }
 }
 ```
-
-🔮 _If you have used `watch` in `StyleCore`._
 
 ## API
 
