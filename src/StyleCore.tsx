@@ -4,8 +4,8 @@ import { StyleDataT, StyleCoreT } from "./types";
 import useDynamicStyle from "./useDynamicStyle";
 import { getAllStateValues, subscribeToAll } from "./proxyStyleData";
 
-const storageName = "styledAtom💫";
-const emptySpace = "empty⭐️";
+const storageName = "✦styledAtom✦";
+const emptySpace = "empty";
 
 const removeStorage = () => {
   sessionStorage.removeItem(storageName);
@@ -17,10 +17,10 @@ const setStorage = (data: StyleDataT | string) => {
 
 const StyleCore = ({ path, watch }: StyleCoreT) => {
   useDynamicStyle(path);
+  const initialState = getAllStateValues();
 
   React.useEffect(() => {
     const storedStyleData = sessionStorage.getItem(storageName);
-    const initialState = getAllStateValues();
 
     if (!watch) {
       if (storedStyleData) {
@@ -53,7 +53,7 @@ const StyleCore = ({ path, watch }: StyleCoreT) => {
         removeStorage();
       }
     };
-  }, []);
+  }, [initialState]);
 
   return null;
 };

@@ -1,8 +1,6 @@
 import React from "react";
 import useStore from "./useStore";
 
-import textToCamelCase from "./textToCamelCase";
-
 import { StyleDataT, ImportStyleT } from "./types";
 
 const arraysEqual = (arr1: string[], arr2: string[]) =>
@@ -17,15 +15,15 @@ const clearStyles = ({
 }) => {
   if (fileNames) {
     fileNames.forEach((el) => {
-      const element = document.head.getElementsByClassName(el)[0];
+      const element = document.head.querySelector(`style[name="${el}"]`);
       if (element) {
         document.head.removeChild(element);
       }
     });
   }
   if (id && !fileNames) {
-    const escapedId = CSS.escape(id);
-    const elements = document.head.querySelectorAll(`[id^='${escapedId}']`);
+    // const escapedId = CSS.escape(id);
+    const elements = document.head.querySelectorAll(`style[atom="${id}"]`);
     elements.forEach((el) => {
       document.head.removeChild(el);
     });
@@ -33,14 +31,13 @@ const clearStyles = ({
 };
 
 const createStateTag = (id: string, fileName: string) => {
-  const classElem = textToCamelCase(fileName);
-  let styleElement = document.getElementsByClassName(
-    classElem
-  )[0] as HTMLStyleElement;
+  let styleElement = document.head.querySelector(
+    `style[name="${fileName}"]`
+  ) as HTMLStyleElement;
   if (!styleElement) {
     styleElement = document.createElement("style");
-    styleElement.id = id;
-    styleElement.className = classElem;
+    styleElement.setAttribute("atom", id);
+    styleElement.setAttribute("name", fileName);
     document.head.appendChild(styleElement);
   }
 
@@ -61,7 +58,7 @@ const loadStyles = async (
   const { fileNames, stylesLoaded } = styleObj[id];
 
   if (!fileNames || fileNames.length === 0) {
-    console.warn(`No files to load for id "${id}" 👺`);
+    console.warn(`No files to load for id "${id}"`, "\n", "✦styledAtom✦");
     return;
   }
 
@@ -71,8 +68,14 @@ const loadStyles = async (
       const { default: cssData } = await importStyle(fileName);
       styleElement.textContent = cssData;
     } catch (error) {
-      console.error(`Error loading style for ${fileName} 👺`, error);
-      styleElement.textContent = "👺";
+      console.error(
+        `Loading failed for "${fileName}" style`,
+        "\n",
+        error,
+        "\n",
+        "✦styledAtom✦"
+      );
+      styleElement.textContent = "—empty atom—";
     } finally {
       if (
         !prevStyleData ||

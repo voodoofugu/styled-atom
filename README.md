@@ -1,4 +1,4 @@
-# styled-atom 💫
+# ✦ styled-atom ✦
 
 ## Table of contents
 
@@ -41,11 +41,10 @@ const App = () => (
 ```
 
 You will see these style tags in the browser:
-!!!!!!!!!!!
 
 ```
-<style id="✦0" class="yourStyle1">/</style>
-<style id="✦0" class="yourStyle2">/</style>
+<style atom="✦0" name="yourStyle1">/</style>
+<style atom="✦0" name="yourStyle2">/</style>
 ```
 
 🔮 _All the names of your CSS files will be converted to camelCase._
@@ -61,7 +60,7 @@ import { StyledAtom } from "styled-atom";
 const YourComponent = () => {
   return {
     <>
-      <StyledAtom fileNames={["yourStyle1", "yourStyle2"]} />
+      <StyledAtom fileNames={["your-style1", "your-style2"]} />
       <SomeComponent />
     </>
   };
