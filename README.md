@@ -1,11 +1,5 @@
-<div align="center"
-  style="
-    background: linear-gradient(0deg, #57005b, #004394);
-    border-radius: 10px;
-    padding: 14px 0;
-  "
->
-  <img src="https://drive.google.com/uc?export=view&id=1xx8p5wTCThzdNk6o6KdENmwDCygLULWk" alt="logo" width="350"/>
+<div align="center">
+  <img src="https://drive.google.com/uc?export=view&id=169_hBBES-IZPpg74mUtHu8OlwD9dyBE1" alt="logo" width="350"/>
 </div>
 
 ## Table of contents
