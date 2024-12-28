@@ -7,12 +7,13 @@ import { getAllStateValues, subscribeToAll } from "./proxyStyleData";
 const storageName = "✦styledAtom✦";
 const emptySpace = "empty";
 
-const removeStorage = () => {
-  sessionStorage.removeItem(storageName);
-};
-
-const setStorage = (data: StyleDataT | string) => {
-  sessionStorage.setItem(storageName, JSON.stringify(data));
+const storageHandler = (type: "set" | "remove", data?: StyleDataT | string) => {
+  if (typeof window === "undefined") return;
+  if (type === "set") {
+    sessionStorage.setItem(storageName, JSON.stringify(data));
+  } else {
+    sessionStorage.removeItem(storageName);
+  }
 };
 
 const StyleCore = ({ path, watch }: StyleCoreT) => {
@@ -24,33 +25,33 @@ const StyleCore = ({ path, watch }: StyleCoreT) => {
 
     if (!watch) {
       if (storedStyleData) {
-        removeStorage();
+        storageHandler("remove");
       }
       return;
     }
 
     if (!storedStyleData) {
       if (!initialState.styleData) {
-        setStorage(emptySpace);
+        storageHandler("set", emptySpace);
         return;
       }
 
-      setStorage(initialState.styleData);
+      storageHandler("set", initialState.styleData);
     }
 
     const unsubscribe = subscribeToAll((updatedState) => {
       if (!updatedState.styleData) {
-        setStorage(emptySpace);
+        storageHandler("set", emptySpace);
         return;
       }
 
-      setStorage(updatedState.styleData);
+      storageHandler("set", updatedState.styleData);
     });
 
     return () => {
       unsubscribe();
       if (storedStyleData) {
-        removeStorage();
+        storageHandler("remove");
       }
     };
   }, [initialState]);

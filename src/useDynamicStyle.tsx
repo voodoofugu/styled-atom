@@ -17,7 +17,7 @@ const clearStyles = ({
     fileNames.forEach((el) => {
       const element = document.head.querySelector(`style[name="${el}"]`);
       if (element) {
-        document.head.removeChild(element);
+        element.remove();
       }
     });
   }
@@ -25,7 +25,7 @@ const clearStyles = ({
     // const escapedId = CSS.escape(id);
     const elements = document.head.querySelectorAll(`style[atom="${id}"]`);
     elements.forEach((el) => {
-      document.head.removeChild(el);
+      el.remove();
     });
   }
 };
@@ -52,7 +52,8 @@ const loadStyles = async (
   importStyle: ImportStyleT,
   setStyleData: (
     update: StyleDataT | ((prevState: StyleDataT) => StyleDataT) | null
-  ) => void
+  ) => void,
+  counter: React.MutableRefObject<Record<string, number>>
 ) => {
   const id = Object.keys(styleObj)[0];
   const { fileNames, loaded } = styleObj[id];
@@ -62,11 +63,18 @@ const loadStyles = async (
     return;
   }
 
+  fileNames.forEach((fileName) => {
+    if (!(fileName in counter.current)) {
+      counter.current[fileName] = 0;
+    }
+  });
+
   for (const fileName of fileNames) {
     const styleElement = createStateTag(id, fileName);
     try {
       const { default: cssData } = await importStyle(fileName);
       styleElement.textContent = cssData;
+      counter.current[fileName] += 1;
     } catch (error) {
       console.error(
         `Loading failed for "${fileName}" style`,
@@ -75,12 +83,18 @@ const loadStyles = async (
         "\n",
         "✦styledAtom✦"
       );
-      styleElement.textContent = "—empty atom—";
+      styleElement.textContent = "⛔︎";
+      counter.current[fileName] += 1;
     } finally {
+      const allFilesLoaded = fileNames.every(
+        (fileName) => counter.current[fileName] > 0
+      );
+
       if (
-        !prevStyleData ||
-        !arraysEqual(prevStyleData?.fileNames || [], fileNames || []) ||
-        !loaded
+        (!prevStyleData ||
+          !arraysEqual(prevStyleData?.fileNames || [], fileNames || []) ||
+          !loaded) &&
+        allFilesLoaded
       ) {
         setStyleData((prevState) => ({
           ...prevState,
@@ -89,6 +103,10 @@ const loadStyles = async (
             loaded: true,
           },
         }));
+
+        fileNames.forEach((fileName) => {
+          delete counter.current[fileName];
+        });
       }
     }
   }
@@ -98,6 +116,7 @@ const useDynamicStyle = (importStyle: ImportStyleT) => {
   const [styleData, setStyleData] = useStore("styleData");
 
   const prevStyleArrayRef = React.useRef<StyleDataT>({});
+  const counter = React.useRef<Record<string, number>>({});
 
   const loadStyleObject = (styleData: StyleDataT) => {
     Object.entries(styleData ?? {}).forEach(([id, styleData]) => {
@@ -112,12 +131,13 @@ const useDynamicStyle = (importStyle: ImportStyleT) => {
         );
       }
 
-      // Теперь передаем в loadStyles объект с ключом id и значением, соответствующим типу
+      // Теперь передаем в loadStyles объект с ключом id и значением
       loadStyles(
         { [id]: styleData },
         prevStyleData || {},
         importStyle,
-        setStyleData
+        setStyleData,
+        counter
       );
 
       if (prevStyleData && removedFileNames.length > 0) {

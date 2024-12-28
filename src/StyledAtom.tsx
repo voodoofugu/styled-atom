@@ -5,9 +5,11 @@ import useStore from "./useStore";
 
 const StyledAtom = ({ fileNames, fallback, onLoad, children }: StyledAtomT) => {
   const [styleData, setStyleData] = useStore("styleData");
-  const prevStylesLoaded = React.useRef(false);
 
+  const prevStylesLoaded = React.useRef(false);
   const id = `✦${React.useId()}`.replace(/[:r]/g, "");
+
+  const loaded = styleData?.[id]?.loaded ?? false;
 
   React.useEffect(() => {
     setStyleData((prevState) => ({
@@ -24,11 +26,12 @@ const StyledAtom = ({ fileNames, fallback, onLoad, children }: StyledAtomT) => {
         const { [id]: unused, ...rest } = prevState; // eslint-disable-line @typescript-eslint/no-unused-vars
         return Object.keys(rest).length ? rest : null;
       });
+      if (onLoad) {
+        onLoad(false);
+      }
       prevStylesLoaded.current = false;
     };
   }, [fileNames, id, setStyleData]);
-
-  const loaded = styleData?.[id]?.loaded ?? false;
 
   React.useEffect(() => {
     if (onLoad && loaded && !prevStylesLoaded.current) {

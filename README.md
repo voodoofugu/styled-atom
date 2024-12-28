@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://drive.google.com/uc?export=view&id=1RVA6ndveqGA0U_UaKGKfE3IAc0U2NdfP" alt="logo" width="300"/>
+</p>
+
 # ✦ styled-atom ✦
 
 ## Table of contents
@@ -100,7 +104,7 @@ After the styles are loaded, you will see:
     "fileNames": ["your-style1"],
     "loaded": true
   },
-  "✦1": {
+  "✦0": {
     "fileNames": ["your-style2"],
     "loaded": true
   }
