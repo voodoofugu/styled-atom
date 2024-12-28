@@ -1,4 +1,4 @@
-<p align="center">
+<p align="center" style="margin-bottom: 0;">
   <img src="https://drive.google.com/uc?export=view&id=1RVA6ndveqGA0U_UaKGKfE3IAc0U2NdfP" alt="logo" width="140"/>
 </p>
 <h1 align="center">styled-atom</h1>
