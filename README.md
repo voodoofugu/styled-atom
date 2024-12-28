@@ -1,7 +1,8 @@
-<div align="center" style="height: 180px;">
-  <img src="https://drive.google.com/uc?export=view&id=1cTHl-bW9TSG_J1FF5D2c6qZAMtDJ8ZgF" alt="logo" width="180"/>
+<div align="center">
+  <img src="https://drive.google.com/uc?export=view&id=18Nv6DJORf6CY055d6Qu9PvrwI0-CrU_s" alt="logo" width="350"/>
 </div>
-<h1 align="center">styled-atom</h1>
+
+---
 
 ## Table of contents
 
