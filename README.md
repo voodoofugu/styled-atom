@@ -1,8 +1,12 @@
-<div align="center">
-  <img src="https://drive.google.com/uc?export=view&id=18Nv6DJORf6CY055d6Qu9PvrwI0-CrU_s" alt="logo" width="350"/>
+<div align="center"
+  style="
+    background: linear-gradient(0deg, #57005b, #004394);
+    border-radius: 10px;
+    padding: 14px 0;
+  "
+>
+  <img src="https://drive.google.com/uc?export=1xx8p5wTCThzdNk6o6KdENmwDCygLULWk" alt="logo" width="350"/>
 </div>
-
----
 
 ## Table of contents
 
@@ -91,7 +95,7 @@ After the styles are loaded, you will see:
 <style atom="✦0" name="yourStyle1">
   /* CSS content */
 </style>
-<style atom="✦1" name="yourStyle2">
+<style atom="✦0" name="yourStyle2">
   /* CSS content */
 </style>
 ```
