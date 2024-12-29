@@ -24,6 +24,10 @@ const StyledAtom = ({
   );
 
   React.useEffect(() => {
+    if (fileNames.length === 0) {
+      return;
+    }
+
     setStyleData((prevState) => ({
       ...prevState,
       [id]: {
