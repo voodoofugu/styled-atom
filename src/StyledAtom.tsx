@@ -13,7 +13,7 @@ const StyledAtom = ({
   const [styleData, setStyleData] = useStore("styleData");
 
   const prevStylesLoaded = React.useRef(false);
-  const id = `✦${React.useId()}`.replace(/[:r]/g, "");
+  const id = `✦${React.useId()}`.replace(/[:]/g, "");
 
   const loaded = styleData?.[id]?.loaded ?? false;
 
