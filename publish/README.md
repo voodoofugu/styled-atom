@@ -1,4 +1,6 @@
-# ✦ styled-atom ✦
+<div align="center">
+  <img src="https://drive.google.com/uc?export=view&id=1tVgrE1mXgieqsNDpYzK8Y05EUKXmYuDZ" alt="logo"/>
+</div>
 
 ## Table of contents
 
@@ -87,12 +89,12 @@ After the styles are loaded, you will see:
 <style atom="✦0" name="yourStyle1">
   /* CSS content */
 </style>
-<style atom="✦1" name="yourStyle2">
+<style atom="✦0" name="yourStyle2">
   /* CSS content */
 </style>
 ```
 
-### In sessionStorage under `✦styledAtom✦`:
+### In sessionStorage under ✦styledAtom✦:
 
 ```
 {
@@ -100,14 +102,12 @@ After the styles are loaded, you will see:
     "fileNames": ["your-style1"],
     "loaded": true
   },
-  "✦1": {
+  "✦0": {
     "fileNames": ["your-style2"],
     "loaded": true
   }
 }
 ```
-
-🔮 _If you have used `watch` in `StyleCore`._
 
 ## API
 
