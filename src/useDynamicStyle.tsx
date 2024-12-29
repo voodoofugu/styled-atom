@@ -46,7 +46,7 @@ const createStateTag = (id: string, fileName: string) => {
 
 const loadStyles = async (
   styleObj: {
-    [key: string]: { fileNames?: string[]; loaded?: boolean };
+    [key: string]: { fileNames?: string[]; encap?: boolean; loaded?: boolean };
   },
   prevStyleData: { fileNames?: string[]; loaded?: boolean },
   importStyle: ImportStyleT,
@@ -56,7 +56,7 @@ const loadStyles = async (
   counter: React.MutableRefObject<Record<string, number>>
 ) => {
   const id = Object.keys(styleObj)[0];
-  const { fileNames, loaded } = styleObj[id];
+  const { fileNames, encap, loaded } = styleObj[id];
 
   if (!fileNames || fileNames.length === 0) {
     console.warn(`No files to load for id "${id}"`, "\n", "✦styledAtom✦");
@@ -73,7 +73,7 @@ const loadStyles = async (
     const styleElement = createStateTag(id, fileName);
     try {
       const { default: cssData } = await importStyle(fileName);
-      styleElement.textContent = cssData;
+      styleElement.textContent = encap ? `.${fileName}{${cssData}}` : cssData;
       counter.current[fileName] += 1;
     } catch (error) {
       console.error(

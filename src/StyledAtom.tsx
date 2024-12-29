@@ -3,7 +3,13 @@ import { StyledAtomT } from "./types";
 
 import useStore from "./useStore";
 
-const StyledAtom = ({ fileNames, fallback, onLoad, children }: StyledAtomT) => {
+const StyledAtom = ({
+  fileNames,
+  encap,
+  fallback,
+  onLoad,
+  children,
+}: StyledAtomT) => {
   const [styleData, setStyleData] = useStore("styleData");
 
   const prevStylesLoaded = React.useRef(false);
@@ -11,11 +17,18 @@ const StyledAtom = ({ fileNames, fallback, onLoad, children }: StyledAtomT) => {
 
   const loaded = styleData?.[id]?.loaded ?? false;
 
+  const content = encap ? (
+    <div className={fileNames.join(" ")}>{children}</div>
+  ) : (
+    children
+  );
+
   React.useEffect(() => {
     setStyleData((prevState) => ({
       ...prevState,
       [id]: {
         ...prevState?.[id],
+        encap,
         fileNames,
       },
     }));
@@ -45,7 +58,8 @@ const StyledAtom = ({ fileNames, fallback, onLoad, children }: StyledAtomT) => {
   if (!children) {
     return null;
   }
-  return loaded ? <>{children}</> : fallback || null;
+
+  return loaded ? content : fallback || null;
 };
 
 export default StyledAtom;
