@@ -57,6 +57,7 @@ const App = () => (
 ### Props:
 
 - **`fileNames` (required):** An array of CSS file names to load dynamically.
+- **`encap` (optional):** A boolean value that allows styles to be encapsulated.
 - **`fallback` (optional):** A React element to render while styles are loading.
 - **`onLoad` (optional):** A callback triggered when styles are loaded. Receives a boolean indicating the success of the operation.
 
@@ -70,8 +71,9 @@ const YourComponent = () => (
   <>
     <StyledAtom
       fileNames={["your-style1", "your-style2"]}
-      fallback={<div>Loading...</div>}
       onLoad={(loaded: boolean) => console.log(`Styles loaded: ${loaded}`)}
+      fallback={<div>Loading...</div>}
+      encap
     >
       <SomeComponent />
     </StyledAtom>
@@ -87,10 +89,14 @@ After the styles are loaded, you will see:
 
 ```html
 <style atom="✦0" name="yourStyle1">
-  /* CSS content */
+  .yourStyle1 {
+    /* CSS content */
+  }
 </style>
 <style atom="✦0" name="yourStyle2">
-  /* CSS content */
+  .yourStyle2 {
+    /* CSS content */
+  }
 </style>
 ```
 
@@ -99,13 +105,10 @@ After the styles are loaded, you will see:
 ```
 {
   "✦0": {
-    "fileNames": ["your-style1"],
+    "encap": true
+    "fileNames": ["your-style1", "your-style2"],
     "loaded": true
   },
-  "✦0": {
-    "fileNames": ["your-style2"],
-    "loaded": true
-  }
 }
 ```
 

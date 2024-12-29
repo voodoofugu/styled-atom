@@ -19,6 +19,7 @@ declare const StyleCore: ({
 /**
  * `StyledAtom` component.
  * @param fileNames - Array of style file names.
+ * @param encap - Optional boolean value, allows encapsulating styles.
  * @param fallback - Optional React fallback element.
  * @param onLoad - Optional callback function.
  * @param children - Optional React children elements.
@@ -27,11 +28,13 @@ declare const StyleCore: ({
  */
 declare const StyledAtom: ({
   fileNames,
+  encap,
   fallback,
   onLoad,
   children,
 }: {
   fileNames: string[];
+  encap?: boolean;
   fallback?: React.ReactNode;
   onLoad?: (loaded: boolean) => void;
   children?: React.ReactNode;
