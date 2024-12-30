@@ -44,12 +44,9 @@ const initializeState = (initialState: Partial<MainDataT>) => {
 };
 initializeState(initialState);
 
-const warning = "State is not initialized yet 👺";
-
 // exported functions
 const getState = (): MainDataT => {
   if (!proxyState) {
-    console.warn(warning);
     return {} as MainDataT;
   }
   return { ...proxyState };
@@ -57,7 +54,6 @@ const getState = (): MainDataT => {
 
 const getAllStateValues = (): MainDataT => {
   if (!proxyState) {
-    console.warn(warning);
     return {} as MainDataT;
   }
 
@@ -97,7 +93,6 @@ const setState = <K extends keyof MainDataT>(
   value: MainDataT[K]
 ): void => {
   if (!proxyState) {
-    console.warn(warning);
     return;
   }
   proxyState[key] = value;
