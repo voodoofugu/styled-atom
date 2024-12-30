@@ -7,7 +7,7 @@ export type StyleCoreT = {
 
 export type StyledAtomT = {
   fileNames: string[];
-  encap?: boolean;
+  encap?: boolean | string;
   fallback?: React.ReactNode;
   onLoad?: (loaded: boolean) => void;
   children?: React.ReactNode;
