@@ -46,7 +46,11 @@ const createStateTag = (id: string, fileName: string) => {
 
 const loadStyles = async (
   styleObj: {
-    [key: string]: { fileNames?: string[]; encap?: boolean; loaded?: boolean };
+    [key: string]: {
+      fileNames?: string[];
+      encap?: boolean | string;
+      loaded?: boolean;
+    };
   },
   prevStyleData: { fileNames?: string[]; loaded?: boolean },
   importStyle: ImportStyleT,
@@ -64,9 +68,20 @@ const loadStyles = async (
   // Собираем массив загрузок
   const promises = fileNames.map(async (fileName) => {
     const styleElement = createStateTag(id, fileName);
+
     try {
       const { default: cssData } = await importStyle(fileName);
-      styleElement.textContent = encap ? `.${fileName}{${cssData}}` : cssData;
+
+      let selector = `.${fileName}`;
+      if (typeof encap === "string") {
+        const additionalClasses = encap
+          .split(" ")
+          .map((word: string) => `.${word}`)
+          .join(", ");
+        selector += `, ${additionalClasses}`;
+      }
+
+      styleElement.textContent = encap ? `${selector} {${cssData}}` : cssData;
     } catch (error) {
       console.error(
         `Loading failed for "${fileName}" style`,

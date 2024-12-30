@@ -28,13 +28,7 @@ const StyledAtom = ({
   const loaded = styleData?.[id]?.loaded ?? false;
 
   const content = encap ? (
-    <div
-      className={
-        `${typeof encap === "string" ? `${encap} ` : ""}` + fileNames.join(" ")
-      }
-    >
-      {children}
-    </div>
+    <div className={fileNames.join(" ")}>{children}</div>
   ) : (
     children
   );
