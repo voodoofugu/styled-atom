@@ -4,7 +4,7 @@ import { StyledAtomT } from "./types";
 import useStore from "./useStore";
 
 const StyledAtom = ({
-  fileNames,
+  fileNames = [],
   encap,
   fallback,
   onLoad,
@@ -23,7 +23,7 @@ const StyledAtom = ({
   const [styleData, setStyleData] = useStore("styleData");
 
   const prevStylesLoaded = React.useRef(false);
-  const id = `✦${React.useId()}`.replace(/[:]/g, "");
+  const id = `✦${React.useId()}`.replace(/[:r]/g, "");
 
   const loaded = styleData?.[id]?.loaded ?? false;
 
