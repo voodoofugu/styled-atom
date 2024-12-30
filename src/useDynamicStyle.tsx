@@ -58,7 +58,6 @@ const loadStyles = async (
   const { fileNames, encap, loaded } = styleObj[id];
 
   if (!fileNames || fileNames.length === 0) {
-    console.warn(`No files to load for id "${id}"`, "\n", "✦styledAtom✦", "\n");
     return;
   }
 

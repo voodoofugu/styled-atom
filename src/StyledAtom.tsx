@@ -10,6 +10,15 @@ const StyledAtom = ({
   onLoad,
   children,
 }: StyledAtomT) => {
+  if (fileNames.length === 0) {
+    console.warn(
+      `Some StyledAtom was rendered with empty fileNames`,
+      "\n",
+      "✦styledAtom✦"
+    );
+    return children || null;
+  }
+
   const [styleData, setStyleData] = useStore("styleData");
 
   const prevStylesLoaded = React.useRef(false);
@@ -24,10 +33,6 @@ const StyledAtom = ({
   );
 
   React.useEffect(() => {
-    if (fileNames.length === 0) {
-      return;
-    }
-
     setStyleData((prevState) => ({
       ...prevState,
       [id]: {
