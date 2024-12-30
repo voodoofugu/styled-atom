@@ -11,12 +11,13 @@ const StyledAtom = ({
   children,
 }: StyledAtomT) => {
   if (fileNames.length === 0) {
-    console.warn(
+    console.error(
       `Some StyledAtom was rendered with empty fileNames`,
       "\n",
-      "✦styledAtom✦"
+      "✦styledAtom✦",
+      "\n"
     );
-    return children || null;
+    return fallback || children || null;
   }
 
   const [styleData, setStyleData] = useStore("styleData");
