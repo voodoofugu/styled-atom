@@ -57,7 +57,7 @@ const App = () => (
 ### Props:
 
 - **`fileNames` (required):** An array of CSS file names to load dynamically.
-- **`encap` (optional):** A boolean value that allows styles to be encapsulated.
+- **`encap` (optional):** A boolean or string value for encapsulating styles using CSS file names as classes with support for custom classes.
 - **`fallback` (optional):** A React element to render while styles are loading.
 - **`onLoad` (optional):** A callback triggered when styles are loaded. Receives a boolean indicating the success of the operation.
 
