@@ -29,7 +29,7 @@ const StyledAtom = ({
 
   const content = encap ? (
     <div
-      atom-shell={id}
+      atom-shell={id} // eslint-disable-line react/no-unknown-property
       className={`${fileNames.join(" ")}${
         typeof encap === "string" ? ` ${encap}` : ""
       }`}
