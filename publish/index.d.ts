@@ -4,7 +4,7 @@
  * @example (fileName: string) => import(`../css/${fileName}.css`)
  * @param watch - Optional: enables watching `styled-atom` data in sessionStorage.
  * @returns null.
- * @see {@link https://www.npmjs.com/package/styled-atom#StyleCore Documentation}
+ * @see {@link https://www.npmjs.com/package/styled-atom#✦StyleCore Documentation}
  */
 
 declare const StyleCore: ({
@@ -25,7 +25,7 @@ declare const StyleCore: ({
  * @param onLoad - Optional: callback function.
  * @param children - Optional: React children elements.
  * @returns JSX element or null.
- * @see {@link https://www.npmjs.com/package/styled-atom#StyledAtom Documentation}
+ * @see {@link https://www.npmjs.com/package/styled-atom#✦StyledAtom Documentation}
  */
 
 declare const StyledAtom: ({

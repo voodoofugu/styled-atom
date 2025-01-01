@@ -2,21 +2,21 @@
   <img src="https://drive.google.com/uc?export=view&id=1zaKS3ZOVpeVEY2xcwZmUhdYuRBGBzZRR" alt="logo"/>
 </div>
 
-## Table of contents
+## ✦Table of contents
 
-- [About](#About)
-- [Installation](#Installation)
-- [StyleCore](#StyleCore)
-- [StyledAtom](#StyledAtom)
-- [More](#More)
-- [API](#API)
+- [About](#✦About)
+- [Installation](#✦Installation)
+- [StyleCore](#✦StyleCore)
+- [StyledAtom](#✦StyledAtom)
+- [More](#✦More)
+- [API](#✦API)
 
-## About
+## ✦About
 
-`styled-atom` is a CSS in JS React library designed for managing styles dynamically in your projects.
+`styled-atom` is a `CSS in JS` `React` library designed for managing styles dynamically in your projects.
 It allows you to load styles asynchronously, and track their state.
 
-## Installation
+## ✦Installation
 
 Install the library using the following command:
 
@@ -24,16 +24,14 @@ Install the library using the following command:
 npm install styled-atom
 ```
 
-## StyleCore
+## ✦StyleCore
 
 `StyleCore` is the foundation of the `styled-atom` library. It initializes the system and ensures styles are properly loaded. Place this component at the root of your application.
 
 ### Props:
 
-- **path (required):**
-  A function that dynamically imports CSS files. It should return a `Promise` that resolves to the desired CSS file.
-- **watch (optional):**
-  If `true`, monitors the style states via `sessionStorage`.
+- **path (required):** A function that dynamically imports CSS files. It should return a `Promise` that resolves to the desired CSS file.
+- **watch (optional):** If `true`, monitors the style states via `sessionStorage`.
 
 ### Example:
 
@@ -52,21 +50,16 @@ const App = () => (
 );
 ```
 
-## StyledAtom
+## ✦StyledAtom
 
 `StyledAtom` is used to apply styles dynamically. It can wrap your components and render them only when all the specified styles are loaded.
 
 ### Props:
 
-- **fileNames (required):**
-  An array of CSS file names to load dynamically.
-- **encap (optional):**
-  A boolean or string value for encapsulating styles using CSS file names as classes with support for custom classes.
-  Encap adds a `div` `wrapper with style file name classes` and a custom `atom-shell` attribute, matching the `atom` attribute of the style tag.
-- **fallback (optional):**
-  A React element to render while styles are loading.
-- **onLoad (optional):**
-  A callback triggered when styles are loaded. Receives a boolean indicating the success of the operation.
+- **fileNames (required):** An array of CSS file names to load dynamically.
+- **encap (optional):** A boolean or string value for encapsulating styles using CSS file names as classes with support for custom classes. Encap adds a `div` `wrapper with style file name classes` and a custom `atom-shell` attribute, matching the `atom` attribute of the style tag.
+- **fallback (optional):** A React element to render while styles are loading.
+- **onLoad (optional):** A callback triggered when styles are loaded. Receives a boolean indicating the success of the operation.
 
 ### Example:
 
@@ -88,7 +81,7 @@ const YourComponent = () => (
 );
 ```
 
-## More
+## ✦More
 
 After the styles are loaded, you will see:
 
@@ -98,12 +91,12 @@ After the styles are loaded, you will see:
 <head>
   <style atom="✦:r0:" name="yourStyle1">
     .yourStyle1 {
-      /* encapsulated CSS content */
+      /* encapsulated CSS */
     }
   </style>
   <style atom="✦:r0:" name="yourStyle2">
     .yourStyle2 {
-      /* encapsulated CSS content */
+      /* encapsulated CSS */
     }
   </style>
 </head>
@@ -116,19 +109,19 @@ After the styles are loaded, you will see:
 
 ✦ _Library encapsulation uses style file names to wrap CSS and html content through classes._
 
-### In sessionStorage under ✦styledAtom✦:
+### In sessionStorage in the ✦styledAtom✦ section if you use watch in StyleCore:
 
 ```JSON
 {
   "✦:r0:": {
-    "encap": true // or "encap": "additionalClass"
+    "encap": true
     "fileNames": ["your-style1", "your-style2"],
     "loaded": true
   },
 }
 ```
 
-## API
+## ✦API
 
 - `StyleCore`: The component for initializing the library.
 - `StyledAtom`: A component for creating style tags.
