@@ -4,12 +4,12 @@
 
 ## ✦Table of contents
 
-- [About](#✦About)
-- [Installation](#✦Installation)
-- [StyleCore](#✦StyleCore)
-- [StyledAtom](#✦StyledAtom)
-- [More](#✦More)
-- [API](#✦API)
+- [About](#About)
+- [Installation](#Installation)
+- [StyleCore](#StyleCore)
+- [StyledAtom](#StyledAtom)
+- [More](#More)
+- [API](#API)
 
 ## ✦About
 
