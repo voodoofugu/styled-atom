@@ -44,6 +44,8 @@ const createStateTag = (id: string, fileName: string) => {
   return styleElement;
 };
 
+let currentVersion = 0; // Версия загрузки
+
 const loadStyles = async (
   styleObj: {
     [key: string]: { fileNames?: string[]; encap?: boolean; loaded?: boolean };
@@ -60,6 +62,9 @@ const loadStyles = async (
   if (!fileNames || fileNames.length === 0) {
     return;
   }
+
+  // Увеличиваем версию
+  const version = ++currentVersion;
 
   // Собираем массив загрузок
   const promises = fileNames.map(async (fileName) => {
@@ -79,9 +84,16 @@ const loadStyles = async (
     }
   });
 
-  // Ожидаем завершения всех загрузок
+  // Ждем завершения загрузки и добавляем requestAnimationFrame для упрощения отрисовки
   await Promise.all(promises);
+  await new Promise((resolve) => requestAnimationFrame(resolve));
 
+  // Проверяем актуальность версии
+  if (version !== currentVersion) {
+    return;
+  }
+
+  // Обновляем состояние только если версия актуальна
   if (
     !prevStyleData ||
     !arraysEqual(prevStyleData?.fileNames || [], fileNames || []) ||
@@ -91,6 +103,7 @@ const loadStyles = async (
       ...prevState,
       [id]: {
         ...prevState?.[id],
+        fileNames, // Сохраняем актуальные fileNames
         loaded: true,
       },
     }));
