@@ -30,8 +30,10 @@ npm install styled-atom
 
 ### Props:
 
-- **`path` (required):** A function that dynamically imports CSS files. It should return a `Promise` that resolves to the desired CSS file.
-- **`watch` (optional):** If `true`, monitors the style states via `sessionStorage`.
+- **path (required):**
+  A function that dynamically imports CSS files. It should return a `Promise` that resolves to the desired CSS file.
+- **watch (optional):**
+  If `true`, monitors the style states via `sessionStorage`.
 
 ### Example:
 
@@ -56,10 +58,15 @@ const App = () => (
 
 ### Props:
 
-- **`fileNames` (required):** An array of CSS file names to load dynamically.
-- **`encap` (optional):** A boolean or string value for encapsulating styles using CSS file names as classes with support for custom classes.
-- **`fallback` (optional):** A React element to render while styles are loading.
-- **`onLoad` (optional):** A callback triggered when styles are loaded. Receives a boolean indicating the success of the operation.
+- **fileNames (required):**
+  An array of CSS file names to load dynamically.
+- **encap (optional):**
+  A boolean or string value for encapsulating styles using CSS file names as classes with support for custom classes.
+  Encap adds a `div` `wrapper with style file name classes` and a custom `atom-shell` attribute, matching the `atom` attribute of the style tag.
+- **fallback (optional):**
+  A React element to render while styles are loading.
+- **onLoad (optional):**
+  A callback triggered when styles are loaded. Receives a boolean indicating the success of the operation.
 
 ### Example:
 
@@ -73,7 +80,7 @@ const YourComponent = () => (
       fileNames={["your-style1", "your-style2"]}
       onLoad={(loaded: boolean) => console.log(`Styles loaded: ${loaded}`)}
       fallback={<div>Loading...</div>}
-      encap
+      encap // or encap="additionalClass"
     >
       <SomeComponent />
     </StyledAtom>
@@ -88,24 +95,33 @@ After the styles are loaded, you will see:
 ### In the Browser:
 
 ```html
-<style atom="✦0" name="yourStyle1">
-  .yourStyle1 {
-    /* CSS content */
-  }
-</style>
-<style atom="✦0" name="yourStyle2">
-  .yourStyle2 {
-    /* CSS content */
-  }
-</style>
+<head>
+  <style atom="✦:r0:" name="yourStyle1">
+    .yourStyle1 {
+      /* encapsulated CSS content */
+    }
+  </style>
+  <style atom="✦:r0:" name="yourStyle2">
+    .yourStyle2 {
+      /* encapsulated CSS content */
+    }
+  </style>
+</head>
+<body>
+  <div atom-shell="✦:r0:" class="yourStyle1 yourStyle2">
+    <!-- content -->
+  </div>
+</body>
 ```
+
+✦ _Library encapsulation uses style file names to wrap CSS and html content through classes._
 
 ### In sessionStorage under ✦styledAtom✦:
 
-```
+```JSON
 {
-  "✦0": {
-    "encap": true
+  "✦:r0:": {
+    "encap": true // or "encap": "additionalClass"
     "fileNames": ["your-style1", "your-style2"],
     "loaded": true
   },
