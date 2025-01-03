@@ -4,12 +4,12 @@
 
 ## ✦Table of contents
 
-- [About](#About)
-- [Installation](#Installation)
-- [StyleCore](#StyleCore)
-- [StyledAtom](#StyledAtom)
-- [More](#More)
-- [API](#API)
+- [About](#about)
+- [Installation](#installation)
+- [StyleCore](#stylecore)
+- [StyledAtom](#styledatom)
+- [More](#more)
+- [API](#api)
 
 ## ✦About
 
@@ -87,6 +87,8 @@ const YourComponent = () => (
   </>
 );
 ```
+
+✦ _The library ensures only one style tag is used, even if the same styles appear in multiple components._
 
 ## ✦More
 
