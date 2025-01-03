@@ -31,7 +31,6 @@ npm install styled-atom
 ### Props:
 
 - **path (required):** A function that dynamically imports CSS files. It should return a `Promise` that resolves to the desired CSS file.
-- **watch (optional):** If `true`, monitors the style states via `sessionStorage`.
 
 ### Example:
 
@@ -42,7 +41,6 @@ import { StyleCore } from "styled-atom";
 const App = () => (
   <>
     <StyleCore
-      watch
       path={(name: string) => import(`../src/style/css/${name}.css`)}
     />
     <YourComponent />
@@ -108,18 +106,6 @@ After the styles are loaded, you will see:
 ```
 
 ✦ _Library encapsulation uses style file names to wrap CSS and html content through classes._
-
-### In sessionStorage in the ✦styledAtom✦ section if you use watch in StyleCore:
-
-```JSON
-{
-  "✦:r0:": {
-    "encap": true
-    "fileNames": ["your-style1", "your-style2"],
-    "loaded": true
-  },
-}
-```
 
 ## ✦API
 

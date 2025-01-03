@@ -52,14 +52,6 @@ const getState = (): MainDataT => {
   return { ...proxyState };
 };
 
-const getAllStateValues = (): MainDataT => {
-  if (!proxyState) {
-    return {} as MainDataT;
-  }
-
-  return { ...proxyState };
-};
-
 const subscribe = <T,>(key: string, listener: Listener<T>): (() => void) => {
   if (!listeners.has(key)) {
     listeners.set(key, new Set());
@@ -72,21 +64,21 @@ const subscribe = <T,>(key: string, listener: Listener<T>): (() => void) => {
       ?.delete(listener as Listener<MainDataT[keyof MainDataT]>);
 };
 
-const subscribeToAll = (listener: Listener<MainDataT>): (() => void) => {
-  const unsubscribeFunctions: (() => void)[] = [];
+// const subscribeToAll = (listener: Listener<MainDataT>): (() => void) => {
+//   const unsubscribeFunctions: (() => void)[] = [];
 
-  for (const key in state) {
-    unsubscribeFunctions.push(
-      subscribe(key, () => {
-        listener({ ...proxyState } as MainDataT); // Возвращаем копию всего состояния
-      })
-    );
-  }
+//   for (const key in state) {
+//     unsubscribeFunctions.push(
+//       subscribe(key, () => {
+//         listener({ ...proxyState } as MainDataT); // Возвращаем копию всего состояния
+//       })
+//     );
+//   }
 
-  return () => {
-    unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
-  };
-};
+//   return () => {
+//     unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
+//   };
+// };
 
 const setState = <K extends keyof MainDataT>(
   key: K,
@@ -98,4 +90,4 @@ const setState = <K extends keyof MainDataT>(
   proxyState[key] = value;
 };
 
-export { getState, getAllStateValues, subscribe, subscribeToAll, setState };
+export { getState, subscribe, setState };

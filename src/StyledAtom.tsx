@@ -23,7 +23,7 @@ const StyledAtom = ({
   const [styleData, setStyleData] = useStore("styleData");
 
   const prevStylesLoaded = React.useRef(false);
-  const id = `✦${React.useId()}`;
+  const id = `${React.useId()}`.replace(/^(.{2})(.*).$/, "✦$2");
 
   const loaded = styleData?.[id]?.loaded ?? false;
 
@@ -56,16 +56,13 @@ const StyledAtom = ({
         const { [id]: unused, ...rest } = prevState; // eslint-disable-line @typescript-eslint/no-unused-vars
         return Object.keys(rest).length ? rest : null;
       });
-      if (onLoad) {
-        onLoad(false);
-      }
       prevStylesLoaded.current = false;
     };
   }, [fileNames, id, setStyleData]);
 
   React.useEffect(() => {
     if (onLoad && loaded && !prevStylesLoaded.current) {
-      onLoad(loaded);
+      onLoad();
       prevStylesLoaded.current = true;
     } else if (!loaded) {
       prevStylesLoaded.current = false;
