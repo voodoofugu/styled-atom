@@ -92,9 +92,7 @@ const YourComponent = () => (
 
 ## ✦More
 
-After the styles are loaded, you will see:
-
-### In the Browser:
+After the styles are loaded, you will see in the browser:
 
 ```html
 <head>
