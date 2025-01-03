@@ -2,7 +2,7 @@
   <img src="https://drive.google.com/uc?export=view&id=1zaKS3ZOVpeVEY2xcwZmUhdYuRBGBzZRR" alt="logo"/>
 </div>
 
-## ✦ Table of contents
+## ✦Table of contents
 
 - [About](#about)
 - [Installation](#installation)
@@ -11,12 +11,12 @@
 - [More](#more)
 - [API](#api)
 
-## ✦ About
+## ✦About
 
 `styled-atom` is a `CSS in JS` `React` library designed for managing styles dynamically in your projects.
 It allows you to load styles asynchronously, and track their state.
 
-## ✦ Installation
+## ✦Installation
 
 Install the library using the following command:
 
@@ -24,7 +24,7 @@ Install the library using the following command:
 npm install styled-atom
 ```
 
-## ✦ StyleCore
+## ✦StyleCore
 
 `StyleCore` is the foundation of the `styled-atom` library. It initializes the system and ensures styles are properly loaded. Place this component at the root of your application.
 
@@ -48,7 +48,7 @@ const App = () => (
 );
 ```
 
-## ✦ StyledAtom
+## ✦StyledAtom
 
 `StyledAtom` is used to apply styles dynamically. It can wrap your components and render them only when all the specified styles are loaded.
 
@@ -90,7 +90,7 @@ const YourComponent = () => (
 
 ✦ _The library ensures only one style tag is used, even if the same styles appear in multiple components._
 
-## ✦ More
+## ✦More
 
 After the styles are loaded, you will see in the browser:
 
@@ -116,7 +116,7 @@ After the styles are loaded, you will see in the browser:
 
 ✦ _Library encapsulation uses style file names to wrap CSS and html content through classes._
 
-## ✦ API
+## ✦API
 
 - `StyleCore`: The component for initializing the library.
 - `StyledAtom`: A component for creating style tags.
