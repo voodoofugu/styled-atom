@@ -57,24 +57,33 @@ const App = () => (
 - **fileNames (required):** An array of CSS file names to load dynamically.
 - **encap (optional):** A boolean or string value for encapsulating styles using CSS file names as classes with support for custom classes. Encap adds a `div` `wrapper with style file name classes` and a custom `atom-shell` attribute, matching the `atom` attribute of the style tag.
 - **fallback (optional):** A React element to render while styles are loading.
-- **onLoad (optional):** A callback triggered when styles are loaded. Receives a boolean indicating the success of the operation.
+- **onLoad (optional):** A callback triggered when styles are loaded.
 
 ### Example:
 
-```typescript
+```javascript
 import React from "react";
 import { StyledAtom } from "styled-atom";
 
 const YourComponent = () => (
+  <StyledAtom
+    fileNames={["your-style1", "your-style2"]}
+    onLoad={() => console.log("The styles are loaded")}
+    fallback={<div>Loading...</div>}
+    encap // or encap="additionalClass"
+  >
+    <SomeComponent />
+  </StyledAtom>
+);
+```
+
+Also, if you just want to load the style that you will need later, you can use StyledAtom not as a wrapper.
+
+```javascript
+const YourComponent = () => (
   <>
-    <StyledAtom
-      fileNames={["your-style1", "your-style2"]}
-      onLoad={(loaded: boolean) => console.log(`Styles loaded: ${loaded}`)}
-      fallback={<div>Loading...</div>}
-      encap // or encap="additionalClass"
-    >
-      <SomeComponent />
-    </StyledAtom>
+    <StyledAtom fileNames={["your-style1"]} />
+    <SomeComponent />
   </>
 );
 ```
@@ -87,19 +96,19 @@ After the styles are loaded, you will see:
 
 ```html
 <head>
-  <style atom="✦:r0:" name="yourStyle1">
+  <style atom="✦0" name="yourStyle1">
     .yourStyle1 {
       /* encapsulated CSS */
     }
   </style>
-  <style atom="✦:r0:" name="yourStyle2">
+  <style atom="✦0" name="yourStyle2">
     .yourStyle2 {
       /* encapsulated CSS */
     }
   </style>
 </head>
 <body>
-  <div atom-shell="✦:r0:" class="yourStyle1 yourStyle2">
+  <div atom-shell="✦0" class="yourStyle1 yourStyle2">
     <!-- content -->
   </div>
 </body>
