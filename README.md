@@ -31,6 +31,7 @@ npm install styled-atom
 ### Props:
 
 - **`path` (required):** _The style import function._
+
   <h2>
 
   <details>
