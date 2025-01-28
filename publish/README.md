@@ -8,7 +8,7 @@
 - [Installation](#-installation)
 - [StyleCore](#-stylecore)
 - [StyledAtom](#-styledatom)
-- [More](#-more)
+- [Additionally](#-additionally)
 - [API](#-api)
 
 ## ✦ About
@@ -41,7 +41,7 @@ npm install styled-atom
   <br />
   <strong>‣ Example:</strong>
 
-  ```typescript
+  ```tsx
   import React from "react";
   import { StyleCore } from "styled-atom";
 
@@ -73,7 +73,7 @@ npm install styled-atom
   <br />
   <strong>‣ Example:</strong>
 
-  ```typescript
+  ```tsx
   import React from "react";
   import { StyledAtom } from "styled-atom";
 
@@ -97,7 +97,7 @@ npm install styled-atom
   <br />
   <strong>‣ Example:</strong>
 
-  ```typescript
+  ```tsx
   import React from "react";
   import { StyledAtom } from "styled-atom";
 
@@ -125,7 +125,7 @@ npm install styled-atom
   <br />
   <strong>‣ Example:</strong>
 
-  ```typescript
+  ```tsx
   import React from "react";
   import { StyledAtom } from "styled-atom";
 
@@ -152,7 +152,7 @@ npm install styled-atom
   <br />
   <strong>‣ Example:</strong>
 
-  ```typescript
+  ```tsx
   import React from "react";
   import { StyledAtom } from "styled-atom";
 
@@ -170,18 +170,26 @@ npm install styled-atom
 
 Also, if you just want to load the style that you will need later, you can use StyledAtom not as a wrapper.
 
+<details>
+<summary><strong>Example:</strong></summary>
+
 ```tsx
-const YourComponent = () => (
+import React from "react";
+import { StyledAtom } from "styled-atom";
+
+const YourComponent = () => {
   <>
     <StyledAtom fileNames={["your-style1"]} />
     <SomeComponent />
-  </>
-);
+  </>;
+};
 ```
+
+</details>
 
 ✦ _The library ensures only one style tag is used, even if the same styles appear in multiple components._
 
-## ✦ More
+## ✦ Additionally
 
 After the styles are loaded, you will see in the browser something like this:
 
