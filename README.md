@@ -32,6 +32,7 @@ npm install styled-atom
 
 - **`path` (required):** _The style import function._
   <h2>
+
   <details>
   <summary><strong>More:</strong></summary>
   <strong>‣ Type:</strong><br />
