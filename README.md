@@ -31,10 +31,8 @@ npm install styled-atom
 ### Props:
 
 - **`path` (required):** _The style import function._
-  <details>
-
   <h2>
-
+  <details>
   <summary><strong>More:</strong></summary>
   <strong>‣ Type:</strong><br />
   (fileName: string) => Promise<{ default: string; }><br />
