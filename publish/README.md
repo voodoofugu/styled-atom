@@ -30,23 +30,34 @@ npm install styled-atom
 
 ### Props:
 
-- **path (required):** A function that dynamically imports CSS files. It should return a `Promise` that resolves to the desired CSS file.
+- **`path` (required):** _The style import function._
+    <details>
+    <summary><strong>More:</strong></summary>
+    <strong>‣ Type:</strong><br />
+    fileName: string) => Promise<{<br />
+      default: string;<br />
+    }><br />
+    <br />
+    <strong>‣ Description:</strong> <em><br />
+    A function that dynamically imports CSS files.</em><br />
+    <br />
+    <strong>‣ Example:</strong>
 
-### Example:
+  ```typescript
+  import React from "react";
+  import { StyleCore } from "styled-atom";
 
-```typescript
-import React from "react";
-import { StyleCore } from "styled-atom";
+  const App = () => (
+    <>
+      <StyleCore
+        path={(name: string) => import(`../src/style/css/${name}.css`)}
+      />
+      <YourComponent />
+    </>
+  );
+  ```
 
-const App = () => (
-  <>
-    <StyleCore
-      path={(name: string) => import(`../src/style/css/${name}.css`)}
-    />
-    <YourComponent />
-  </>
-);
-```
+    </details>
 
 ## ✦ StyledAtom
 

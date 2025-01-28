@@ -75,5 +75,5 @@ const StyledAtom = ({
 
   return loaded ? content : fallback || null;
 };
-
+StyledAtom.displayName = "✦StyledAtom";
 export default StyledAtom;
