@@ -48,7 +48,7 @@ type StyledAtomT = {
    * ```tsx
    * <StyledAtom
    *   encap
-   *   // encap="custom-class"
+   *   // or encap="custom-class"
    *   // another props
    * />
    * ```
@@ -59,7 +59,7 @@ type StyledAtomT = {
    * @example
    * ```tsx
    * <StyledAtom
-   *   fallback={<Loading />}
+   *   fallback={<div>Loading...</div>}
    *   // another props
    * />
    * ```
