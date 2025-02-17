@@ -17,7 +17,7 @@ type StyleCoreT = {
  *
  * ---
  * ## PROPS:
- * - `path` *◄ REQUIRED ►*
+ * - `path` *REQUIRED!*
  * ##### ! MORE DETAILS IN PROPS OR LINKS !
  *
  * ---
@@ -93,7 +93,7 @@ type StyledAtomT = {
  *
  * ---
  * ## PROPS:
- * - `fileNames` *◄ REQUIRED ►*
+ * - `fileNames` *REQUIRED!*
  * - `encap`
  * - `fallback`
  * - `onLoad`

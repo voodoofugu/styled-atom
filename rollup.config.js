@@ -5,7 +5,7 @@ import terser from "@rollup/plugin-terser";
 import del from "rollup-plugin-delete";
 
 export default {
-  input: "src/index.tsx",
+  input: "src/index.ts",
 
   output: [
     {
