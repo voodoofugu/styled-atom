@@ -1,6 +1,6 @@
 {
   "name": "styled-atom",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "CSS in JS React library ✦",
   "author": "Georg Schilin",
   "license": "MIT",
@@ -15,7 +15,7 @@
     "css-in-js"
   ],
   "peerDependencies": {
-    "react": ">=16 <20"
+    "react": ">=18 <20"
   },
   "repository": {
     "type": "git",

@@ -1,7 +1,7 @@
 import React from "react";
 import { MainDataT } from "./types";
 
-import { getState, setState, subscribe } from "./proxyStyleData";
+import { getState, setState, subscribe } from "./store";
 
 const useStore = <K extends keyof MainDataT>(
   stateKey: K

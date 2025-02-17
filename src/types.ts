@@ -2,7 +2,6 @@ export type ImportStyleT = (fileName: string) => Promise<{ default: string }>;
 
 export type StyleCoreT = {
   path: ImportStyleT;
-  // watch?: boolean;
 };
 
 export type StyledAtomT = {

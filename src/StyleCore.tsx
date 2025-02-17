@@ -8,4 +8,5 @@ const StyleCore = ({ path }: StyleCoreT) => {
   return null;
 };
 StyleCore.displayName = "✦StyleCore";
+
 export default StyleCore;

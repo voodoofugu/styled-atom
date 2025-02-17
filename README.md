@@ -14,7 +14,7 @@
 ## ✦ About
 
 `styled-atom` is a `CSS in JS` `React` library designed for managing styles dynamically in your projects.
-It allows you to load styles asynchronously, and track their state.
+It allows you to load styles asynchronously, and track their load status.
 
 ## ✦ Installation
 
@@ -32,14 +32,14 @@ npm install styled-atom
 
 - **`path` (required):** _The style import function._
   <details>
-  <summary><strong>More:</strong></summary>
-  <strong>‣ Type:</strong><br />
+  <summary><strong><em>more</em></strong></summary>
+  <strong>• Type:</strong><br />
   (fileName: string) => Promise<{ default: string; }><br />
   <br />
-  <strong>‣ Description:</strong> <em><br />
+  <strong>• Description:</strong> <em><br />
   Provide the correct path to the folder containing your style files. This function should return a promise that resolves to an object containing the default export, which is the path to your style file.</em><br />
   <br />
-  <strong>‣ Example:</strong>
+  <strong>• Example:</strong>
 
   ```tsx
   import React from "react";
@@ -65,13 +65,13 @@ npm install styled-atom
 
 - **fileNames (required):** _Array of CSS file names required for the component._
   <details>
-  <summary><strong>More:</strong></summary>
-  <strong>‣ Type:</strong> string[]<br />
+  <summary><strong><em>more</em></strong></summary>
+  <strong>• Type:</strong> string[]<br />
   <br />
-  <strong>‣ Description:</strong> <em><br />
+  <strong>• Description:</strong> <em><br />
   Provide an array of your style file names. These will be used to dynamically load the corresponding CSS files for your component.</em><br />
   <br />
-  <strong>‣ Example:</strong>
+  <strong>• Example:</strong>
 
   ```tsx
   import React from "react";
@@ -89,13 +89,13 @@ npm install styled-atom
 
 - **encap (optional):** _Encapsulates styles with CSS file names, supports custom classes._
   <details>
-  <summary><strong>More:</strong></summary>
-  <strong>‣ Type:</strong> string[]<br />
+  <summary><strong><em>more</em></strong></summary>
+  <strong>• Type:</strong> string[]<br />
   <br />
-  <strong>‣ Description:</strong> <em><br />
+  <strong>• Description:</strong> <em><br />
   This property allows you to encapsulate styles by applying CSS file names as class names. It also supports custom class names. When enabled, a wrapper `div` element will be added, with classes corresponding to the style file names, and a custom `atom-shell` attribute, which matches the `atom` attribute in the `style` tag. This feature helps to scope styles to the component, preventing conflicts with global styles.</em><br />
   <br />
-  <strong>‣ Example:</strong>
+  <strong>• Example:</strong>
 
   ```tsx
   import React from "react";
@@ -117,13 +117,13 @@ npm install styled-atom
 
 - **fallback (optional):** _A React element to render while styles are loading._
   <details>
-  <summary><strong>More:</strong></summary>
-  <strong>‣ Type:</strong> React.ReactNode<br />
+  <summary><strong><em>more</em></strong></summary>
+  <strong>• Type:</strong> React.ReactNode<br />
   <br />
-  <strong>‣ Description:</strong> <em><br />
+  <strong>• Description:</strong> <em><br />
   This property allows you to specify a React element to be displayed while the styles are being loaded. It provides a way to show a loading indicator or placeholder until the styles are fully applied, improving the user experience during the loading process.</em><br />
   <br />
-  <strong>‣ Example:</strong>
+  <strong>• Example:</strong>
 
   ```tsx
   import React from "react";
@@ -144,13 +144,13 @@ npm install styled-atom
 
 - **onLoad (optional):** _Callback triggered after styles are loaded successfully._
   <details>
-  <summary><strong>More:</strong></summary>
-  <strong>‣ Type:</strong> () => void<br />
+  <summary><strong><em>more</em></strong></summary>
+  <strong>• Type:</strong> () => void<br />
   <br />
-  <strong>‣ Description:</strong> <em><br />
+  <strong>• Description:</strong> <em><br />
   This callback function is called once the styles have been successfully loaded and applied. It allows you to perform additional actions or trigger side effects after the styles are ready, such as updating the UI or logging a message.</em><br />
   <br />
-  <strong>‣ Example:</strong>
+  <strong>• Example:</strong>
 
   ```tsx
   import React from "react";
@@ -171,7 +171,7 @@ npm install styled-atom
 Also, if you just want to load the style that you will need later, you can use StyledAtom not as a wrapper.
 
 <details>
-<summary><strong>Example:</strong></summary>
+<summary><strong><em>example</em></strong></summary>
 
 ```tsx
 import React from "react";
