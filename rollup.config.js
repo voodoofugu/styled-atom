@@ -5,12 +5,22 @@ import terser from "@rollup/plugin-terser";
 import del from "rollup-plugin-delete";
 
 export default {
-  input: "src/index.ts",
+  input: {
+    index: "src/index.ts",
+    core: "src/core.ts",
+  },
 
   output: [
     {
-      file: "dist/index.js",
+      dir: "dist",
+      format: "esm",
+      entryFileNames: "[name].js",
+    },
+    {
+      dir: "dist",
       format: "cjs",
+      entryFileNames: "[name].cjs",
+      exports: "named",
     },
   ],
   plugins: [
@@ -24,5 +34,5 @@ export default {
       },
     }),
   ],
-  external: (id) => /^react/.test(id),
+  external: (id) => /^react(\/.*)?$/.test(id),
 };

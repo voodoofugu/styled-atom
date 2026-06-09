@@ -1,223 +1,262 @@
-<div align="center">
-  <img src="https://drive.google.com/uc?export=view&id=1zaKS3ZOVpeVEY2xcwZmUhdYuRBGBzZRR" alt="logo"/>
-</div>
+# styled-atom
 
-## ✦ Table of contents
+`styled-atom` is a tiny runtime style store for React development tools,
+component workbenches and demo managers. It loads CSS atoms on demand, injects
+stable style tags into the DOM, and lets each preview wait for the styles it
+actually uses.
 
-- [About](#-about)
-- [Installation](#-installation)
-- [StyleCore](#-stylecore)
-- [StyledAtom](#-styledatom)
-- [Additionally](#-additionally)
-- [API](#-api)
+Version `3` is built around a store factory. There is no global `StyleCore`
+provider and no package-level `StyledAtom` component. Create a store, export the
+bound component, and use that pair inside your app or tool.
 
-## ✦ About
-
-`styled-atom` is a `CSS in JS` `React` library designed for managing styles dynamically in your projects.
-It allows you to load styles asynchronously, and track their load status.
-
-## ✦ Installation
-
-Install the library using the following command:
+## Install
 
 ```bash
 npm install styled-atom
 ```
 
-## ✦ StyleCore
+For local development between sibling projects:
 
-`StyleCore` is the foundation of the `styled-atom` library. It initializes the system and ensures styles are properly loaded. Place this component at the root of your application.
+```json
+{
+  "dependencies": {
+    "styled-atom": "file:../styled-atom"
+  }
+}
+```
 
-### Props:
-
-- **`path` (required):** _The style import function._
-  <details>
-  <summary><strong><em>more</em></strong></summary>
-  <strong>• Type:</strong><br />
-  (fileName: string) => Promise<{ default: string; }><br />
-  <br />
-  <strong>• Description:</strong> <em><br />
-  Provide the correct path to the folder containing your style files. This function should return a promise that resolves to an object containing the default export, which is the path to your style file.</em><br />
-  <br />
-  <strong>• Example:</strong>
-
-  ```tsx
-  import React from "react";
-  import { StyleCore } from "styled-atom";
-
-  const App = () => {
-    <>
-      <StyleCore
-        path={(name: string) => import(`../src/style/css/${name}.css`)}
-      />
-      <YourComponent />
-    </>;
-  };
-  ```
-
-  </details>
-
-## ✦ StyledAtom
-
-`StyledAtom` is used to apply styles dynamically. It can wrap your components and render them only when all the specified styles are loaded.
-
-### Props:
-
-- **fileNames (required):** _Array of CSS file names required for the component._
-  <details>
-  <summary><strong><em>more</em></strong></summary>
-  <strong>• Type:</strong> string[]<br />
-  <br />
-  <strong>• Description:</strong> <em><br />
-  Provide an array of your style file names. These will be used to dynamically load the corresponding CSS files for your component.</em><br />
-  <br />
-  <strong>• Example:</strong>
-
-  ```tsx
-  import React from "react";
-  import { StyledAtom } from "styled-atom";
-
-  const YourComponent = () => {
-    <StyledAtom fileNames={["your-style1", "your-style2"]}>
-      <SomeComponent />
-    </StyledAtom>;
-  };
-  ```
-
-  </details>
-  <h2>
-
-- **encap (optional):** _Encapsulates styles with CSS file names, supports custom classes._
-  <details>
-  <summary><strong><em>more</em></strong></summary>
-  <strong>• Type:</strong> string[]<br />
-  <br />
-  <strong>• Description:</strong> <em><br />
-  This property allows you to encapsulate styles by applying CSS file names as class names. It also supports custom class names. When enabled, a wrapper `div` element will be added, with classes corresponding to the style file names, and a custom `atom-shell` attribute, which matches the `atom` attribute in the `style` tag. This feature helps to scope styles to the component, preventing conflicts with global styles.</em><br />
-  <br />
-  <strong>• Example:</strong>
-
-  ```tsx
-  import React from "react";
-  import { StyledAtom } from "styled-atom";
-
-  const YourComponent = () => {
-    <StyledAtom
-      encap
-      // or encap="custom-class"
-      // another props
-    >
-      <SomeComponent />
-    </StyledAtom>;
-  };
-  ```
-
-  </details>
-  <h2>
-
-- **fallback (optional):** _A React element to render while styles are loading._
-  <details>
-  <summary><strong><em>more</em></strong></summary>
-  <strong>• Type:</strong> React.ReactNode<br />
-  <br />
-  <strong>• Description:</strong> <em><br />
-  This property allows you to specify a React element to be displayed while the styles are being loaded. It provides a way to show a loading indicator or placeholder until the styles are fully applied, improving the user experience during the loading process.</em><br />
-  <br />
-  <strong>• Example:</strong>
-
-  ```tsx
-  import React from "react";
-  import { StyledAtom } from "styled-atom";
-
-  const YourComponent = () => {
-    <StyledAtom
-      fallback={<div>Loading...</div>}
-      // another props
-    >
-      <SomeComponent />
-    </StyledAtom>;
-  };
-  ```
-
-  </details>
-  <h2>
-
-- **onLoad (optional):** _Callback triggered after styles are loaded successfully._
-  <details>
-  <summary><strong><em>more</em></strong></summary>
-  <strong>• Type:</strong> () => void<br />
-  <br />
-  <strong>• Description:</strong> <em><br />
-  This callback function is called once the styles have been successfully loaded and applied. It allows you to perform additional actions or trigger side effects after the styles are ready, such as updating the UI or logging a message.</em><br />
-  <br />
-  <strong>• Example:</strong>
-
-  ```tsx
-  import React from "react";
-  import { StyledAtom } from "styled-atom";
-
-  const YourComponent = () => {
-    <StyledAtom
-      onLoad={() => console.log("The styles are loaded")}
-      // another props
-    >
-      <SomeComponent />
-    </StyledAtom>;
-  };
-  ```
-
-  </details>
-
-Also, if you just want to load the style that you will need later, you can use StyledAtom not as a wrapper.
-
-<details>
-<summary><strong><em>example</em></strong></summary>
+## Quick Start
 
 ```tsx
-import React from "react";
-import { StyledAtom } from "styled-atom";
+import { createStyledAtomStore } from "styled-atom";
 
-const YourComponent = () => {
-  <>
-    <StyledAtom fileNames={["your-style1"]} />
-    <SomeComponent />
-  </>;
+export const styleAtoms = createStyledAtomStore({
+  path: (name) => import(`./styles/${name}.css`),
+  layers: ["base", "components", "overrides"],
+});
+
+export const StyledAtom = styleAtoms.StyledAtom;
+
+export function PreviewCard() {
+  return (
+    <StyledAtom fileNames={["preview-card"]} fallback={<span>Loading...</span>}>
+      <article className="preview-card">
+        <h2>Demo preview</h2>
+      </article>
+    </StyledAtom>
+  );
+}
+```
+
+If the loader is only known later, create the store first and configure it from
+your shell component:
+
+```tsx
+import { useEffect } from "react";
+import { createStyledAtomStore } from "styled-atom";
+
+export const styleAtoms = createStyledAtomStore();
+export const StyledAtom = styleAtoms.StyledAtom;
+
+export function DemoShell({ styleLoader }) {
+  useEffect(() => {
+    styleAtoms.configure({ path: styleLoader });
+  }, [styleLoader]);
+
+  return <StyledAtom fileNames={["shell"]} />;
+}
+```
+
+## React Props
+
+```ts
+type StyledAtomProps = {
+  fileNames?: readonly string[];
+  encap?: boolean | string | StyleEncapConfig;
+  layer?: string;
+  vars?: Record<string, string | number | boolean | null | undefined>;
+  cssVars?: Record<string, string | number | boolean | null | undefined>;
+  fallback?: React.ReactNode;
+  onLoad?: () => void;
+  children?: React.ReactNode;
 };
 ```
 
-</details>
+### `fileNames`
 
-✦ _The library ensures only one style tag is used, even if the same styles appear in multiple components._
+CSS atom names passed to the configured loader.
 
-## ✦ Additionally
-
-After the styles are loaded, you will see in the browser something like this:
-
-```html
-<head>
-  <style atom="✦0" name="yourStyle1">
-    .yourStyle1 {
-      /* encapsulated CSS */
-    }
-  </style>
-
-  <style atom="✦0" name="yourStyle2">
-    .yourStyle2 {
-      /* encapsulated CSS */
-    }
-  </style>
-</head>
-
-<body>
-  <div atom-shell="✦0" class="yourStyle1 yourStyle2">
-    <!-- content -->
-  </div>
-</body>
+```tsx
+<StyledAtom fileNames={["card", "theme"]}>
+  <Card />
+</StyledAtom>
 ```
 
-✦ _Library encapsulation uses style file names to wrap CSS and html content through classes._
+### `encap`
 
-## ✦ API
+Encapsulation can wrap CSS, content, or both.
 
-- `StyleCore`: The component for initializing the library.
-- `StyledAtom`: A component for creating style tags.
+```tsx
+// Wraps loaded CSS as `.card { ... }` and renders a wrapper div.
+<StyledAtom fileNames={["card"]} encap>
+  <Card />
+</StyledAtom>
+
+// Same behavior with extra wrapper classes.
+<StyledAtom fileNames={["card"]} encap="is-preview">
+  <Card />
+</StyledAtom>
+
+// CSS-only wrapper. No extra content div is rendered.
+<StyledAtom
+  fileNames={["card"]}
+  encap={{ selector: ".likeBody", content: false }}
+>
+  <Card />
+</StyledAtom>
+```
+
+The css-only form is useful for `demo-workbench` and similar tools where the
+preview body already owns the wrapper element.
+
+### `layer`
+
+Wraps generated CSS in a cascade layer.
+
+```tsx
+<StyledAtom fileNames={["button"]} layer="components">
+  <Button />
+</StyledAtom>
+```
+
+Generated shape:
+
+```css
+@layer base, components, overrides;
+
+@layer components {
+  /* loaded CSS */
+}
+```
+
+Declare layer order once when the store is created:
+
+```ts
+const styleAtoms = createStyledAtomStore({
+  path: (name) => import(`./styles/${name}.css`),
+  layers: ["workbench", "host", "demo"],
+});
+```
+
+The store writes that order before atom style tags, so async CSS loads do not
+accidentally define layer priority by load timing.
+
+### `vars` / `cssVars`
+
+Injects CSS custom properties before the loaded CSS. Keys may be passed with or
+without the `--` prefix.
+
+```tsx
+<StyledAtom
+  fileNames={["theme"]}
+  encap
+  vars={{
+    accent: "#6366f1",
+    "--radius": "8px",
+  }}
+>
+  <Demo />
+</StyledAtom>
+```
+
+With `encap`, variables are scoped to the same selector as the CSS. Without
+`encap`, variables are written to `:root`.
+
+## Framework-Agnostic Core
+
+Use `styled-atom/core` when you want the DOM style manager without React.
+
+```ts
+import { createStyleStore } from "styled-atom/core";
+
+const store = createStyleStore({
+  path: (name) => import(`./styles/${name}.css`),
+});
+
+const controller = store.preload(["reset", "theme"], {
+  layer: "base",
+  vars: { accent: "#0f766e" },
+});
+
+controller.subscribe(() => {
+  const snapshot = controller.getSnapshot();
+  console.log(snapshot.loaded);
+});
+
+controller.dispose();
+```
+
+## Performance Model
+
+`styled-atom` keeps one store-owned cache of style entries:
+
+- each rendered atom registers its own id;
+- style tags are cached by `fileName + encap + layer + vars`;
+- each style tag has a reference count;
+- equivalent React re-renders do not touch the DOM;
+- updating one atom notifies only subscribers for that atom.
+
+This is designed for demo managers where many preview cells mount, unmount and
+re-render while sharing the same CSS atoms.
+
+## Demo Workbench Recipe
+
+```ts
+// src/styles/styledAtom.ts
+import { createStyledAtomStore } from "styled-atom";
+
+export const workbenchStyleAtoms = createStyledAtomStore({
+  layers: ["workbench", "host", "demo"],
+});
+export const StyledAtom = workbenchStyleAtoms.StyledAtom;
+```
+
+```tsx
+// Shell
+useEffect(() => {
+  workbenchStyleAtoms.configure({ path: loadStyle });
+}, [loadStyle]);
+```
+
+```tsx
+// Demo cell
+<StyledAtom
+  fileNames={stableCssFiles}
+  fallback={<Loading />}
+  layer="demo"
+  encap={{ selector: ".likeBody", content: false }}
+>
+  {body}
+</StyledAtom>
+```
+
+For host/base styles:
+
+```tsx
+<StyledAtom fileNames={["workbench"]} layer="workbench" />
+<StyledAtom fileNames={["output"]} layer="host" />
+```
+
+## Public Exports
+
+```ts
+export {
+  createStyledAtomStore,
+  createStyledAtomComponent,
+  createStyleStore,
+  StyledAtomStore,
+  getStyleAtomKey,
+  getStyledAtomWrapperProps,
+  normalizeStyleAtomOptions,
+};
+```
