@@ -18,13 +18,19 @@ type ReactStyledAtomStoreT = {
   StyledAtom: React.FC<StyledAtomT>;
   configure: StyledAtomStore["configure"];
   preload: StyledAtomStore["preload"];
+  reload: StyledAtomStore["reload"];
+  replace: StyledAtomStore["replace"];
   dispose: StyledAtomStore["dispose"];
 };
 
-const initialSnapshot = (id: string, fileNames: string[]): StyleAtomSnapshotT => ({
+const initialSnapshot = (
+  id: string,
+  fileNames: string[],
+  hasStyles: boolean,
+): StyleAtomSnapshotT => ({
   id,
-  loaded: fileNames.length === 0,
-  loading: fileNames.length > 0,
+  loaded: !hasStyles,
+  loading: hasStyles,
   fileNames,
   errors: [],
 });
@@ -38,14 +44,15 @@ const createReactAtomId = (id: string) => {
 const useStyledAtomController = (
   store: StyledAtomStore,
   id: string,
-  props: StyledAtomT
+  props: StyledAtomT,
 ) => {
   const normalized = normalizeStyleAtomOptions(props);
   const atomKey = getStyleAtomKey(props);
+  const hasStyles = normalized.fileNames.length > 0 || Boolean(normalized.css);
   const controllerRef = React.useRef<StyleAtomControllerT | null>(null);
   const cleanupRef = React.useRef<(() => void) | null>(null);
   const [snapshot, setSnapshot] = React.useState<StyleAtomSnapshotT>(() =>
-    initialSnapshot(id, normalized.fileNames)
+    initialSnapshot(id, normalized.fileNames, hasStyles),
   );
 
   React.useEffect(() => {
@@ -57,11 +64,11 @@ const useStyledAtomController = (
   }, [store, id]);
 
   React.useEffect(() => {
-    if (normalized.fileNames.length === 0) {
+    if (!hasStyles) {
       cleanupRef.current?.();
       cleanupRef.current = null;
       controllerRef.current = null;
-      setSnapshot(initialSnapshot(id, normalized.fileNames));
+      setSnapshot(initialSnapshot(id, normalized.fileNames, hasStyles));
       return;
     }
 
@@ -83,7 +90,7 @@ const useStyledAtomController = (
     setSnapshot(controllerRef.current.getSnapshot());
     // `atomKey` is a content key, so inline arrays/objects with the same values
     // do not cause a store update.
-  }, [atomKey, id, store]);
+  }, [atomKey, hasStyles, id, store]);
 
   return { normalized, snapshot };
 };
@@ -95,8 +102,7 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
     fallback,
     onLoad,
     layer,
-    vars,
-    cssVars,
+    css,
     children,
   }: StyledAtomT) => {
     const reactId = React.useId();
@@ -105,8 +111,7 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
       fileNames,
       encap,
       layer,
-      vars,
-      cssVars,
+      css,
     };
     const { normalized, snapshot } = useStyledAtomController(store, id, props);
     const wasLoadedRef = React.useRef(snapshot.loaded);
@@ -119,7 +124,7 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
       wasLoadedRef.current = snapshot.loaded;
     }, [onLoad, snapshot.loaded]);
 
-    if (normalized.fileNames.length === 0) {
+    if (normalized.fileNames.length === 0 && !normalized.css) {
       return fallback ?? children ?? null;
     }
 
@@ -134,7 +139,7 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
       children
     );
 
-    return snapshot.loaded ? content : fallback ?? null;
+    return snapshot.loaded ? content : (fallback ?? null);
   };
 
   StyledAtom.displayName = "StyledAtom";
@@ -143,7 +148,7 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
 };
 
 export const createStyledAtomStore = (
-  options: StyledAtomStoreOptionsT = {}
+  options: StyledAtomStoreOptionsT = {},
 ): ReactStyledAtomStoreT => {
   const store = createStyleStore(options);
 
@@ -152,6 +157,8 @@ export const createStyledAtomStore = (
     StyledAtom: createStyledAtomComponent(store),
     configure: store.configure.bind(store),
     preload: store.preload.bind(store),
+    reload: store.reload.bind(store),
+    replace: store.replace.bind(store),
     dispose: store.dispose.bind(store),
   };
 };

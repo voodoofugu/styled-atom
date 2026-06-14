@@ -12,6 +12,7 @@ export {
 export type {
   ImportStyleResultT,
   ImportStyleT,
+  StyleAtomCssReplacementT,
   StyleAtomControllerT,
   StyleAtomOptionsT,
   StyleAtomSnapshotT,
@@ -19,5 +20,4 @@ export type {
   StyledAtomStoreOptionsT,
   StyledAtomT,
   StyleLoadErrorT,
-  StyleVarsT,
 } from "./types";

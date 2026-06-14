@@ -20,41 +20,30 @@ export type ImportStyleResultT =
  * ```
  */
 export type ImportStyleT = (
-  fileName: string
+  fileName: string,
 ) => ImportStyleResultT | Promise<ImportStyleResultT>;
-
-/** CSS custom property values injected before loaded CSS. */
-export type StyleVarsT = Record<
-  string,
-  string | number | boolean | null | undefined
->;
 
 /**
  * Encapsulation configuration.
  *
- * - `true` keeps the old behavior: CSS is wrapped by the file-name class and
- *   content receives a wrapper element.
- * - `string` adds extra wrapper classes while keeping the old CSS wrapping.
- * - object form can wrap CSS without wrapping content.
+ * `encap` only controls the rendered wrapper element. Loaded CSS is injected as
+ * raw CSS; projects that need body-like scoping should rewrite selectors during
+ * their CSS build step and add the same class/id/attribute to this wrapper.
  */
 export type StyleEncapT =
   | boolean
   | string
   | {
-      /** CSS selector used as a wrapper around loaded CSS. */
-      selector?: string;
-      /** Alias for `selector` when a string is passed. */
-      css?: boolean | string;
       /** Whether React content should receive an extra wrapper element. */
       content?: boolean;
       /** Alias for `content`, useful for declarative configs. */
       wrap?: boolean;
-      /** Extra class names for the content wrapper. */
+      /** Wrapper element class names. */
       className?: string | string[];
-      /** Add the `atom-shell` attribute to the content wrapper. */
-      atomShell?: boolean;
-      /** Selector used for CSS variables. Defaults to `selector` or `:root`. */
-      varsSelector?: string;
+      /** Wrapper element id. */
+      id?: string;
+      /** Wrapper element attributes. */
+      attribute?: Record<string, string>;
     };
 
 /** Shared style options used by React and framework-agnostic APIs. */
@@ -65,10 +54,8 @@ export type StyleAtomOptionsT = {
   encap?: StyleEncapT;
   /** Optional CSS cascade layer name. */
   layer?: string;
-  /** CSS variables injected into the same style tag. */
-  vars?: StyleVarsT;
-  /** Alias for `vars`. */
-  cssVars?: StyleVarsT;
+  /** Additional CSS rules or variables injected before loaded CSS. */
+  css?: string;
 };
 
 /** Snapshot reported for a single registered atom. */
@@ -84,6 +71,12 @@ export type StyleAtomSnapshotT = {
 export type StyleLoadErrorT = {
   fileName: string;
   error: unknown;
+};
+
+/** CSS text replacement used by dev-time hot style updates. */
+export type StyleAtomCssReplacementT = {
+  fileName: string;
+  css: string;
 };
 
 /** Options used to create or configure a store. */
@@ -106,6 +99,8 @@ export type StyleAtomControllerT = {
   update: (options: StyleAtomOptionsT) => void;
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => StyleAtomSnapshotT;
+  reload: () => void;
+  replace: (styles: readonly StyleAtomCssReplacementT[]) => void;
   dispose: () => void;
 };
 

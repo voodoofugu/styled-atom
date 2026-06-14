@@ -1,26 +1,25 @@
 import type {
   StyleAtomControllerT,
+  StyleAtomCssReplacementT,
   StyleAtomOptionsT,
   StyleAtomSnapshotT,
   StyleEncapT,
   StyledAtomStoreOptionsT,
-  StyleVarsT,
 } from "./types";
 
 export type NormalizedEncapT = {
-  css: boolean;
   content: boolean;
-  selector?: string;
   classNames: string[];
-  atomShell: boolean;
-  varsSelector?: string;
+  id?: string;
+  attributes?: Record<string, string>;
+  defaultSelector: boolean;
 };
 
 export type NormalizedStyleOptionsT = {
   fileNames: string[];
   encap: NormalizedEncapT;
   layer?: string;
-  vars: Record<string, string | number | boolean>;
+  css: string;
 };
 
 type StyleEntryStatusT = "idle" | "loading" | "loaded" | "error";
@@ -28,6 +27,7 @@ type StyleEntryStatusT = "idle" | "loading" | "loaded" | "error";
 type StyleEntryT = {
   key: string;
   fileName: string;
+  inline: boolean;
   options: NormalizedStyleOptionsT;
   refs: Set<string>;
   status: StyleEntryStatusT;
@@ -55,7 +55,10 @@ const emptySnapshot = (id: string): StyleAtomSnapshotT => ({
 
 const compactList = (values?: readonly string[]) =>
   Array.isArray(values)
-    ? values.filter((value): value is string => typeof value === "string" && value.length > 0)
+    ? values.filter(
+        (value): value is string =>
+          typeof value === "string" && value.length > 0,
+      )
     : [];
 
 const normalizeLayer = (layer?: string) => {
@@ -72,69 +75,66 @@ const splitClassNames = (value?: string | string[]) => {
 const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
   if (!encap) {
     return {
-      css: false,
       content: false,
       classNames: [],
-      atomShell: true,
+      defaultSelector: false,
     };
   }
 
   if (encap === true || typeof encap === "string") {
     return {
-      css: true,
       content: true,
-      classNames: splitClassNames(typeof encap === "string" ? encap : undefined),
-      atomShell: true,
+      classNames: splitClassNames(
+        typeof encap === "string" ? encap : undefined,
+      ),
+      defaultSelector: true,
     };
   }
 
-  const cssSelector = typeof encap.css === "string" ? encap.css : encap.selector;
-  const selector = typeof cssSelector === "string" ? cssSelector.trim() : "";
-  const varsSelector =
-    typeof encap.varsSelector === "string" ? encap.varsSelector.trim() : "";
+  const classNames = splitClassNames(encap.className);
+  const id = typeof encap.id === "string" ? encap.id.trim() : "";
+  const attributes =
+    typeof encap.attribute === "object" &&
+    encap.attribute &&
+    !Array.isArray(encap.attribute)
+      ? Object.fromEntries(
+          Object.entries(encap.attribute).filter(
+            (entry): entry is [string, string] =>
+              typeof entry[0] === "string" && typeof entry[1] === "string",
+          ),
+        )
+      : undefined;
 
   return {
-    css: typeof encap.css === "boolean" ? encap.css : true,
     content: encap.content ?? encap.wrap ?? true,
-    selector: selector || undefined,
-    classNames: splitClassNames(encap.className),
-    atomShell: encap.atomShell ?? true,
-    varsSelector: varsSelector || undefined,
+    classNames,
+    id: id || undefined,
+    attributes:
+      attributes && Object.keys(attributes).length ? attributes : undefined,
+    defaultSelector: false,
   };
 };
 
-const normalizeVars = (vars?: StyleVarsT) => {
-  const normalized: Record<string, string | number | boolean> = {};
-
-  Object.entries(vars ?? {})
-    .filter((entry): entry is [string, string | number | boolean] => entry[1] != null)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .forEach(([name, value]) => {
-      const cssName = name.startsWith("--") ? name : `--${name}`;
-      normalized[cssName] = value;
-    });
-
-  return normalized;
-};
+const normalizeCss = (css?: string) =>
+  typeof css === "string" ? css.trim() : "";
 
 export const normalizeStyleAtomOptions = (
-  options: StyleAtomOptionsT
+  options: StyleAtomOptionsT,
 ): NormalizedStyleOptionsT => ({
   fileNames: compactList(options.fileNames),
   encap: normalizeEncap(options.encap),
   layer: normalizeLayer(options.layer),
-  vars: normalizeVars(options.vars ?? options.cssVars),
+  css: normalizeCss(options.css),
 });
 
 const stableKey = (value: unknown) => JSON.stringify(value);
 
 const getEncapKey = (encap: NormalizedEncapT) => ({
-  css: encap.css,
   content: encap.content,
-  selector: encap.selector ?? null,
   classNames: encap.classNames,
-  atomShell: encap.atomShell,
-  varsSelector: encap.varsSelector ?? null,
+  id: encap.id ?? null,
+  attributes: encap.attributes ?? null,
+  defaultSelector: encap.defaultSelector,
 });
 
 export const getStyleAtomKey = (options: StyleAtomOptionsT) => {
@@ -144,12 +144,14 @@ export const getStyleAtomKey = (options: StyleAtomOptionsT) => {
     fileNames: normalized.fileNames,
     encap: getEncapKey(normalized.encap),
     layer: normalized.layer ?? null,
-    vars: normalized.vars,
+    css: normalized.css || null,
   });
 };
 
 const cssEscape = (value: string) => {
-  const cssApi = globalThis.CSS as { escape?: (input: string) => string } | undefined;
+  const cssApi = globalThis.CSS as
+    | { escape?: (input: string) => string }
+    | undefined;
 
   if (cssApi?.escape) {
     return cssApi.escape(value);
@@ -161,42 +163,21 @@ const cssEscape = (value: string) => {
   });
 };
 
-const getDefaultFileSelector = (fileName: string) => `.${cssEscape(fileName)}`;
-
-const getCssSelector = (fileName: string, encap: NormalizedEncapT) => {
-  if (!encap.css) return undefined;
-
-  return encap.selector ?? getDefaultFileSelector(fileName);
-};
-
-const getVarsSelector = (fileName: string, encap: NormalizedEncapT) => {
-  if (encap.varsSelector) return encap.varsSelector;
-  if (encap.selector) return encap.selector;
-  if (encap.css) return getDefaultFileSelector(fileName);
-
-  return ":root";
-};
-
-const getStyleEntryKey = (
-  fileName: string,
-  options: NormalizedStyleOptionsT
-) =>
+const getStyleEntryKey = (fileName: string, options: NormalizedStyleOptionsT) =>
   stableKey({
     fileName,
-    cssSelector: options.encap.css
-      ? options.encap.selector ?? "__styled_atom_file_selector__"
-      : null,
     layer: options.layer ?? null,
-    vars: options.vars,
-    varsSelector: options.encap.varsSelector ?? null,
+    css: options.css || null,
   });
 
 const getContentClassNames = (options: NormalizedStyleOptionsT) => {
   if (!options.encap.content) return [];
 
-  const shouldUseFileClasses = options.encap.css && !options.encap.selector;
-  const classNames = shouldUseFileClasses
-    ? [...options.fileNames, ...options.encap.classNames]
+  const classNames = options.encap.defaultSelector
+    ? [
+        ...options.encap.classNames,
+        ...options.fileNames.map((name) => cssEscape(name)),
+      ]
     : [...options.encap.classNames];
 
   return Array.from(new Set(classNames.filter(Boolean)));
@@ -204,7 +185,7 @@ const getContentClassNames = (options: NormalizedStyleOptionsT) => {
 
 export const getStyledAtomWrapperProps = (
   options: StyleAtomOptionsT,
-  id: string
+  id: string,
 ) => {
   const normalized = normalizeStyleAtomOptions(options);
 
@@ -213,12 +194,23 @@ export const getStyledAtomWrapperProps = (
   const classNames = getContentClassNames(normalized);
   const props: Record<string, string> = {};
 
-  if (classNames.length > 0) {
-    props.className = classNames.join(" ");
+  // attribute
+  props["styled-atom-shell"] = id;
+
+  if (normalized.encap.attributes) {
+    for (const [name, value] of Object.entries(normalized.encap.attributes)) {
+      props[name] = value;
+    }
   }
 
-  if (normalized.encap.atomShell) {
-    props["atom-shell"] = id;
+  // id
+  if (normalized.encap.id) {
+    props.id = normalized.encap.id;
+  }
+
+  // class
+  if (classNames.length > 0) {
+    props.className = classNames.join(" ");
   }
 
   return props;
@@ -227,7 +219,9 @@ export const getStyledAtomWrapperProps = (
 const isUsefulCssText = (value: string) => {
   const text = value.trim();
 
-  return text.length === 0 || (!/^\[object .+\]$/.test(text) && text !== "undefined");
+  return (
+    text.length === 0 || (!/^\[object .+\]$/.test(text) && text !== "undefined")
+  );
 };
 
 const coerceCssText = (value: unknown) => {
@@ -235,7 +229,10 @@ const coerceCssText = (value: unknown) => {
   if (!value || typeof value !== "object") return "";
 
   const toString = (value as { toString?: () => string }).toString;
-  if (typeof toString !== "function" || toString === Object.prototype.toString) {
+  if (
+    typeof toString !== "function" ||
+    toString === Object.prototype.toString
+  ) {
     return "";
   }
 
@@ -255,27 +252,13 @@ const normalizeLoaderResult = (value: unknown) => {
   return "";
 };
 
-const createVarsCss = (
-  vars: Record<string, string | number | boolean>,
-  selector: string
-) => {
-  const declarations = Object.entries(vars)
-    .map(([name, value]) => `${name}:${String(value)};`)
-    .join("");
-
-  return declarations ? `${selector}{${declarations}}` : "";
-};
-
 const createCssText = (entry: StyleEntryT, css: string) => {
-  const selector = getCssSelector(entry.fileName, entry.options.encap);
-  const varsCss = createVarsCss(
-    entry.options.vars,
-    getVarsSelector(entry.fileName, entry.options.encap)
-  );
-  const scopedCss = selector ? `${selector}{${css}}` : css;
-  const cssText = [varsCss, scopedCss].filter(Boolean).join("\n");
+  const additionalCss = entry.options.css;
+  const cssText = [additionalCss, css].filter(Boolean).join("\n");
 
-  return entry.options.layer ? `@layer ${entry.options.layer}{${cssText}}` : cssText;
+  return entry.options.layer
+    ? `@layer ${entry.options.layer}{${cssText}}`
+    : cssText;
 };
 
 const formatError = (error: unknown) =>
@@ -322,7 +305,9 @@ export class StyledAtomStore {
    *
    * Keep the returned controller while the styles should stay mounted.
    */
-  registerAtom(options: StyleAtomOptionsT & { id?: string }): StyleAtomControllerT {
+  registerAtom(
+    options: StyleAtomOptionsT & { id?: string },
+  ): StyleAtomControllerT {
     const id = options.id ?? this.createId();
 
     if (!this.atoms.has(id)) {
@@ -348,7 +333,13 @@ export class StyledAtomStore {
 
     const normalized = normalizeStyleAtomOptions(options);
     const nextKeys = new Set<string>();
-    const nextEntries = normalized.fileNames.map((fileName) => {
+    const styleFileNames =
+      normalized.fileNames.length > 0
+        ? normalized.fileNames
+        : normalized.css
+          ? [`inline-${id}`]
+          : [];
+    const nextEntries = styleFileNames.map((fileName) => {
       const key = getStyleEntryKey(fileName, normalized);
       nextKeys.add(key);
 
@@ -358,6 +349,7 @@ export class StyledAtomStore {
         entry = {
           key,
           fileName,
+          inline: normalized.fileNames.length === 0,
           options: normalized,
           refs: new Set(),
           status: "idle",
@@ -420,12 +412,59 @@ export class StyledAtomStore {
    */
   preload(
     fileNames: readonly string[],
-    options: Omit<StyleAtomOptionsT, "fileNames"> = {}
+    options: Omit<StyleAtomOptionsT, "fileNames"> = {},
   ) {
     return this.registerAtom({
       ...options,
       id: this.createId("preload"),
       fileNames,
+    });
+  }
+
+  /** Reloads already registered style entries from the configured loader. */
+  reload(fileNames?: readonly string[]) {
+    const requested = new Set(compactList(fileNames));
+
+    this.styles.forEach((entry) => {
+      if (requested.size > 0 && !requested.has(entry.fileName)) return;
+
+      entry.status = "idle";
+      entry.error = undefined;
+      this.ensureStyleLoaded(entry);
+    });
+  }
+
+  /** Replaces CSS text for already registered file entries without calling the loader. */
+  replace(styles: readonly StyleAtomCssReplacementT[]) {
+    const replacements = new Map(
+      styles
+        .filter(
+          (style): style is StyleAtomCssReplacementT =>
+            typeof style?.fileName === "string" &&
+            style.fileName.length > 0 &&
+            typeof style.css === "string",
+        )
+        .map((style) => [style.fileName, style.css]),
+    );
+
+    if (replacements.size === 0) return;
+
+    this.styles.forEach((entry) => {
+      if (entry.inline) return;
+      const css = replacements.get(entry.fileName);
+      if (css === undefined) return;
+
+      const element = this.ensureStyleElement(entry);
+      const cssText = createCssText(entry, css);
+
+      if (element && element.textContent !== cssText) {
+        element.textContent = cssText;
+      }
+
+      entry.revision += 1;
+      entry.status = "loaded";
+      entry.error = undefined;
+      this.refreshAtomsForStyle(entry);
     });
   }
 
@@ -444,6 +483,8 @@ export class StyledAtomStore {
       update: (options) => this.updateAtom(id, options),
       subscribe: (listener) => this.subscribeAtom(id, listener),
       getSnapshot: () => this.getSnapshot(id),
+      reload: () => this.reload(this.atoms.get(id)?.options.fileNames),
+      replace: (styles) => this.replace(styles),
       dispose: () => this.unregisterAtom(id),
     };
   }
@@ -467,7 +508,8 @@ export class StyledAtomStore {
 
   private getDocument() {
     if (this.options.document) return this.options.document;
-    if (this.options.target?.ownerDocument) return this.options.target.ownerDocument;
+    if (this.options.target?.ownerDocument)
+      return this.options.target.ownerDocument;
 
     return typeof document === "undefined" ? undefined : document;
   }
@@ -500,8 +542,7 @@ export class StyledAtomStore {
 
     if (!this.layerOrderElement) {
       this.layerOrderElement = doc.createElement("style");
-      this.layerOrderElement.setAttribute("data-styled-atom", "true");
-      this.layerOrderElement.setAttribute("data-styled-atom-layers", "true");
+      this.layerOrderElement.setAttribute("styled-atom-layers", "true");
     }
 
     if (this.options.nonce) {
@@ -532,11 +573,10 @@ export class StyledAtomStore {
     this.ensureLayerOrder();
 
     const element = doc.createElement("style");
-    element.setAttribute("data-styled-atom", "true");
-    element.setAttribute("data-styled-atom-file", entry.fileName);
+    element.setAttribute("styled-atom-file", entry.fileName);
 
     if (entry.options.layer) {
-      element.setAttribute("data-styled-atom-layer", entry.options.layer);
+      element.setAttribute("styled-atom-layer", entry.options.layer);
     }
 
     if (this.options.nonce) {
@@ -550,14 +590,11 @@ export class StyledAtomStore {
   }
 
   private ensureStyleLoaded(entry: StyleEntryT) {
-    if (entry.status === "loading" || entry.status === "loaded" || entry.status === "error") {
-      return;
-    }
-
-    const loader = this.options.path;
-
-    if (!loader) {
-      this.refreshAtomsForStyle(entry);
+    if (
+      entry.status === "loading" ||
+      entry.status === "loaded" ||
+      entry.status === "error"
+    ) {
       return;
     }
 
@@ -565,6 +602,26 @@ export class StyledAtomStore {
 
     if (!element) {
       entry.status = "loaded";
+      this.refreshAtomsForStyle(entry);
+      return;
+    }
+
+    if (entry.inline) {
+      const cssText = createCssText(entry, "");
+
+      if (element.textContent !== cssText) {
+        element.textContent = cssText;
+      }
+
+      entry.status = "loaded";
+      entry.error = undefined;
+      this.refreshAtomsForStyle(entry);
+      return;
+    }
+
+    const loader = this.options.path;
+
+    if (!loader) {
       this.refreshAtomsForStyle(entry);
       return;
     }
@@ -603,7 +660,7 @@ export class StyledAtomStore {
           "\n",
           "styled-atom",
           "\n",
-          error
+          error,
         );
       });
   }
@@ -623,11 +680,13 @@ export class StyledAtomStore {
       .filter((entry) => entry.status === "error")
       .map((entry) => ({ fileName: entry.fileName, error: entry.error }));
     const loading = entries.some(
-      (entry) => entry.status === "idle" || entry.status === "loading"
+      (entry) => entry.status === "idle" || entry.status === "loading",
     );
     const loaded =
       entries.length === 0 ||
-      entries.every((entry) => entry.status === "loaded" || entry.status === "error");
+      entries.every(
+        (entry) => entry.status === "loaded" || entry.status === "error",
+      );
     const snapshot: StyleAtomSnapshotT = {
       id: atom.id,
       loaded,

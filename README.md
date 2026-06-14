@@ -74,8 +74,7 @@ type StyledAtomProps = {
   fileNames?: readonly string[];
   encap?: boolean | string | StyleEncapConfig;
   layer?: string;
-  vars?: Record<string, string | number | boolean | null | undefined>;
-  cssVars?: Record<string, string | number | boolean | null | undefined>;
+  css?: string;
   fallback?: React.ReactNode;
   onLoad?: () => void;
   children?: React.ReactNode;
@@ -94,30 +93,32 @@ CSS atom names passed to the configured loader.
 
 ### `encap`
 
-Encapsulation can wrap CSS, content, or both.
+Encapsulation only controls the rendered wrapper element. Loaded CSS is injected
+as raw CSS.
 
 ```tsx
-// Wraps loaded CSS as `.card { ... }` and renders a wrapper div.
+// Renders a wrapper div with stable classes derived from file names.
 <StyledAtom fileNames={["card"]} encap>
   <Card />
 </StyledAtom>
 
-// Same behavior with extra wrapper classes.
+// Same wrapper behavior with extra classes.
 <StyledAtom fileNames={["card"]} encap="is-preview">
   <Card />
 </StyledAtom>
 
-// CSS-only wrapper. No extra content div is rendered.
+// Structured wrapper props.
 <StyledAtom
   fileNames={["card"]}
-  encap={{ selector: ".likeBody", content: false }}
+  encap={{ className: "likeBody", id: "preview-root" }}
 >
   <Card />
 </StyledAtom>
 ```
 
-The css-only form is useful for `demo-workbench` and similar tools where the
-preview body already owns the wrapper element.
+For body-like previews, rewrite `body` selectors during your CSS build step
+and add the same class/id/attribute through `encap`. This avoids rendering more
+than one real `<body>` element.
 
 ### `layer`
 
@@ -151,26 +152,25 @@ const styleAtoms = createStyledAtomStore({
 The store writes that order before atom style tags, so async CSS loads do not
 accidentally define layer priority by load timing.
 
-### `vars` / `cssVars`
+### `css`
 
-Injects CSS custom properties before the loaded CSS. Keys may be passed with or
-without the `--` prefix.
+Injects raw CSS before loaded CSS. This can be custom properties, resets, theme
+rules, or any other CSS the host wants to own.
 
 ```tsx
 <StyledAtom
   fileNames={["theme"]}
-  encap
-  vars={{
-    accent: "#6366f1",
-    "--radius": "8px",
-  }}
+  css={`:root { --accent: #6366f1; --radius: 8px; }`}
 >
   <Demo />
 </StyledAtom>
 ```
 
-With `encap`, variables are scoped to the same selector as the CSS. Without
-`encap`, variables are written to `:root`.
+When `fileNames` is empty, `css` still creates an inline style atom:
+
+```tsx
+<StyledAtom layer="base" css={`.likeBody { color-scheme: dark; }`} />
+```
 
 ## Framework-Agnostic Core
 
@@ -185,7 +185,7 @@ const store = createStyleStore({
 
 const controller = store.preload(["reset", "theme"], {
   layer: "base",
-  vars: { accent: "#0f766e" },
+  css: `:root { --accent: #0f766e; }`,
 });
 
 controller.subscribe(() => {
@@ -201,7 +201,7 @@ controller.dispose();
 `styled-atom` keeps one store-owned cache of style entries:
 
 - each rendered atom registers its own id;
-- style tags are cached by `fileName + encap + layer + vars`;
+- style tags are cached by `fileName + layer + css`;
 - each style tag has a reference count;
 - equivalent React re-renders do not touch the DOM;
 - updating one atom notifies only subscribers for that atom.
@@ -216,7 +216,7 @@ re-render while sharing the same CSS atoms.
 import { createStyledAtomStore } from "styled-atom";
 
 export const workbenchStyleAtoms = createStyledAtomStore({
-  layers: ["workbench", "host", "demo"],
+  layers: ["workbench", "base"],
 });
 export const StyledAtom = workbenchStyleAtoms.StyledAtom;
 ```
@@ -233,8 +233,7 @@ useEffect(() => {
 <StyledAtom
   fileNames={stableCssFiles}
   fallback={<Loading />}
-  layer="demo"
-  encap={{ selector: ".likeBody", content: false }}
+  encap={{ className: "likeBody" }}
 >
   {body}
 </StyledAtom>
@@ -244,7 +243,8 @@ For host/base styles:
 
 ```tsx
 <StyledAtom fileNames={["workbench"]} layer="workbench" />
-<StyledAtom fileNames={["output"]} layer="host" />
+<StyledAtom layer="base" css={`.likeBody { min-height: 100%; }`} />
+<StyledAtom fileNames={["output"]} layer="base" />
 ```
 
 ## Public Exports

@@ -1,4 +1,5 @@
-dist
 node_modules
 Zone.Identifier
 .DS_Store
+publish
+dist/
