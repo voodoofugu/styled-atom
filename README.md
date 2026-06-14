@@ -8,8 +8,6 @@
 - [Installation](#installation)
 - [API](#api)
 - [Common patterns](#common-patterns)
-- [Development](#development)
-- [CI](#ci)
 - [License](#license)
 
 <h2></h2>
@@ -24,8 +22,6 @@ It is not a CSS framework. It does not generate class names, parse styles, scope
 
 The core idea is simple - one store owns the style cache, and each rendered atom describes the CSS it needs.
 
-Version `3` is built around explicit store factories. There is no global `StyleCore` provider and no package-level `StyledAtom` singleton. Create a store, export the bound component, and use that pair inside your app or tool.
-
 <h2></h2>
 
 ### Installation
@@ -36,16 +32,6 @@ npm install styled-atom
 
 ```tsx
 import { createStyledAtomStore } from "styled-atom";
-```
-
-For local sibling-project development:
-
-```json
-{
-  "dependencies": {
-    "styled-atom": "file:../styled-atom"
-  }
-}
 ```
 
 > **✦ Note:**
@@ -88,15 +74,8 @@ Use one store for a shell, workbench or isolated UI surface. Every mounted atom 
 Returns an object with the raw store, the bound component and convenience methods:
 
 ```ts
-const {
-  store,
-  StyledAtom,
-  configure,
-  preload,
-  reload,
-  replace,
-  dispose,
-} = createStyledAtomStore();
+const { store, StyledAtom, configure, preload, reload, replace, dispose } =
+  createStyledAtomStore();
 ```
 
 <b>Example:</b>
@@ -431,39 +410,6 @@ function destroySurface() {
 ```
 
 </details>
-
-<h2></h2>
-
-### Development
-
-```bash
-npm install
-npm run typecheck
-npm run build
-```
-
-For package inspection:
-
-```bash
-npm pack --dry-run
-```
-
-The build creates ESM, CommonJS and declaration output under `dist/`.
-
-<h2></h2>
-
-### CI
-
-CI should keep this package small and reusable:
-
-```bash
-npm ci
-npm run typecheck
-npm run build
-npm pack --dry-run
-```
-
-This verifies the TypeScript surface, the React/core entry points and the npm package contents that downstream projects install.
 
 <h2></h2>
 
