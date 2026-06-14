@@ -13,6 +13,20 @@ import type {
   StyledAtomT,
 } from "./types";
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***ReactStyledAtomStoreT***:
+ * React-facing store bundle returned by `createStyledAtomStore`.
+ * @description
+ * Contains the raw `StyledAtomStore`, the React `StyledAtom` component bound to that store, and convenience methods forwarded from the store.
+ * @example
+ * ```ts
+ * const styleAtoms = createStyledAtomStore();
+ *
+ * export const StyledAtom = styleAtoms.StyledAtom;
+ * styleAtoms.configure({ path: loadCss });
+ * ```
+ */
 type ReactStyledAtomStoreT = {
   store: StyledAtomStore;
   StyledAtom: React.FC<StyledAtomT>;
@@ -95,6 +109,21 @@ const useStyledAtomController = (
   return { normalized, snapshot };
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***createStyledAtomComponent***:
+ * bind a React `StyledAtom` component to an existing core store.
+ * @description
+ * Use this when a project owns a `StyledAtomStore` directly but still wants the React component behavior: register styles on mount, render fallback while loading, render children after the atom is ready and release references on unmount.
+ * @example
+ * ```tsx
+ * const store = createStyleStore({
+ *   path: (name) => import(`./css/${name}.css`),
+ * });
+ *
+ * export const StyledAtom = createStyledAtomComponent(store);
+ * ```
+ */
 export const createStyledAtomComponent = (store: StyledAtomStore) => {
   const StyledAtom = ({
     fileNames = [],
@@ -147,6 +176,23 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
   return StyledAtom;
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***createStyledAtomStore***:
+ * create a store plus a React component bound to it.
+ * @description
+ * This is the usual React entry point. Use one returned object per shell, workbench or isolated UI surface so mounted atoms share a cache, layer order and DOM target.
+ * @returns a React-facing store bundle with `store`, `StyledAtom`, `configure`, `preload`, `reload`, `replace` and `dispose`.
+ * @example
+ * ```tsx
+ * export const styleAtoms = createStyledAtomStore({
+ *   path: (name) => import(`./styles/${name}.css`),
+ *   layers: ["base", "demo"],
+ * });
+ *
+ * export const StyledAtom = styleAtoms.StyledAtom;
+ * ```
+ */
 export const createStyledAtomStore = (
   options: StyledAtomStoreOptionsT = {},
 ): ReactStyledAtomStoreT => {

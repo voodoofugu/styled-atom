@@ -7,6 +7,13 @@ import type {
   StyledAtomStoreOptionsT,
 } from "./types";
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***NormalizedEncapT***:
+ * normalized wrapper settings used internally by the core store and React component.
+ * @description
+ * The normalized shape removes shorthand forms from `StyleEncapT`, splits class names and makes wrapper decisions explicit.
+ */
 export type NormalizedEncapT = {
   content: boolean;
   classNames: string[];
@@ -15,6 +22,13 @@ export type NormalizedEncapT = {
   defaultSelector: boolean;
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***NormalizedStyleOptionsT***:
+ * normalized style atom options.
+ * @description
+ * Used as the stable store representation for file names, wrapper options, cascade layer and inline CSS. Empty names are removed and optional strings are trimmed before the store creates cache keys.
+ */
 export type NormalizedStyleOptionsT = {
   fileNames: string[];
   encap: NormalizedEncapT;
@@ -118,6 +132,20 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
 const normalizeCss = (css?: string) =>
   typeof css === "string" ? css.trim() : "";
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***normalizeStyleAtomOptions***:
+ * normalize user-facing atom options.
+ * @description
+ * Converts shorthand `encap` values, trims layer/css strings and removes empty file names. Use it when custom tooling needs the same interpretation as `StyledAtomStore`.
+ * @example
+ * ```ts
+ * const normalized = normalizeStyleAtomOptions({
+ *   fileNames: ["card", ""],
+ *   encap: "likeBody",
+ * });
+ * ```
+ */
 export const normalizeStyleAtomOptions = (
   options: StyleAtomOptionsT,
 ): NormalizedStyleOptionsT => ({
@@ -137,6 +165,20 @@ const getEncapKey = (encap: NormalizedEncapT) => ({
   defaultSelector: encap.defaultSelector,
 });
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***getStyleAtomKey***:
+ * create a stable content key for atom options.
+ * @description
+ * React uses this key to avoid store updates when inline arrays or objects contain the same normalized values. Host tooling can use it for memoization around atom options.
+ * @example
+ * ```ts
+ * const key = getStyleAtomKey({
+ *   fileNames: ["card", "theme"],
+ *   layer: "components",
+ * });
+ * ```
+ */
 export const getStyleAtomKey = (options: StyleAtomOptionsT) => {
   const normalized = normalizeStyleAtomOptions(options);
 
@@ -183,6 +225,22 @@ const getContentClassNames = (options: NormalizedStyleOptionsT) => {
   return Array.from(new Set(classNames.filter(Boolean)));
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***getStyledAtomWrapperProps***:
+ * derive wrapper props from atom options.
+ * @param options atom options that may include `encap`.
+ * @param id stable atom id written to the `styled-atom-shell` attribute.
+ * @description
+ * Returns the same wrapper props used by the React `StyledAtom` component. Returns `null` when the atom does not need a wrapper.
+ * @example
+ * ```ts
+ * const props = getStyledAtomWrapperProps(
+ *   { fileNames: ["screen"], encap: "likeBody" },
+ *   "preview-1",
+ * );
+ * ```
+ */
 export const getStyledAtomWrapperProps = (
   options: StyleAtomOptionsT,
   id: string,
@@ -264,9 +322,22 @@ const createCssText = (entry: StyleEntryT, css: string) => {
 const formatError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-/**
- * Framework-agnostic style store. It owns DOM style tags, caches loaded CSS and
- * notifies only the atoms affected by a changed style entry.
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomStore***:
+ * framework-agnostic DOM style store.
+ * @description
+ * Owns DOM style tags, caches loaded CSS entries and notifies only the atoms affected by a changed style entry. Use it directly from `styled-atom/core`, or through `createStyledAtomStore()` when you need the React component too.
+ * @example
+ * ```ts
+ * const store = new StyledAtomStore({
+ *   path: (name) => import(`./css/${name}.css`),
+ *   layers: ["base", "demo"],
+ * });
+ *
+ * const atom = store.preload(["reset", "theme"]);
+ * atom.dispose();
+ * ```
  */
 export class StyledAtomStore {
   private options: StyledAtomStoreOptionsT;
@@ -280,9 +351,18 @@ export class StyledAtomStore {
     this.ensureLayerOrder();
   }
 
-  /**
-   * Updates the store loader or DOM target. Existing style entries are retried
-   * when a new loader is provided.
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***configure***:
+   * update store options after creation.
+   * @description
+   * Updates the loader, layer order, DOM document, target or nonce. Existing style entries are retried when a new loader is provided.
+   * @example
+   * ```ts
+   * store.configure({
+   *   path: (name) => import(`./css/${name}.css`),
+   * });
+   * ```
    */
   configure(options: StyledAtomStoreOptionsT) {
     const previousPath = this.options.path;
@@ -300,10 +380,20 @@ export class StyledAtomStore {
     }
   }
 
-  /**
-   * Registers a style atom and starts loading the requested CSS entries.
-   *
-   * Keep the returned controller while the styles should stay mounted.
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***registerAtom***:
+   * register one style atom and start loading its CSS entries.
+   * @description
+   * Keep the returned controller while the styles should stay mounted. Releasing it removes this atom's references and cleans up style tags that are no longer shared.
+   * @returns controller for updating, subscribing, reloading and disposing the atom.
+   * @example
+   * ```ts
+   * const atom = store.registerAtom({
+   *   fileNames: ["card", "theme"],
+   *   layer: "components",
+   * });
+   * ```
    */
   registerAtom(
     options: StyleAtomOptionsT & { id?: string },
@@ -326,7 +416,13 @@ export class StyledAtomStore {
     return this.createController(id);
   }
 
-  /** Updates one atom without touching unrelated atoms in the store. */
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***updateAtom***:
+   * update one registered atom.
+   * @description
+   * Reconciles file references for the atom id without touching unrelated atoms in the store.
+   */
   updateAtom(id: string, options: StyleAtomOptionsT) {
     const atom = this.atoms.get(id);
     if (!atom) return;
@@ -377,7 +473,13 @@ export class StyledAtomStore {
     this.refreshAtomSnapshot(atom);
   }
 
-  /** Disposes one atom and releases its style tag references. */
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***unregisterAtom***:
+   * dispose one atom by id.
+   * @description
+   * Releases the atom's style references, removes unused style tags and clears atom listeners.
+   */
   unregisterAtom(id: string) {
     const atom = this.atoms.get(id);
     if (!atom) return;
@@ -387,7 +489,17 @@ export class StyledAtomStore {
     this.atoms.delete(id);
   }
 
-  /** Subscribes to snapshot changes for one atom id. */
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***subscribeAtom***:
+   * subscribe to snapshot changes for one atom id.
+   * @returns unsubscribe function.
+   * @example
+   * ```ts
+   * const unsubscribe = store.subscribeAtom(atom.id, listener);
+   * unsubscribe();
+   * ```
+   */
   subscribeAtom(id: string, listener: () => void) {
     const atom = this.atoms.get(id);
     if (!atom) return () => undefined;
@@ -399,16 +511,31 @@ export class StyledAtomStore {
     };
   }
 
-  /** Returns the latest loading snapshot for one atom id. */
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***getSnapshot***:
+   * read the latest loading snapshot for one atom id.
+   * @example
+   * ```ts
+   * const snapshot = store.getSnapshot(atom.id);
+   * ```
+   */
   getSnapshot(id: string): StyleAtomSnapshotT {
     return this.atoms.get(id)?.snapshot ?? emptySnapshot(id);
   }
 
-  /**
-   * Registers styles without rendering React content.
-   *
-   * Dispose the returned controller when the preloaded styles are no longer
-   * needed.
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***preload***:
+   * register styles without rendering React content.
+   * @description
+   * Use it for shared resets, themes or shell styles that should stay mounted while a tool surface is alive. Dispose the returned controller when those styles are no longer needed.
+   * @example
+   * ```ts
+   * const preloaded = store.preload(["reset", "theme"], {
+   *   layer: "base",
+   * });
+   * ```
    */
   preload(
     fileNames: readonly string[],
@@ -421,7 +548,13 @@ export class StyledAtomStore {
     });
   }
 
-  /** Reloads already registered style entries from the configured loader. */
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***reload***:
+   * reload registered style entries from the configured loader.
+   * @description
+   * When `fileNames` is omitted every registered file entry is reloaded. Inline CSS atoms are not loaded through the loader.
+   */
   reload(fileNames?: readonly string[]) {
     const requested = new Set(compactList(fileNames));
 
@@ -434,7 +567,17 @@ export class StyledAtomStore {
     });
   }
 
-  /** Replaces CSS text for already registered file entries without calling the loader. */
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***replace***:
+   * replace CSS text for registered file entries.
+   * @description
+   * Updates matching mounted style tags without calling the loader. This is intended for dev-time style reload servers.
+   * @example
+   * ```ts
+   * store.replace([{ fileName: "card", css: nextCss }]);
+   * ```
+   */
   replace(styles: readonly StyleAtomCssReplacementT[]) {
     const replacements = new Map(
       styles
@@ -468,7 +611,13 @@ export class StyledAtomStore {
     });
   }
 
-  /** Removes all atoms and all style tags owned by this store. */
+  /**---
+   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+   * ### ***dispose***:
+   * remove every atom and every style tag owned by this store.
+   * @description
+   * Use it when a workbench, preview iframe or custom tool surface is torn down.
+   */
   dispose() {
     Array.from(this.atoms.keys()).forEach((id) => this.unregisterAtom(id));
     this.styles.forEach((entry) => entry.element?.remove());
@@ -710,5 +859,18 @@ export class StyledAtomStore {
   }
 }
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***createStyleStore***:
+ * create a framework-agnostic style store.
+ * @description
+ * Convenience factory for `new StyledAtomStore(options)`.
+ * @example
+ * ```ts
+ * const store = createStyleStore({
+ *   path: (name) => import(`./css/${name}.css`),
+ * });
+ * ```
+ */
 export const createStyleStore = (options?: StyledAtomStoreOptionsT) =>
   new StyledAtomStore(options);
