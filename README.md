@@ -57,12 +57,12 @@ import { createStyledAtomStore } from "styled-atom";
 ```tsx
 import { createStyledAtomStore } from "styled-atom";
 
-export const styleAtoms = createStyledAtomStore({
+export const styleStore = createStyledAtomStore({
   path: (name) => import(`./styles/${name}.css`),
   layers: ["base", "components", "overrides"],
 });
 
-export const StyledAtom = styleAtoms.StyledAtom;
+export const StyledAtom = styleStore.StyledAtom;
 ```
 
 <b>Description:</b><em><br />
@@ -135,14 +135,14 @@ Equivalent prop values reuse the same store state, so inline arrays or objects w
 </StyledAtom>
 
 // Adds explicit wrapper classes.
-<StyledAtom fileNames={["screen-main"]} encap="likeBody">
+<StyledAtom fileNames={["screen-main"]} encap="customClass">
   <Screen />
 </StyledAtom>
 
 // Adds structured wrapper props.
 <StyledAtom
   fileNames={["screen-main"]}
-  encap={{ className: "likeBody", id: "preview-root" }}
+  encap={{ className: "customClass", id: "preview-root" }}
 >
   <Screen />
 </StyledAtom>
@@ -274,7 +274,7 @@ Returned by <code>registerAtom</code> and <code>preload</code>. Keep the control
 const props = getStyledAtomWrapperProps(
   {
     fileNames: ["screen-main"],
-    encap: { className: "likeBody" },
+    encap: { className: "customClass" },
   },
   "preview-1",
 );
@@ -372,7 +372,7 @@ Generated styles are wrapped as needed:
 <StyledAtom
   layer="host"
   css={`
-    .likeBody {
+    .customClass {
       color-scheme: dark;
       min-height: 100%;
     }

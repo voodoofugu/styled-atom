@@ -142,7 +142,7 @@ const normalizeCss = (css?: string) =>
  * ```ts
  * const normalized = normalizeStyleAtomOptions({
  *   fileNames: ["card", ""],
- *   encap: "likeBody",
+ *   encap: "customClass",
  * });
  * ```
  */
@@ -230,21 +230,16 @@ const getContentClassNames = (options: NormalizedStyleOptionsT) => {
  * ### ***getStyledAtomWrapperProps***:
  * derive wrapper props from atom options.
  * @param options atom options that may include `encap`.
- * @param id stable atom id written to the `styled-atom-shell` attribute.
  * @description
  * Returns the same wrapper props used by the React `StyledAtom` component. Returns `null` when the atom does not need a wrapper.
  * @example
  * ```ts
  * const props = getStyledAtomWrapperProps(
- *   { fileNames: ["screen"], encap: "likeBody" },
- *   "preview-1",
+ *   { fileNames: ["screen"], encap: "customClass" }
  * );
  * ```
  */
-export const getStyledAtomWrapperProps = (
-  options: StyleAtomOptionsT,
-  id: string,
-) => {
+export const getStyledAtomWrapperProps = (options: StyleAtomOptionsT) => {
   const normalized = normalizeStyleAtomOptions(options);
 
   if (!normalized.encap.content) return null;
@@ -253,7 +248,7 @@ export const getStyledAtomWrapperProps = (
   const props: Record<string, string> = {};
 
   // attribute
-  props["styled-atom-shell"] = id;
+  props["styled-atom-shell"] = "";
 
   if (normalized.encap.attributes) {
     for (const [name, value] of Object.entries(normalized.encap.attributes)) {

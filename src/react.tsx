@@ -161,7 +161,7 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
       return null;
     }
 
-    const wrapperProps = getStyledAtomWrapperProps(props, id);
+    const wrapperProps = getStyledAtomWrapperProps(props);
     const content = wrapperProps ? (
       <div {...wrapperProps}>{children}</div>
     ) : (

@@ -43,8 +43,8 @@ export type ImportStyleT = (
  * @example
  * ```tsx
  * <StyledAtom fileNames={["screen-main"]} encap />
- * <StyledAtom fileNames={["screen-main"]} encap="likeBody" />
- * <StyledAtom fileNames={["screen-main"]} encap={{ className: "likeBody" }} />
+ * <StyledAtom fileNames={["screen-main"]} encap="customClass" />
+ * <StyledAtom fileNames={["screen-main"]} encap={{ className: "customClass" }} />
  * ```
  */
 export type StyleEncapT =
@@ -74,7 +74,7 @@ export type StyleEncapT =
  * const options: StyleAtomOptionsT = {
  *   fileNames: ["card", "theme"],
  *   layer: "components",
- *   encap: "likeBody",
+ *   encap: "customClass",
  * };
  * ```
  */
