@@ -1,23 +1,12 @@
-export {
-  createStyledAtomComponent,
-  createStyledAtomStore,
-} from "./react";
-export {
-  createStyleStore,
-  getStyledAtomWrapperProps,
-  getStyleAtomKey,
-  normalizeStyleAtomOptions,
-  StyledAtomStore,
-} from "./core";
+export { createStyledAtomStore } from "./react";
 export type {
   ImportStyleResultT,
   ImportStyleT,
+  ReactStyledAtomStoreT,
   StyleAtomCssReplacementT,
-  StyleAtomControllerT,
   StyleAtomOptionsT,
   StyleAtomSnapshotT,
   StyleEncapT,
-  StyledAtomStoreOptionsT,
   StyledAtomT,
   StyleLoadErrorT,
 } from "./types";

@@ -1,10 +1,10 @@
 import type {
+  ImportStyleT,
   StyleAtomControllerT,
   StyleAtomCssReplacementT,
   StyleAtomOptionsT,
   StyleAtomSnapshotT,
   StyleEncapT,
-  StyledAtomStoreOptionsT,
 } from "./types";
 
 /**---
@@ -125,7 +125,7 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
  * ### ***normalizeStyleAtomOptions***:
  * normalize user-facing atom options.
  * @description
- * Converts shorthand `encap` values and removes empty file names. Use it when custom tooling needs the same interpretation as `StyledAtomStore`.
+ * Converts shorthand `encap` values and removes empty file names.
  * @example
  * ```ts
  * const normalized = normalizeStyleAtomOptions({
@@ -289,51 +289,43 @@ const formatError = (error: unknown) =>
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyledAtomStore***:
- * framework-agnostic DOM style store.
+ * internal DOM style store used by the React runtime.
  * @description
- * Owns DOM style tags, caches loaded CSS entries and notifies only the atoms affected by a changed style entry. Use it directly from `styled-atom/core`, or through `createStyledAtomStore()` when you need the React component too.
+ * Owns DOM style tags, caches loaded CSS entries and notifies only the atoms affected by a changed style entry.
  * @example
  * ```ts
- * const store = new StyledAtomStore({
- *   path: (name) => import(`./css/${name}.css`),
- *   layers: ["base", "demo"],
- * });
+ * const store = new StyledAtomStore((name) => import(`./css/${name}.css`));
  *
  * const atom = store.preload(["reset", "theme"]);
  * atom.dispose();
  * ```
  */
 export class StyledAtomStore {
-  private options: StyledAtomStoreOptionsT;
+  private path?: ImportStyleT;
   private atoms = new Map<string, AtomStateT>();
   private styles = new Map<string, StyleEntryT>();
-  private layerOrderElement?: HTMLStyleElement;
   private idCounter = 0;
 
-  constructor(options: StyledAtomStoreOptionsT = {}) {
-    this.options = options;
-    this.ensureLayerOrder();
+  constructor(path?: ImportStyleT) {
+    this.path = path;
   }
 
   /**---
    * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
    * ### ***configure***:
-   * update store options after creation.
+   * update CSS loader after creation.
    * @description
-   * Updates the loader, layer order, DOM document, target or nonce. Existing style entries are retried when a new loader is provided.
+   * Existing style entries are retried when a new loader is provided.
    * @example
    * ```ts
-   * store.configure({
-   *   path: (name) => import(`./css/${name}.css`),
-   * });
+   * store.configure((name) => import(`./css/${name}.css`));
    * ```
    */
-  configure(options: StyledAtomStoreOptionsT) {
-    const previousPath = this.options.path;
-    this.options = { ...this.options, ...options };
-    this.ensureLayerOrder();
+  configure(path?: ImportStyleT) {
+    const previousPath = this.path;
+    this.path = path;
 
-    if (options.path && options.path !== previousPath) {
+    if (path && path !== previousPath) {
       this.styles.forEach((entry) => {
         entry.status = "idle";
         entry.error = undefined;
@@ -571,8 +563,6 @@ export class StyledAtomStore {
   dispose() {
     Array.from(this.atoms.keys()).forEach((id) => this.unregisterAtom(id));
     this.styles.forEach((entry) => entry.element?.remove());
-    this.layerOrderElement?.remove();
-    this.layerOrderElement = undefined;
     this.styles.clear();
   }
 
@@ -605,78 +595,16 @@ export class StyledAtomStore {
     }
   }
 
-  private getDocument() {
-    if (this.options.document) return this.options.document;
-    if (this.options.target?.ownerDocument)
-      return this.options.target.ownerDocument;
-
-    return typeof document === "undefined" ? undefined : document;
-  }
-
-  private getTarget() {
-    const doc = this.getDocument();
-
-    return this.options.target ?? doc?.head;
-  }
-
-  private getLayerOrderCss() {
-    const layers = compactList(this.options.layers);
-
-    return layers.length ? `@layer ${layers.join(", ")};` : "";
-  }
-
-  private ensureLayerOrder() {
-    const cssText = this.getLayerOrderCss();
-
-    if (!cssText) {
-      this.layerOrderElement?.remove();
-      this.layerOrderElement = undefined;
-      return;
-    }
-
-    const doc = this.getDocument();
-    const target = this.getTarget();
-
-    if (!doc || !target) return;
-
-    if (!this.layerOrderElement) {
-      this.layerOrderElement = doc.createElement("style");
-      this.layerOrderElement.setAttribute("styled-atom-layers", "true");
-    }
-
-    if (this.options.nonce) {
-      this.layerOrderElement.setAttribute("nonce", this.options.nonce);
-    } else {
-      this.layerOrderElement.removeAttribute("nonce");
-    }
-
-    if (this.layerOrderElement.textContent !== cssText) {
-      this.layerOrderElement.textContent = cssText;
-    }
-
-    if (this.layerOrderElement.parentNode !== target) {
-      target.insertBefore(this.layerOrderElement, target.firstChild);
-    } else if (target.firstChild !== this.layerOrderElement) {
-      target.insertBefore(this.layerOrderElement, target.firstChild);
-    }
-  }
-
   private ensureStyleElement(entry: StyleEntryT) {
     if (entry.element) return entry.element;
 
-    const doc = this.getDocument();
-    const target = this.getTarget();
+    const doc = typeof document === "undefined" ? undefined : document;
+    const target = doc?.head;
 
     if (!doc || !target) return undefined;
 
-    this.ensureLayerOrder();
-
     const element = doc.createElement("style");
     element.setAttribute("styled-atom-file", entry.fileName);
-
-    if (this.options.nonce) {
-      element.setAttribute("nonce", this.options.nonce);
-    }
 
     target.appendChild(element);
     entry.element = element;
@@ -701,7 +629,7 @@ export class StyledAtomStore {
       return;
     }
 
-    const loader = this.options.path;
+    const loader = this.path;
 
     if (!loader) {
       this.refreshAtomsForStyle(entry);
@@ -790,19 +718,3 @@ export class StyledAtomStore {
     }
   }
 }
-
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***createStyleStore***:
- * create a framework-agnostic style store.
- * @description
- * Convenience factory for `new StyledAtomStore(options)`.
- * @example
- * ```ts
- * const store = createStyleStore({
- *   path: (name) => import(`./css/${name}.css`),
- * });
- * ```
- */
-export const createStyleStore = (options?: StyledAtomStoreOptionsT) =>
-  new StyledAtomStore(options);

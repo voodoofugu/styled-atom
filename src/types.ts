@@ -21,8 +21,8 @@ export type ImportStyleResultT =
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***ImportStyleT***:
- * dynamic CSS loader used by `StyledAtomStore`.
- * @param fileName CSS atom name requested by `StyledAtom`, `registerAtom` or `preload`.
+ * dynamic CSS loader used by `createStyledAtomStore`.
+ * @param fileName CSS atom name requested by `StyledAtom`.
  * @description
  * The loader receives the atom name without forcing a file extension convention. Host projects usually map it to a bundler import, for example `import("./css/" + fileName + ".css")`.
  * @example
@@ -66,9 +66,9 @@ export type StyleEncapT =
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleAtomOptionsT***:
- * shared style options used by React and framework-agnostic APIs.
+ * shared style options used by React APIs.
  * @description
- * These options describe one atom: CSS file names and optional wrapper behavior. The same shape is accepted by `StyledAtom`, `registerAtom`, `preload` and `update`.
+ * These options describe one atom: CSS file names and optional wrapper behavior. The same shape is accepted by `StyledAtom`.
  * @example
  * ```ts
  * const options: StyleAtomOptionsT = {
@@ -148,33 +148,6 @@ export type StyleAtomCssReplacementT = {
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyledAtomStoreOptionsT***:
- * options used to create or configure a style store.
- * @description
- * Pass the loader and DOM placement once when a store is created, or later through `configure()`. `layers` writes a cascade layer order before loaded atom styles so async load timing does not change priority for CSS files that declare layers themselves.
- * @example
- * ```ts
- * const options: StyledAtomStoreOptionsT = {
- *   path: (name) => import(`./css/${name}.css`),
- *   layers: ["base", "components", "overrides"],
- * };
- * ```
- */
-export type StyledAtomStoreOptionsT = {
-  /** Dynamic CSS loader. */
-  path?: ImportStyleT;
-  /** CSS cascade layer order declared before loaded atom styles. */
-  layers?: readonly string[];
-  /** DOM document used for style tag creation. Defaults to global document. */
-  document?: Document;
-  /** Element or shadow root where style tags should be mounted. */
-  target?: HTMLElement | ShadowRoot;
-  /** Optional nonce added to generated style tags. */
-  nonce?: string;
-};
-
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleAtomControllerT***:
  * controller returned for one registered style atom.
  * @description
@@ -227,4 +200,24 @@ export type StyledAtomT = StyleAtomOptionsT & {
   onLoad?: () => void;
   /** React content protected by this style atom. */
   children?: React.ReactNode;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***ReactStyledAtomStoreT***:
+ * React-facing style atom runtime returned by `createStyledAtomStore`.
+ * @description
+ * Contains the bound `StyledAtom` component and a small set of runtime controls for configuring the CSS loader and refreshing mounted style tags during development.
+ */
+export type ReactStyledAtomStoreT = {
+  /** React component bound to this runtime. */
+  StyledAtom: React.FC<StyledAtomT>;
+  /** Set or replace the CSS loader. */
+  configure: (path?: ImportStyleT) => void;
+  /** Reload all or selected mounted CSS atoms through the configured loader. */
+  reload: (fileNames?: readonly string[]) => void;
+  /** Replace CSS text for already mounted CSS atoms. */
+  replace: (styles: readonly StyleAtomCssReplacementT[]) => void;
+  /** Remove all mounted style tags owned by this runtime. */
+  dispose: () => void;
 };

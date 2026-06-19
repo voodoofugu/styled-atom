@@ -9,7 +9,6 @@ export default [
   {
     input: {
       index: "./src/index.ts",
-      core: "./src/core.ts",
     },
     external: ["react"],
     output: {
@@ -51,7 +50,6 @@ export default [
   {
     input: {
       index: "./src/index.ts",
-      core: "./src/core.ts",
     },
     external: ["react"],
     output: {

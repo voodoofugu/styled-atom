@@ -1,28 +1,10 @@
 ![logo](https://raw.githubusercontent.com/voodoofugu/styled-atom/refs/heads/main/src/assets/banner-logo.png)
 
-<h2></h2>
-
-### Table of contents
-
-- [About](#about)
-- [Installation](#installation)
-- [API](#api)
-- [Common patterns](#common-patterns)
-- [License](#license)
-
-<h2></h2>
-
 ### About
 
-`styled-atom` is a tiny TypeScript style runtime for loading CSS atoms only when a preview, component or tool surface needs them.
+`styled-atom` is a tiny React runtime for loading CSS files only when a preview, component or workbench cell needs them.
 
-It is designed for React demo shells, component workbenches, visual editors and render-heavy UI sandboxes: places where many small previews mount, unmount and re-render while sharing the same CSS files.
-
-It is not a CSS framework. It does not generate class names, parse styles, scope selectors for you or replace your bundler. It only owns the runtime part: loading CSS by name, injecting stable style tags, tracking loading state and releasing styles when nobody uses them anymore.
-
-The core idea is simple - one store owns the style cache, and each rendered atom describes the CSS it needs.
-
-<h2></h2>
+It does not generate CSS, scope selectors, create cascade layers or replace your bundler. Your project keeps CSS in CSS files. `styled-atom` only handles the runtime part: load CSS by name, inject stable `<style>` tags, share them between mounted React atoms and remove them when nobody uses them anymore.
 
 ### Installation
 
@@ -30,73 +12,51 @@ The core idea is simple - one store owns the style cache, and each rendered atom
 npm install styled-atom
 ```
 
-```tsx
-import { createStyledAtomStore } from "styled-atom";
-```
-
-> **✦ Note:**
->
-> - Supports both **ESM** (`import`) and **CommonJS** (`require`) builds.
-> - Exposes a React API from `styled-atom` and a framework-agnostic DOM API from `styled-atom/core`.
-> - Written in TypeScript and ships declaration files.
-> - React is an optional peer dependency for the React entry.
-> - The package does not ship runtime CSS. Your project keeps ownership of CSS files and the loader function.
-
-<h2></h2>
-
 ### API
 
-<ul><div>
+#### `createStyledAtomStore(path?)`
 
-###### **— REACT —**
-
-<details><summary><b><code>createStyledAtomStore</code></b>: <em>create a React-bound style atom store</em></summary><br /><ul><div>
-
-<b>Usage:</b><br />
+Creates one style runtime and a React component bound to it.
 
 ```tsx
 import { createStyledAtomStore } from "styled-atom";
 
-export const styleStore = createStyledAtomStore({
-  path: (name) => import(`./styles/${name}.css`),
-  layers: ["base", "components", "overrides"],
-});
+export const styleAtoms = createStyledAtomStore((name) =>
+  import(`./styles/${name}.css`),
+);
 
-export const StyledAtom = styleStore.StyledAtom;
+export const StyledAtom = styleAtoms.StyledAtom;
 ```
 
-<b>Description:</b><em><br />
-Creates one <code>StyledAtomStore</code> and a <code>StyledAtom</code> React component bound to that store.<br />
-Use one store for a shell, workbench or isolated UI surface. Every mounted atom shares the same CSS cache, layer order and DOM target.
-</em><br />
-
-<b>Return:</b><br />
-Returns an object with the raw store, the bound component and convenience methods:
+The loader receives a CSS atom name and should return CSS text, a CSS module result with `default`, or a promise for either value.
 
 ```ts
-const { store, StyledAtom, configure, preload, reload, replace, dispose } =
+type ImportStyleResultT =
+  | string
+  | { default?: unknown }
+  | null
+  | undefined
+  | void;
+
+type ImportStyleT = (
+  fileName: string,
+) => ImportStyleResultT | Promise<ImportStyleResultT>;
+```
+
+Returned runtime:
+
+```ts
+const { StyledAtom, configure, reload, replace, dispose } =
   createStyledAtomStore();
 ```
 
-<b>Example:</b>
+- `StyledAtom` - React component that loads requested CSS before rendering children.
+- `configure(path)` - sets or replaces the CSS loader.
+- `reload(fileNames?)` - reloads mounted CSS atoms through the loader.
+- `replace(styles)` - replaces mounted CSS text directly, useful for dev style reload.
+- `dispose()` - removes all style tags owned by this runtime.
 
-```tsx
-export function PreviewCard() {
-  return (
-    <StyledAtom fileNames={["preview-card"]} fallback={<span>Loading...</span>}>
-      <article className="preview-card">Demo preview</article>
-    </StyledAtom>
-  );
-}
-```
-
-</div></ul></details>
-
-<h2></h2>
-
-<details><summary><b><code>StyledAtom</code></b>: <em>load CSS atoms before rendering children</em></summary><br /><ul><div>
-
-<b>Usage:</b><br />
+#### `StyledAtom`
 
 ```tsx
 <StyledAtom
@@ -108,247 +68,91 @@ export function PreviewCard() {
 </StyledAtom>
 ```
 
-<b>Props:</b><br />
+Props:
 
 - `fileNames?: readonly string[]` - CSS atom names passed to the configured loader.
-- `encap?: boolean | string | StyleEncapT` - optional wrapper behavior for body-like preview scopes.
+- `encap?: boolean | string | StyleEncapT` - optional wrapper for body-like preview scopes.
 - `fallback?: React.ReactNode` - content rendered while CSS is loading.
 - `onLoad?: () => void` - called once when this atom changes from loading to loaded.
 - `children?: React.ReactNode` - content shown after the atom is loaded.
 
-<br />
+When `fileNames` is empty, `StyledAtom` simply renders `children` or `fallback`.
 
-<b>Description:</b><em><br />
-Registers one style atom for the current React render tree. The component waits for requested CSS files, renders fallback while they load, then renders children when the atom is ready.<br />
-Equivalent prop values reuse the same store state, so inline arrays or objects with the same content do not cause unnecessary DOM style churn.
-</em><br />
+#### `encap`
 
-<b>Encapsulation:</b><br />
+`encap` only controls the rendered wrapper. Loaded CSS is inserted as raw CSS.
 
 ```tsx
-// Adds default classes derived from file names.
 <StyledAtom fileNames={["screen-main"]} encap>
   <Screen />
 </StyledAtom>
 
-// Adds explicit wrapper classes.
 <StyledAtom fileNames={["screen-main"]} encap="customClass">
   <Screen />
 </StyledAtom>
 
-// Adds structured wrapper props.
 <StyledAtom
   fileNames={["screen-main"]}
-  encap={{ className: "customClass", id: "preview-root" }}
+  encap={{
+    className: "customClass",
+    id: "preview-root",
+    attribute: { "workbench-scope": "" },
+  }}
 >
   <Screen />
 </StyledAtom>
 ```
 
-`encap` only controls the rendered wrapper element. Loaded CSS is injected as raw CSS. For body-like previews, rewrite `body`, `html` and `:root` selectors during the CSS build step and add the same class/id/attribute through `encap`.
+For body-like previews, rewrite `body`, `html` and `:root` selectors during your CSS build step and add the same class, id or attribute through `encap`.
 
-</div></ul></details>
+### Patterns
 
-<h2></h2>
+#### Late Loader Configuration
 
-<details><summary><b><code>createStyledAtomComponent</code></b>: <em>bind a React component to an existing core store</em></summary><br /><ul><div>
-
-<b>Usage:</b><br />
+Useful when the runtime is created outside React, but the host app provides the loader later.
 
 ```tsx
-import { StyledAtomStore, createStyledAtomComponent } from "styled-atom";
-
-const store = new StyledAtomStore({
-  path: (name) => import(`./css/${name}.css`),
-});
-
-export const StyledAtom = createStyledAtomComponent(store);
-```
-
-<b>Description:</b><em><br />
-Creates only the React component layer for a store you already own. This is useful when a project wants direct access to the framework-agnostic store but still needs the familiar React component.
-</em><br />
-
-</div></ul></details>
-
-<h2></h2>
-
-###### **— CORE —**
-
-<details><summary><b><code>createStyleStore</code></b>: <em>create the framework-agnostic DOM style store</em></summary><br /><ul><div>
-
-<b>Usage:</b><br />
-
-```ts
-import { createStyleStore } from "styled-atom/core";
-
-const store = createStyleStore({
-  path: (name) => import(`./styles/${name}.css`),
-  layers: ["base", "components"],
-});
-```
-
-<b>Description:</b><em><br />
-Creates a <code>StyledAtomStore</code> without React. Use it from non-React tools, custom renderers, tests or integration code that wants to preload, reload, replace and dispose style atoms directly.
-</em><br />
-
-<b>Return:</b><br />
-Returns a new `StyledAtomStore` instance.
-
-</div></ul></details>
-
-<h2></h2>
-
-<details><summary><b><code>StyledAtomStore</code></b>: <em>own style tags, cache entries and atom snapshots</em></summary><br /><ul><div>
-
-<b>Usage:</b><br />
-
-```ts
-import { StyledAtomStore } from "styled-atom/core";
-
-const store = new StyledAtomStore({
-  path: (name) => import(`./css/${name}.css`),
-});
-
-const atom = store.registerAtom({
-  fileNames: ["reset", "theme"],
-});
-
-atom.subscribe(() => {
-  console.log(atom.getSnapshot());
-});
-
-atom.dispose();
-```
-
-<b>Description:</b><em><br />
-The store owns every style tag it creates. It caches style entries by file name, keeps reference counts for mounted atoms, writes cascade layer order before loaded styles, and notifies only the atoms affected by a changed style entry.
-</em><br />
-
-<b>Methods:</b><br />
-
-- `configure(options)` - update loader, layer order, DOM target, document or nonce.
-- `registerAtom(options)` - register one atom and start loading its styles.
-- `preload(fileNames, options?)` - register styles without React content.
-- `reload(fileNames?)` - reload all or selected registered files from the loader.
-- `replace(styles)` - replace CSS text for already registered files without calling the loader.
-- `dispose()` - remove all atoms and all style tags owned by the store.
-
-</div></ul></details>
-
-<h2></h2>
-
-<details><summary><b><code>StyleAtomControllerT</code></b>: <em>control one registered style atom</em></summary><br /><ul><div>
-
-<b>Shape:</b><br />
-
-```ts
-type StyleAtomControllerT = {
-  id: string;
-  update: (options: StyleAtomOptionsT) => void;
-  subscribe: (listener: () => void) => () => void;
-  getSnapshot: () => StyleAtomSnapshotT;
-  reload: () => void;
-  replace: (styles: readonly StyleAtomCssReplacementT[]) => void;
-  dispose: () => void;
-};
-```
-
-<b>Description:</b><em><br />
-Returned by <code>registerAtom</code> and <code>preload</code>. Keep the controller while the styles should stay mounted. Call <code>dispose()</code> to release references and remove unused style tags.
-</em><br />
-
-</div></ul></details>
-
-<h2></h2>
-
-<details><summary><b><code>getStyledAtomWrapperProps</code></b>: <em>derive wrapper props from atom options</em></summary><br /><ul><div>
-
-<b>Usage:</b><br />
-
-```ts
-const props = getStyledAtomWrapperProps(
-  {
-    fileNames: ["screen-main"],
-    encap: { className: "customClass" },
-  },
-);
-```
-
-<b>Description:</b><em><br />
-Normalizes <code>encap</code> and returns the wrapper props that React <code>StyledAtom</code> would use. Returns <code>null</code> when the atom does not need a wrapper.
-</em><br />
-
-</div></ul></details>
-
-<h2></h2>
-
-<details><summary><b><code>getStyleAtomKey</code></b>: <em>create a stable content key for atom options</em></summary><br /><ul><div>
-
-<b>Usage:</b><br />
-
-```ts
-const key = getStyleAtomKey({
-  fileNames: ["card", "theme"],
-});
-```
-
-<b>Description:</b><em><br />
-Returns a stable JSON key for normalized atom options. React uses this key to avoid store updates when inline arrays or objects contain the same values.
-</em><br />
-
-</div></ul></details>
-
-<h2></h2>
-
-</div></ul>
-
-<h2></h2>
-
-### Common patterns
-
-<details><summary><b>Workbench style store</b>: <em>share one store across every preview cell</em></summary><br />
-
-```ts
-// src/styles/styledAtom.ts
+// styles.ts
 import { createStyledAtomStore } from "styled-atom";
 
-export const workbenchStyleAtoms = createStyledAtomStore({
-  layers: ["workbench", "base", "demo"],
-});
-
-export const StyledAtom = workbenchStyleAtoms.StyledAtom;
+export const styleAtoms = createStyledAtomStore();
+export const StyledAtom = styleAtoms.StyledAtom;
 ```
 
-</details>
-
-<details><summary><b>Late loader configuration</b>: <em>create the store before the host app knows its loader</em></summary><br />
-
 ```tsx
+// Shell.tsx
 import { useEffect } from "react";
-import { workbenchStyleAtoms } from "./styledAtom";
+import { styleAtoms, StyledAtom } from "./styles";
 
-export function DemoShell({ styleLoader }) {
+export function Shell({ styleLoader }) {
   useEffect(() => {
-    workbenchStyleAtoms.configure({ path: styleLoader });
+    styleAtoms.configure(styleLoader);
   }, [styleLoader]);
 
-  return <StyledAtom fileNames={["shell"]} />;
+  return (
+    <StyledAtom fileNames={["shell"]}>
+      <main />
+    </StyledAtom>
+  );
 }
 ```
 
-</details>
-
-<details><summary><b>Cascade layer order</b>: <em>keep async CSS load timing from changing priority</em></summary><br />
+#### Dev Style Reload
 
 ```ts
-const styleAtoms = createStyledAtomStore({
-  path: (name) => import(`./styles/${name}.css`),
-  layers: ["reset", "workbench", "host", "demo"],
-});
+styleAtoms.replace([
+  {
+    fileName: "screen-main",
+    css: nextCssText,
+  },
+]);
 ```
 
-Loaded CSS is not wrapped by `styled-atom`; declare layers in the CSS files that need them:
+This updates already mounted CSS atoms without remounting React content. If replacement text is not available, call `styleAtoms.reload(["screen-main"])` to ask the configured loader for fresh CSS.
+
+#### Cascade Layers
+
+Keep cascade layers in CSS files:
 
 ```css
 @layer reset, workbench, host, demo;
@@ -360,37 +164,8 @@ Loaded CSS is not wrapped by `styled-atom`; declare layers in the CSS files that
 }
 ```
 
-</details>
-
-<details><summary><b>Dev style reload</b>: <em>replace mounted CSS without remounting previews</em></summary><br />
-
-```ts
-styleAtoms.replace([
-  {
-    fileName: "screen-main",
-    css: nextCssText,
-  },
-]);
-```
-
-This updates already registered file atoms and leaves unrelated style entries untouched.
-
-</details>
-
-<details><summary><b>Preload and cleanup</b>: <em>keep shared styles mounted while a tool surface is alive</em></summary><br />
-
-```ts
-const preloaded = styleAtoms.preload(["reset", "theme"]);
-
-function destroySurface() {
-  preloaded.dispose();
-}
-```
-
-</details>
-
-<h2></h2>
+`styled-atom` does not declare or wrap layers at runtime.
 
 ### License
 
-- [MIT](./LICENSE)
+[MIT](./LICENSE)

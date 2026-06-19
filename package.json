@@ -13,11 +13,6 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.cjs"
-    },
-    "./core": {
-      "types": "./dist/types/core.d.ts",
-      "import": "./dist/esm/core.js",
-      "require": "./dist/cjs/core.cjs"
     }
   },
   "files": [
@@ -58,10 +53,5 @@
   },
   "peerDependencies": {
     "react": ">=18 <20"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    }
   }
 }
