@@ -2,6 +2,8 @@ import type {
   ImportStyleT,
   StyleAtomControllerT,
   StyleAtomCssReplacementT,
+  StyleAtomFilesT,
+  StyleAtomInlineStyleT,
   StyleAtomOptionsT,
   StyleAtomSnapshotT,
   StyleEncapT,
@@ -30,18 +32,23 @@ export type NormalizedEncapT = {
  * Used as the stable store representation for file names and wrapper options. Empty names are removed before the store creates cache keys.
  */
 export type NormalizedStyleOptionsT = {
-  fileNames: string[];
+  files: string[];
+  inlineStyle?: StyleAtomInlineStyleT;
   encap: NormalizedEncapT;
 };
+
+type StyleEntryKindT = "file" | "inline";
 
 type StyleEntryStatusT = "idle" | "loading" | "loaded" | "error";
 
 type StyleEntryT = {
   key: string;
-  fileName: string;
+  kind: StyleEntryKindT;
+  name: string;
   refs: Set<string>;
   status: StyleEntryStatusT;
   revision: number;
+  css?: string;
   element?: HTMLStyleElement;
   error?: unknown;
 };
@@ -59,17 +66,18 @@ const emptySnapshot = (id: string): StyleAtomSnapshotT => ({
   id,
   loaded: false,
   loading: false,
-  fileNames: [],
+  files: [],
   errors: [],
 });
 
-const compactList = (values?: readonly string[]) =>
-  Array.isArray(values)
-    ? values.filter(
-        (value): value is string =>
-          typeof value === "string" && value.length > 0,
-      )
-    : [];
+const compactList = (values?: StyleAtomFilesT) => {
+  const list = Array.isArray(values) ? values : values ? [values] : [];
+
+  return list.filter(
+    (value): value is string =>
+      typeof value === "string" && value.length > 0,
+  );
+};
 
 const splitClassNames = (value?: string | string[]) => {
   const values = Array.isArray(value) ? value : value ? [value] : [];
@@ -120,6 +128,20 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
   };
 };
 
+const normalizeInlineStyle = (
+  inlineStyle?: StyleAtomInlineStyleT,
+): StyleAtomInlineStyleT | undefined => {
+  const name =
+    typeof inlineStyle?.name === "string" ? inlineStyle.name.trim() : "";
+
+  if (!name || typeof inlineStyle?.css !== "string") return undefined;
+
+  return {
+    name,
+    css: inlineStyle.css,
+  };
+};
+
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***normalizeStyleAtomOptions***:
@@ -129,7 +151,7 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
  * @example
  * ```ts
  * const normalized = normalizeStyleAtomOptions({
- *   fileNames: ["card", ""],
+ *   files: ["card", ""],
  *   encap: "customClass",
  * });
  * ```
@@ -137,7 +159,8 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
 export const normalizeStyleAtomOptions = (
   options: StyleAtomOptionsT,
 ): NormalizedStyleOptionsT => ({
-  fileNames: compactList(options.fileNames),
+  files: compactList(options.files),
+  inlineStyle: normalizeInlineStyle(options.inlineStyle),
   encap: normalizeEncap(options.encap),
 });
 
@@ -160,7 +183,7 @@ const getEncapKey = (encap: NormalizedEncapT) => ({
  * @example
  * ```ts
  * const key = getStyleAtomKey({
- *   fileNames: ["card", "theme"],
+ *   files: ["card", "theme"],
  * });
  * ```
  */
@@ -168,7 +191,8 @@ export const getStyleAtomKey = (options: StyleAtomOptionsT) => {
   const normalized = normalizeStyleAtomOptions(options);
 
   return stableKey({
-    fileNames: normalized.fileNames,
+    files: normalized.files,
+    inlineStyle: normalized.inlineStyle ?? null,
     encap: getEncapKey(normalized.encap),
   });
 };
@@ -188,7 +212,10 @@ const cssEscape = (value: string) => {
   });
 };
 
-const getStyleEntryKey = (fileName: string) => stableKey({ fileName });
+const getFileStyleEntryKey = (file: string) => stableKey({ kind: "file", file });
+
+const getInlineStyleEntryKey = (name: string) =>
+  stableKey({ kind: "inline", name });
 
 const getContentClassNames = (options: NormalizedStyleOptionsT) => {
   if (!options.encap.content) return [];
@@ -196,7 +223,8 @@ const getContentClassNames = (options: NormalizedStyleOptionsT) => {
   const classNames = options.encap.defaultSelector
     ? [
         ...options.encap.classNames,
-        ...options.fileNames.map((name) => cssEscape(name)),
+        ...options.files.map((name) => cssEscape(name)),
+        ...(options.inlineStyle ? [cssEscape(options.inlineStyle.name)] : []),
       ]
     : [...options.encap.classNames];
 
@@ -213,7 +241,7 @@ const getContentClassNames = (options: NormalizedStyleOptionsT) => {
  * @example
  * ```ts
  * const props = getStyledAtomWrapperProps(
- *   { fileNames: ["screen"], encap: "customClass" }
+ *   { files: "screen", encap: "customClass" }
  * );
  * ```
  */
@@ -283,6 +311,34 @@ const normalizeLoaderResult = (value: unknown) => {
   return "";
 };
 
+const isDevSourceUrlEnabled = () => {
+  const runtime = globalThis as {
+    process?: { env?: { NODE_ENV?: string } };
+  };
+  const nodeEnv = runtime.process?.env?.NODE_ENV;
+
+  return nodeEnv !== "production";
+};
+
+const toSourceUrlName = (value: string) =>
+  value.trim().replace(/[^a-zA-Z0-9._/-]+/g, "-") || "style";
+
+const withStyleSourceUrl = (
+  css: string,
+  kind: StyleEntryKindT,
+  name: string,
+) => {
+  if (!isDevSourceUrlEnabled() || /\/\*#\s*sourceURL=/.test(css)) {
+    return css;
+  }
+
+  const separator = css.length > 0 && !css.endsWith("\n") ? "\n" : "";
+
+  return `${css}${separator}/*# sourceURL=styled-atom/${kind}/${toSourceUrlName(
+    name,
+  )}.css */`;
+};
+
 const formatError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
@@ -327,12 +383,16 @@ export class StyledAtomStore {
 
     if (path && path !== previousPath) {
       this.styles.forEach((entry) => {
+        if (entry.kind !== "file") return;
+
         entry.status = "idle";
         entry.error = undefined;
         this.ensureStyleLoaded(entry);
       });
     } else {
-      this.styles.forEach((entry) => this.ensureStyleLoaded(entry));
+      this.styles.forEach((entry) => {
+        if (entry.kind === "file") this.ensureStyleLoaded(entry);
+      });
     }
   }
 
@@ -343,12 +403,12 @@ export class StyledAtomStore {
    * @description
    * Keep the returned controller while the styles should stay mounted. Releasing it removes this atom's references and cleans up style tags that are no longer shared.
    * @returns controller for updating, subscribing, reloading and disposing the atom.
-   * @example
-   * ```ts
-   * const atom = store.registerAtom({
-   *   fileNames: ["card", "theme"],
-   * });
-   * ```
+ * @example
+ * ```ts
+ * const atom = store.registerAtom({
+ *   files: ["card", "theme"],
+ * });
+ * ```
    */
   registerAtom(
     options: StyleAtomOptionsT & { id?: string },
@@ -384,8 +444,8 @@ export class StyledAtomStore {
 
     const normalized = normalizeStyleAtomOptions(options);
     const nextKeys = new Set<string>();
-    const nextEntries = normalized.fileNames.map((fileName) => {
-      const key = getStyleEntryKey(fileName);
+    const nextEntries = normalized.files.map((file) => {
+      const key = getFileStyleEntryKey(file);
       nextKeys.add(key);
 
       let entry = this.styles.get(key);
@@ -393,7 +453,8 @@ export class StyledAtomStore {
       if (!entry) {
         entry = {
           key,
-          fileName,
+          kind: "file",
+          name: file,
           refs: new Set(),
           status: "idle",
           revision: 0,
@@ -403,6 +464,33 @@ export class StyledAtomStore {
 
       return entry;
     });
+
+    if (normalized.inlineStyle) {
+      const { name, css } = normalized.inlineStyle;
+      const key = getInlineStyleEntryKey(name);
+      nextKeys.add(key);
+
+      let entry = this.styles.get(key);
+
+      if (!entry) {
+        entry = {
+          key,
+          kind: "inline",
+          name,
+          refs: new Set(),
+          status: "idle",
+          revision: 0,
+          css,
+        };
+        this.styles.set(key, entry);
+      } else if (entry.css !== css) {
+        entry.css = css;
+        entry.status = "idle";
+        entry.error = undefined;
+      }
+
+      nextEntries.push(entry);
+    }
 
     atom.styleKeys.forEach((key) => {
       if (!nextKeys.has(key)) {
@@ -483,13 +571,13 @@ export class StyledAtomStore {
    * ```
    */
   preload(
-    fileNames: readonly string[],
-    options: Omit<StyleAtomOptionsT, "fileNames"> = {},
+    files: StyleAtomFilesT,
+    options: Omit<StyleAtomOptionsT, "files"> = {},
   ) {
     return this.registerAtom({
       ...options,
       id: this.createId("preload"),
-      fileNames,
+      files,
     });
   }
 
@@ -498,13 +586,14 @@ export class StyledAtomStore {
    * ### ***reload***:
    * reload registered style entries from the configured loader.
    * @description
-   * When `fileNames` is omitted every registered file entry is reloaded.
+   * When `files` is omitted every registered file entry is reloaded.
    */
-  reload(fileNames?: readonly string[]) {
-    const requested = new Set(compactList(fileNames));
+  reload(files?: StyleAtomFilesT) {
+    const requested = new Set(compactList(files));
 
     this.styles.forEach((entry) => {
-      if (requested.size > 0 && !requested.has(entry.fileName)) return;
+      if (entry.kind !== "file") return;
+      if (requested.size > 0 && !requested.has(entry.name)) return;
 
       entry.status = "idle";
       entry.error = undefined;
@@ -520,7 +609,7 @@ export class StyledAtomStore {
    * Updates matching mounted style tags without calling the loader. This is intended for dev-time style reload servers.
    * @example
    * ```ts
-   * store.replace([{ fileName: "card", css: nextCss }]);
+   * store.replace([{ file: "card", css: nextCss }]);
    * ```
    */
   replace(styles: readonly StyleAtomCssReplacementT[]) {
@@ -528,22 +617,25 @@ export class StyledAtomStore {
       styles
         .filter(
           (style): style is StyleAtomCssReplacementT =>
-            typeof style?.fileName === "string" &&
-            style.fileName.length > 0 &&
+            typeof style?.file === "string" &&
+            style.file.length > 0 &&
             typeof style.css === "string",
         )
-        .map((style) => [style.fileName, style.css]),
+        .map((style) => [style.file, style.css]),
     );
 
     if (replacements.size === 0) return;
 
     this.styles.forEach((entry) => {
-      const css = replacements.get(entry.fileName);
+      if (entry.kind !== "file") return;
+
+      const css = replacements.get(entry.name);
       if (css === undefined) return;
 
       const element = this.ensureStyleElement(entry);
-      if (element && element.textContent !== css) {
-        element.textContent = css;
+      const nextCss = withStyleSourceUrl(css, entry.kind, entry.name);
+      if (element && element.textContent !== nextCss) {
+        element.textContent = nextCss;
       }
 
       entry.revision += 1;
@@ -572,7 +664,7 @@ export class StyledAtomStore {
       update: (options) => this.updateAtom(id, options),
       subscribe: (listener) => this.subscribeAtom(id, listener),
       getSnapshot: () => this.getSnapshot(id),
-      reload: () => this.reload(this.atoms.get(id)?.options.fileNames),
+      reload: () => this.reload(this.atoms.get(id)?.options.files),
       replace: (styles) => this.replace(styles),
       dispose: () => this.unregisterAtom(id),
     };
@@ -604,7 +696,10 @@ export class StyledAtomStore {
     if (!doc || !target) return undefined;
 
     const element = doc.createElement("style");
-    element.setAttribute("styled-atom-file", entry.fileName);
+    element.setAttribute(
+      entry.kind === "file" ? "styled-atom-file" : "styled-atom-name",
+      entry.name,
+    );
 
     target.appendChild(element);
     entry.element = element;
@@ -613,6 +708,28 @@ export class StyledAtomStore {
   }
 
   private ensureStyleLoaded(entry: StyleEntryT) {
+    if (entry.kind === "inline") {
+      const element = this.ensureStyleElement(entry);
+
+      if (!element) {
+        entry.status = "loaded";
+        this.refreshAtomsForStyle(entry);
+        return;
+      }
+
+      const css = withStyleSourceUrl(entry.css ?? "", entry.kind, entry.name);
+
+      if (element.textContent !== css) {
+        element.textContent = css;
+      }
+
+      entry.revision += 1;
+      entry.status = "loaded";
+      entry.error = undefined;
+      this.refreshAtomsForStyle(entry);
+      return;
+    }
+
     if (
       entry.status === "loading" ||
       entry.status === "loaded" ||
@@ -642,11 +759,15 @@ export class StyledAtomStore {
     entry.error = undefined;
     this.refreshAtomsForStyle(entry);
 
-    Promise.resolve(loader(entry.fileName))
+    Promise.resolve(loader(entry.name))
       .then((result) => {
         if (entry.revision !== revision) return;
 
-        const css = normalizeLoaderResult(result);
+        const css = withStyleSourceUrl(
+          normalizeLoaderResult(result),
+          entry.kind,
+          entry.name,
+        );
 
         if (element.textContent !== css) {
           element.textContent = css;
@@ -659,13 +780,13 @@ export class StyledAtomStore {
       .catch((error: unknown) => {
         if (entry.revision !== revision) return;
 
-        element.textContent = `/* styled-atom failed to load "${entry.fileName}" */`;
+        element.textContent = `/* styled-atom failed to load "${entry.name}" */`;
         entry.status = "error";
         entry.error = error;
         this.refreshAtomsForStyle(entry);
 
         console.error(
-          `Loading failed for "${entry.fileName}" style`,
+          `Loading failed for "${entry.name}" style`,
           "\n",
           "styled-atom",
           "\n",
@@ -686,8 +807,8 @@ export class StyledAtomStore {
       .map((key) => this.styles.get(key))
       .filter((entry): entry is StyleEntryT => Boolean(entry));
     const errors = entries
-      .filter((entry) => entry.status === "error")
-      .map((entry) => ({ fileName: entry.fileName, error: entry.error }));
+      .filter((entry) => entry.kind === "file" && entry.status === "error")
+      .map((entry) => ({ file: entry.name, error: entry.error }));
     const loading = entries.some(
       (entry) => entry.status === "idle" || entry.status === "loading",
     );
@@ -700,14 +821,14 @@ export class StyledAtomStore {
       id: atom.id,
       loaded,
       loading,
-      fileNames: atom.options.fileNames,
+      files: atom.options.files,
       errors,
     };
     const snapshotKey = stableKey({
       loaded,
       loading,
-      fileNames: atom.options.fileNames,
-      errors: errors.map((error) => [error.fileName, formatError(error.error)]),
+      files: atom.options.files,
+      errors: errors.map((error) => [error.file, formatError(error.error)]),
     });
 
     atom.snapshot = snapshot;

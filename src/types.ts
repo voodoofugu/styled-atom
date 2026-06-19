@@ -42,9 +42,9 @@ export type ImportStyleT = (
  * `encap` only controls the rendered wrapper element. Loaded CSS is injected as raw CSS. Projects that need body-like scoping should rewrite selectors during their CSS build step and add the same class, id or attribute to this wrapper.
  * @example
  * ```tsx
- * <StyledAtom fileNames={["screen-main"]} encap />
- * <StyledAtom fileNames={["screen-main"]} encap="customClass" />
- * <StyledAtom fileNames={["screen-main"]} encap={{ className: "customClass" }} />
+ * <StyledAtom files="screen-main" encap />
+ * <StyledAtom files="screen-main" encap="customClass" />
+ * <StyledAtom files="screen-main" encap={{ className: "customClass" }} />
  * ```
  */
 export type StyleEncapT =
@@ -63,23 +63,43 @@ export type StyleEncapT =
       attribute?: Record<string, string>;
     };
 
+export type StyleAtomFilesT = string | readonly string[];
+
+export type StyleAtomCssValueT = string | number | null | undefined;
+
+export type StyledAtomStylesT = React.CSSProperties & {
+  [selectorOrProperty: string]:
+    | StyleAtomCssValueT
+    | StyledAtomStylesT
+    | undefined;
+};
+
+export type StyleAtomStylesT = StyledAtomStylesT;
+
+export type StyleAtomInlineStyleT = {
+  name: string;
+  css: string;
+};
+
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleAtomOptionsT***:
  * shared style options used by React APIs.
  * @description
- * These options describe one atom: CSS file names and optional wrapper behavior. The same shape is accepted by `StyledAtom`.
+ * These options describe one atom: CSS files, optional inline CSS and optional wrapper behavior.
  * @example
  * ```ts
  * const options: StyleAtomOptionsT = {
- *   fileNames: ["card", "theme"],
+ *   files: ["card", "theme"],
  *   encap: "customClass",
  * };
  * ```
  */
 export type StyleAtomOptionsT = {
   /** CSS atom names passed to the configured loader. */
-  fileNames?: readonly string[];
+  files?: StyleAtomFilesT;
+  /** Already compiled inline CSS owned by this atom. */
+  inlineStyle?: StyleAtomInlineStyleT;
   /** Optional CSS encapsulation settings. */
   encap?: StyleEncapT;
 };
@@ -106,9 +126,9 @@ export type StyleAtomSnapshotT = {
   loaded: boolean;
   /** `true` while at least one requested style is still idle/loading. */
   loading: boolean;
-  /** Normalized file names requested by this atom. */
-  fileNames: string[];
-  /** Loading errors grouped by file name. */
+  /** Normalized files requested by this atom. */
+  files: string[];
+  /** Loading errors grouped by file. */
   errors: StyleLoadErrorT[];
 };
 
@@ -121,7 +141,7 @@ export type StyleAtomSnapshotT = {
  */
 export type StyleLoadErrorT = {
   /** CSS atom name that failed to load. */
-  fileName: string;
+  file: string;
   /** Original error thrown by the configured loader. */
   error: unknown;
 };
@@ -134,14 +154,14 @@ export type StyleLoadErrorT = {
  * `replace()` updates already registered file atoms without calling the loader. This is useful for watch servers that compile CSS and push fresh text into mounted previews.
  * @example
  * ```ts
- * styleAtoms.replace([
- *   { fileName: "screen-main", css: nextCss },
+ * styleAtomsStore.replace([
+ *   { file: "screen-main", css: nextCss },
  * ]);
  * ```
  */
 export type StyleAtomCssReplacementT = {
   /** CSS atom name to replace. */
-  fileName: string;
+  file: string;
   /** New CSS text for that atom. */
   css: string;
 };
@@ -172,7 +192,7 @@ export type StyleAtomControllerT = {
   subscribe: (listener: () => void) => () => void;
   /** Read the latest loading snapshot for this atom. */
   getSnapshot: () => StyleAtomSnapshotT;
-  /** Reload this atom's file names from the configured loader. */
+  /** Reload this atom's files from the configured loader. */
   reload: () => void;
   /** Replace CSS text for already registered file entries. */
   replace: (styles: readonly StyleAtomCssReplacementT[]) => void;
@@ -180,20 +200,9 @@ export type StyleAtomControllerT = {
   dispose: () => void;
 };
 
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyledAtomT***:
- * props accepted by the React `StyledAtom` component.
- * @description
- * Extends `StyleAtomOptionsT` with React rendering props. Children are rendered only after the atom is loaded. When there are no `fileNames`, the component simply renders `children` or `fallback`.
- * @example
- * ```tsx
- * <StyledAtom fileNames={["button"]} fallback={<span>Loading...</span>}>
- *   <Button />
- * </StyledAtom>
- * ```
- */
-export type StyledAtomT = StyleAtomOptionsT & {
+export type StyledAtomBaseT = {
+  /** Optional CSS encapsulation settings. */
+  encap?: StyleEncapT;
   /** Content rendered while requested styles are loading. */
   fallback?: React.ReactNode;
   /** Called once when this atom changes from loading to loaded. */
@@ -201,6 +210,36 @@ export type StyledAtomT = StyleAtomOptionsT & {
   /** React content protected by this style atom. */
   children?: React.ReactNode;
 };
+
+export type StyledAtomImportT = StyledAtomBaseT & {
+  /** CSS atom names passed to the configured loader. */
+  files?: StyleAtomFilesT;
+  name?: never;
+  styles?: never;
+};
+
+export type StyledAtomInlineT = StyledAtomBaseT & {
+  /** Inline style atom name used for the DOM style tag and dev sourceURL. */
+  name: string;
+  /** React-like CSS object compiled into an owned style tag. */
+  styles: StyledAtomStylesT;
+  files?: never;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomT***:
+ * props accepted by the React `StyledAtom` component.
+ * @description
+ * Props accepted by a React `StyledAtom` component. Store-bound atoms load CSS files through `files`; the package-level atom accepts inline `name` and `styles`.
+ * @example
+ * ```tsx
+ * <StyledAtom files="button" fallback={<span>Loading...</span>}>
+ *   <Button />
+ * </StyledAtom>
+ * ```
+ */
+export type StyledAtomT = StyledAtomImportT | StyledAtomInlineT;
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
@@ -211,11 +250,11 @@ export type StyledAtomT = StyleAtomOptionsT & {
  */
 export type ReactStyledAtomStoreT = {
   /** React component bound to this runtime. */
-  StyledAtom: React.FC<StyledAtomT>;
+  StyledAtom: React.FC<StyledAtomImportT>;
   /** Set or replace the CSS loader. */
   configure: (path?: ImportStyleT) => void;
   /** Reload all or selected mounted CSS atoms through the configured loader. */
-  reload: (fileNames?: readonly string[]) => void;
+  reload: (files?: StyleAtomFilesT) => void;
   /** Replace CSS text for already mounted CSS atoms. */
   replace: (styles: readonly StyleAtomCssReplacementT[]) => void;
   /** Remove all mounted style tags owned by this runtime. */

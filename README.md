@@ -14,13 +14,13 @@
 
 ### About
 
-`styled-atom` is a tiny TypeScript runtime for loading CSS atoms only when a React preview, component or tool surface needs them.
+`styled-atom` is a tiny TypeScript runtime for mounting CSS atoms only when a React preview, component or tool surface needs them.
 
-It is designed for React demo shells, component workbenches, visual editors and render-heavy UI sandboxes: places where many small previews mount, unmount and re-render while sharing the same CSS files.
+It is designed for React demo shells, component workbenches, visual editors and render-heavy UI sandboxes: places where many small previews mount, unmount and re-render while sharing CSS files or small inline style atoms.
 
-It is not a CSS framework. It does not generate class names, parse styles, scope selectors for you, create cascade layers or replace your bundler. It only owns the runtime part: loading CSS by name, injecting stable style tags, tracking loading state and releasing styles when nobody uses them anymore.
+It is not a CSS framework. It does not create cascade layers or replace your bundler. It owns the runtime part: loading CSS by name, compiling small React-like style objects, injecting stable style tags, tracking loading state and releasing styles when nobody uses them anymore.
 
-The idea is simple - one React-bound runtime owns the style cache, and each rendered atom describes the CSS files it needs.
+The idea is simple - imported CSS goes through a React-bound runtime store, while inline CSS can use `StyledAtom` directly.
 
 <h2></h2>
 
@@ -31,7 +31,7 @@ npm install styled-atom
 ```
 
 ```tsx
-import { createStyledAtomStore } from "styled-atom";
+import { StyledAtom, createStyledAtomStore } from "styled-atom";
 ```
 
 > **✦ Note:**
@@ -48,7 +48,82 @@ import { createStyledAtomStore } from "styled-atom";
 
 <ul><div>
 
-<details><summary><b><code>createStyledAtomStore</code></b>: <em>create a React-bound style atom runtime</em></summary><br /><ul><div>
+<details><summary><b><code>StyledAtom</code></b>: <em>mount inline CSS from a typed style object</em></summary><br /><ul><div>
+
+<b>Usage:</b><br />
+
+```tsx
+import { StyledAtom, type StyledAtomStylesT } from "styled-atom";
+
+const loadingScreenStyles = {
+  backgroundColor: "#fff",
+  minHeight: "100vh",
+
+  ".title": {
+    color: "#111",
+    fontWeight: 600,
+  },
+
+  "@media (max-width: 640px)": {
+    padding: 16,
+  },
+} satisfies StyledAtomStylesT;
+
+export function LoadingScreen() {
+  return (
+    <StyledAtom name="loading-screen" styles={loadingScreenStyles}>
+      <section>
+        <h1 className="title">Loading</h1>
+      </section>
+    </StyledAtom>
+  );
+}
+```
+
+<b>Description:</b><em><br />
+Mounts one inline CSS atom without creating a store. The component compiles a React-like style object into an owned <code>&lt;style&gt;</code> tag and releases it on unmount.<br />
+By default the rendered content is wrapped with a class derived from <code>name</code>, so root declarations target that atom. Pass <code>encap=&#123;&#123; content: false &#125;&#125;</code> when you only need a global style tag.
+</em><br />
+
+<b>Props:</b><br />
+
+- `name: string` - inline atom name used for the style tag, default wrapper class and dev `sourceURL`.
+- `styles: StyledAtomStylesT` - React-like CSS object.
+- `encap?: boolean | string | StyleEncapT` - optional wrapper behavior for body-like preview scopes.
+- `fallback?: React.ReactNode` - content rendered before the style atom is mounted.
+- `onLoad?: () => void` - called once when this atom changes from loading to loaded.
+- `children?: React.ReactNode` - content shown after the atom is mounted.
+
+<br />
+
+<b>Style object:</b><br />
+
+```ts
+const styles = {
+  backgroundColor: "#fff",
+  color: "#111",
+
+  "&:hover": {
+    color: "#333",
+  },
+
+  "[data-state='active']": {
+    color: "#000",
+  },
+
+  ".child": {
+    marginTop: 12,
+  },
+} satisfies StyledAtomStylesT;
+```
+
+Nested selectors are resolved from the atom class. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless.
+
+</div></ul></details>
+
+<h2></h2>
+
+<details><summary><b><code>createStyledAtomStore</code></b>: <em>load CSS files through a shared runtime</em></summary><br /><ul><div>
 
 <b>Usage:</b><br />
 
@@ -59,7 +134,7 @@ export const styleAtomsStore = createStyledAtomStore(
   (name) => import(`./styles/${name}.css`),
 );
 
-export const StyledAtom = styleAtomsStore.StyledAtom;
+export const StyledAtomImport = styleAtomsStore.StyledAtom;
 ```
 
 <b>Description:</b><em><br />
@@ -90,87 +165,25 @@ const { StyledAtom, configure, reload, replace, dispose } =
   createStyledAtomStore();
 ```
 
-- `StyledAtom` - React component that loads requested CSS before rendering children.
+- `StyledAtom` - React component that loads requested CSS files before rendering children.
 - `configure(path)` - set or replace the CSS loader.
-- `reload(fileNames?)` - reload all or selected mounted CSS atoms through the configured loader.
+- `reload(files?)` - reload all or selected mounted CSS atoms through the configured loader.
 - `replace(styles)` - replace mounted CSS text directly without calling the loader.
 - `dispose()` - remove all style tags owned by this runtime.
 
-<br />
-<b>Example:</b>
+<br /><b>Example:</b>
 
 ```tsx
-import { StyledAtom } from "./styled-atom-store";
+import { StyledAtomImport } from "./styled-atom-store";
 
 export function PreviewCard() {
   return (
-    <StyledAtom fileNames={["preview-card"]} fallback={<span>Loading...</span>}>
+    <StyledAtomImport files="preview-card" fallback={<span>Loading...</span>}>
       <article className="preview-card">Demo preview</article>
-    </StyledAtom>
+    </StyledAtomImport>
   );
 }
 ```
-
-</div></ul></details>
-
-<h2></h2>
-
-<details><summary><b><code>StyledAtom</code></b>: <em>load CSS atoms before rendering children</em></summary><br /><ul><div>
-
-<b>Usage:</b><br />
-
-```tsx
-<StyledAtom
-  fileNames={["card", "theme"]}
-  fallback={<span>Loading...</span>}
-  onLoad={() => console.log("styles loaded")}
->
-  <Card />
-</StyledAtom>
-```
-
-<b>Props:</b><br />
-
-- `fileNames?: readonly string[]` - CSS atom names passed to the configured loader.
-- `encap?: boolean | string | StyleEncapT` - optional wrapper behavior for body-like preview scopes.
-- `fallback?: React.ReactNode` - content rendered while CSS is loading.
-- `onLoad?: () => void` - called once when this atom changes from loading to loaded.
-- `children?: React.ReactNode` - content shown after the atom is loaded.
-
-<br />
-
-<b>Description:</b><em><br />
-Registers one style atom for the current React render tree. The component waits for requested CSS files, renders fallback while they load, then renders children when the atom is ready.<br />
-Equivalent prop values reuse the same runtime state, so inline arrays or objects with the same content do not cause unnecessary DOM style churn.
-</em><br />
-
-<b>Encapsulation:</b><br />
-
-```tsx
-// Adds default classes derived from file names.
-<StyledAtom fileNames={["screen-main"]} encap>
-  <Screen />
-</StyledAtom>
-
-// Adds explicit wrapper classes.
-<StyledAtom fileNames={["screen-main"]} encap="customClass">
-  <Screen />
-</StyledAtom>
-
-// Adds structured wrapper props.
-<StyledAtom
-  fileNames={["screen-main"]}
-  encap={{
-    className: "customClass",
-    id: "preview-root",
-    attribute: { "workbench-scope": "" },
-  }}
->
-  <Screen />
-</StyledAtom>
-```
-
-`encap` only controls the rendered wrapper element. Loaded CSS is injected as raw CSS. For body-like previews, rewrite `body`, `html` and `:root` selectors during the CSS build step and add the same class/id/attribute through `encap`.
 
 </div></ul></details>
 
@@ -182,16 +195,52 @@ Equivalent prop values reuse the same runtime state, so inline arrays or objects
 
 ```ts
 type ReactStyledAtomStoreT = {
-  StyledAtom: React.FC<StyledAtomT>;
+  StyledAtom: React.FC<StyledAtomImportT>;
   configure: (path?: ImportStyleT) => void;
-  reload: (fileNames?: readonly string[]) => void;
+  reload: (files?: StyleAtomFilesT) => void;
   replace: (styles: readonly StyleAtomCssReplacementT[]) => void;
   dispose: () => void;
 };
 ```
 
 <b>Description:</b><em><br />
-This is the whole public runtime object. It keeps the user-facing API small: configure a CSS loader, render <code>StyledAtom</code>, and optionally refresh mounted CSS during development.
+This is the public runtime object for imported CSS files. It keeps the user-facing API small: configure a CSS loader, render the bound <code>StyledAtom</code>, and optionally refresh mounted style tags during development.
+</em><br />
+
+</div></ul></details>
+
+<h2></h2>
+
+<details><summary><b><code>StyleEncapT</code></b>: <em>optional wrapper behavior</em></summary><br /><ul><div>
+
+<b>Usage:</b><br />
+
+```tsx
+// Adds default classes derived from files or inline name.
+<StyledAtomImport files="screen-main" encap>
+  <Screen />
+</StyledAtomImport>
+
+// Adds explicit wrapper classes.
+<StyledAtomImport files="screen-main" encap="customClass">
+  <Screen />
+</StyledAtomImport>
+
+// Adds structured wrapper props.
+<StyledAtomImport
+  files="screen-main"
+  encap={{
+    className: "customClass",
+    id: "preview-root",
+    attribute: { "workbench-scope": "" },
+  }}
+>
+  <Screen />
+</StyledAtomImport>
+```
+
+<b>Description:</b><em><br />
+<code>encap</code> only controls the rendered wrapper element. Loaded CSS is injected as raw CSS. For body-like previews, rewrite <code>body</code>, <code>html</code> and <code>:root</code> selectors during the CSS build step and add the same class/id/attribute through <code>encap</code>.
 </em><br />
 
 </div></ul></details>
@@ -210,10 +259,37 @@ This is the whole public runtime object. It keeps the user-facing API small: con
 import { createStyledAtomStore } from "styled-atom";
 
 export const styleAtomsStore = createStyledAtomStore(
-  (name) => import(`./workbench-css/${name}.css`),
+  (name) => import(`./styles/${name}.css`),
 );
 
-export const StyledAtom = styleAtomsStore.StyledAtom;
+export const StyledAtomImport = styleAtomsStore.StyledAtom;
+```
+
+</details>
+
+<details><summary><b>Typed inline styles</b>: <em>keep style data outside render markup</em></summary><br />
+
+```tsx
+import { StyledAtom, type StyledAtomStylesT } from "styled-atom";
+
+const splashStyles: StyledAtomStylesT = {
+  display: "grid",
+  placeItems: "center",
+  minHeight: "100vh",
+  backgroundColor: "#fff",
+
+  ".logo": {
+    width: 96,
+  },
+};
+
+export function SplashScreen() {
+  return (
+    <StyledAtom name="splash-screen" styles={splashStyles}>
+      <img className="logo" src="/logo.svg" alt="" />
+    </StyledAtom>
+  );
+}
 ```
 
 </details>
@@ -224,7 +300,7 @@ export const StyledAtom = styleAtomsStore.StyledAtom;
 export function WorkbenchSurface({ children }) {
   return (
     <>
-      <StyledAtom fileNames={["reset", "theme"]} />
+      <StyledAtomImport files={["reset", "theme"]} />
       {children}
     </>
   );
@@ -250,7 +326,7 @@ if (import.meta.hot) {
     if (!mod?.default) return;
 
     styleAtomsStore.replace([
-      { fileName: "screen-main", css: String(mod.default) },
+      { file: "screen-main", css: String(mod.default) },
     ]);
   });
 }
@@ -265,23 +341,35 @@ if (module.hot) {
   module.hot.accept("./workbench-css/screen-main.css", () => {
     const css = require("./workbench-css/screen-main.css").default;
 
-    styleAtomsStore.replace([{ fileName: "screen-main", css: String(css) }]);
+    styleAtomsStore.replace([
+      { file: "screen-main", css: String(css) },
+    ]);
   });
 }
 ```
 
 <b>Any dev server:</b><br />
 
-```ts
+```tsx
 styleAtomsStore.replace([
   {
-    fileName: "screen-main",
+    file: changedFileName,
     css: nextCssText,
   },
 ]);
 ```
 
-This updates already mounted CSS atoms and leaves unrelated style entries untouched. If replacement text is not available, call `styleAtomsStore.reload(["screen-main"])` to ask the configured loader for fresh CSS.
+Only the provided CSS atoms are replaced. Mounted React previews stay in place, and unrelated style entries are left untouched.
+
+If CSS text is not available, ask the configured loader to fetch fresh CSS instead:
+
+```tsx
+// Reload selected mounted atoms through the configured loader.
+styleAtomsStore.reload(["main", "card"]);
+
+// Reload every currently mounted atom.
+styleAtomsStore.reload();
+```
 
 </details>
 
