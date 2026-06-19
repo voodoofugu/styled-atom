@@ -55,23 +55,24 @@ import { StyledAtom, createStyledAtomStore } from "styled-atom";
 ```tsx
 import { StyledAtom, type StyledAtomStylesT } from "styled-atom";
 
-const loadingScreenStyles = {
-  backgroundColor: "#fff",
-  minHeight: "100vh",
-
-  ".title": {
-    color: "#111",
-    fontWeight: 600,
-  },
-
-  "@media (max-width: 640px)": {
-    padding: 16,
-  },
-} satisfies StyledAtomStylesT;
-
 export function LoadingScreen() {
   return (
-    <StyledAtom name="loading-screen" styles={loadingScreenStyles}>
+    <StyledAtom
+      name="loading-screen"
+      styles={{
+        backgroundColor: "#fff",
+        minHeight: "100vh",
+
+        ".title": {
+          color: "#111",
+          fontWeight: 600,
+        },
+
+        "@media (max-width: 640px)": {
+          padding: 16,
+        },
+      }}
+    >
       <section>
         <h1 className="title">Loading</h1>
       </section>
@@ -313,51 +314,17 @@ The style tags are released automatically when the `StyledAtom` unmounts and no 
 
 <details><summary><b>Dev style reload</b>: <em>replace mounted CSS without remounting previews</em></summary><br />
 
-The dev server can compile changed CSS to a string and pass it to `replace`. The mounted React preview stays in place; only the owned `<style>` text changes.
-Both examples expect the CSS import to return text: Vite uses `?raw`, and Webpack can use `asset/source` or `raw-loader`.
-
-<b>Vite:</b><br />
-
-```ts
-import { styleAtomsStore } from "./styledAtom";
-
-if (import.meta.hot) {
-  import.meta.hot.accept("./workbench-css/screen-main.css?raw", (mod) => {
-    if (!mod?.default) return;
-
-    styleAtomsStore.replace([
-      { file: "screen-main", css: String(mod.default) },
-    ]);
-  });
-}
-```
-
-<b>Webpack:</b><br />
-
-```ts
-import { styleAtomsStore } from "./styledAtom";
-
-if (module.hot) {
-  module.hot.accept("./workbench-css/screen-main.css", () => {
-    const css = require("./workbench-css/screen-main.css").default;
-
-    styleAtomsStore.replace([
-      { file: "screen-main", css: String(css) },
-    ]);
-  });
-}
-```
-
-<b>Any dev server:</b><br />
-
 ```tsx
+// Any dev server, watcher or bundler integration
 styleAtomsStore.replace([
   {
-    file: changedFileName,
+    fileName: changedFileName,
     css: nextCssText,
   },
 ]);
 ```
+
+`changedFileName` and `nextCssText` usually come from a dev server, bundler plugin, file watcher or custom preview infrastructure.
 
 Only the provided CSS atoms are replaced. Mounted React previews stay in place, and unrelated style entries are left untouched.
 
