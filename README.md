@@ -7,7 +7,7 @@
 - [About](#about)
 - [Installation](#installation)
 - [API](#api)
-- [Common patterns](#common-patterns)
+- [Patterns](#patterns)
 - [License](#license)
 
 <h2></h2>
@@ -48,8 +48,6 @@ import { createStyledAtomStore } from "styled-atom";
 
 <ul><div>
 
-###### **— REACT —**
-
 <details><summary><b><code>createStyledAtomStore</code></b>: <em>create a React-bound style atom runtime</em></summary><br /><ul><div>
 
 <b>Usage:</b><br />
@@ -57,11 +55,11 @@ import { createStyledAtomStore } from "styled-atom";
 ```tsx
 import { createStyledAtomStore } from "styled-atom";
 
-export const styleAtoms = createStyledAtomStore((name) =>
-  import(`./styles/${name}.css`),
+export const styleAtomsStore = createStyledAtomStore(
+  (name) => import(`./styles/${name}.css`),
 );
 
-export const StyledAtom = styleAtoms.StyledAtom;
+export const StyledAtom = styleAtomsStore.StyledAtom;
 ```
 
 <b>Description:</b><em><br />
@@ -98,10 +96,11 @@ const { StyledAtom, configure, reload, replace, dispose } =
 - `replace(styles)` - replace mounted CSS text directly without calling the loader.
 - `dispose()` - remove all style tags owned by this runtime.
 
+<br />
 <b>Example:</b>
 
 ```tsx
-import { StyledAtom } from "./styles";
+import { StyledAtom } from "./styled-atom-store";
 
 export function PreviewCard() {
   return (
@@ -203,44 +202,18 @@ This is the whole public runtime object. It keeps the user-facing API small: con
 
 <h2></h2>
 
-### Common patterns
+### Patterns
 
 <details><summary><b>Workbench style runtime</b>: <em>share one runtime across every preview cell</em></summary><br />
 
 ```ts
-// src/styles/styledAtom.ts
 import { createStyledAtomStore } from "styled-atom";
 
-export const styleAtoms = createStyledAtomStore((name) =>
-  import(`./workbench-css/${name}.css`),
+export const styleAtomsStore = createStyledAtomStore(
+  (name) => import(`./workbench-css/${name}.css`),
 );
 
-export const StyledAtom = styleAtoms.StyledAtom;
-```
-
-</details>
-
-<details><summary><b>Late loader configuration</b>: <em>create the runtime before the host app knows its loader</em></summary><br />
-
-```tsx
-// src/styles/styledAtom.ts
-import { createStyledAtomStore } from "styled-atom";
-
-export const styleAtoms = createStyledAtomStore();
-export const StyledAtom = styleAtoms.StyledAtom;
-```
-
-```tsx
-import { useEffect } from "react";
-import { styleAtoms, StyledAtom } from "./styledAtom";
-
-export function DemoShell({ styleLoader }) {
-  useEffect(() => {
-    styleAtoms.configure(styleLoader);
-  }, [styleLoader]);
-
-  return <StyledAtom fileNames={["shell"]} />;
-}
+export const StyledAtom = styleAtomsStore.StyledAtom;
 ```
 
 </details>
@@ -262,26 +235,45 @@ The style tags are released automatically when the `StyledAtom` unmounts and no 
 
 </details>
 
-<details><summary><b>Cascade layers</b>: <em>keep layer declarations in CSS files</em></summary><br />
+<details><summary><b>Dev style reload</b>: <em>replace mounted CSS without remounting previews</em></summary><br />
 
-```css
-@layer reset, workbench, host, demo;
+The dev server can compile changed CSS to a string and pass it to `replace`. The mounted React preview stays in place; only the owned `<style>` text changes.
+Both examples expect the CSS import to return text: Vite uses `?raw`, and Webpack can use `asset/source` or `raw-loader`.
 
-@layer demo {
-  .preview-card {
-    color: CanvasText;
-  }
+<b>Vite:</b><br />
+
+```ts
+import { styleAtomsStore } from "./styledAtom";
+
+if (import.meta.hot) {
+  import.meta.hot.accept("./workbench-css/screen-main.css?raw", (mod) => {
+    if (!mod?.default) return;
+
+    styleAtomsStore.replace([
+      { fileName: "screen-main", css: String(mod.default) },
+    ]);
+  });
 }
 ```
 
-`styled-atom` does not declare or wrap cascade layers at runtime.
-
-</details>
-
-<details><summary><b>Dev style reload</b>: <em>replace mounted CSS without remounting previews</em></summary><br />
+<b>Webpack:</b><br />
 
 ```ts
-styleAtoms.replace([
+import { styleAtomsStore } from "./styledAtom";
+
+if (module.hot) {
+  module.hot.accept("./workbench-css/screen-main.css", () => {
+    const css = require("./workbench-css/screen-main.css").default;
+
+    styleAtomsStore.replace([{ fileName: "screen-main", css: String(css) }]);
+  });
+}
+```
+
+<b>Any dev server:</b><br />
+
+```ts
+styleAtomsStore.replace([
   {
     fileName: "screen-main",
     css: nextCssText,
@@ -289,7 +281,7 @@ styleAtoms.replace([
 ]);
 ```
 
-This updates already mounted CSS atoms and leaves unrelated style entries untouched. If replacement text is not available, call `styleAtoms.reload(["screen-main"])` to ask the configured loader for fresh CSS.
+This updates already mounted CSS atoms and leaves unrelated style entries untouched. If replacement text is not available, call `styleAtomsStore.reload(["screen-main"])` to ask the configured loader for fresh CSS.
 
 </details>
 
