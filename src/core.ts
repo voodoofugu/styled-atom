@@ -27,13 +27,11 @@ export type NormalizedEncapT = {
  * ### ***NormalizedStyleOptionsT***:
  * normalized style atom options.
  * @description
- * Used as the stable store representation for file names, wrapper options, cascade layer and inline CSS. Empty names are removed and optional strings are trimmed before the store creates cache keys.
+ * Used as the stable store representation for file names and wrapper options. Empty names are removed before the store creates cache keys.
  */
 export type NormalizedStyleOptionsT = {
   fileNames: string[];
   encap: NormalizedEncapT;
-  layer?: string;
-  css: string;
 };
 
 type StyleEntryStatusT = "idle" | "loading" | "loaded" | "error";
@@ -41,8 +39,6 @@ type StyleEntryStatusT = "idle" | "loading" | "loaded" | "error";
 type StyleEntryT = {
   key: string;
   fileName: string;
-  inline: boolean;
-  options: NormalizedStyleOptionsT;
   refs: Set<string>;
   status: StyleEntryStatusT;
   revision: number;
@@ -74,11 +70,6 @@ const compactList = (values?: readonly string[]) =>
           typeof value === "string" && value.length > 0,
       )
     : [];
-
-const normalizeLayer = (layer?: string) => {
-  const value = typeof layer === "string" ? layer.trim() : "";
-  return value || undefined;
-};
 
 const splitClassNames = (value?: string | string[]) => {
   const values = Array.isArray(value) ? value : value ? [value] : [];
@@ -129,15 +120,12 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
   };
 };
 
-const normalizeCss = (css?: string) =>
-  typeof css === "string" ? css.trim() : "";
-
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***normalizeStyleAtomOptions***:
  * normalize user-facing atom options.
  * @description
- * Converts shorthand `encap` values, trims layer/css strings and removes empty file names. Use it when custom tooling needs the same interpretation as `StyledAtomStore`.
+ * Converts shorthand `encap` values and removes empty file names. Use it when custom tooling needs the same interpretation as `StyledAtomStore`.
  * @example
  * ```ts
  * const normalized = normalizeStyleAtomOptions({
@@ -151,8 +139,6 @@ export const normalizeStyleAtomOptions = (
 ): NormalizedStyleOptionsT => ({
   fileNames: compactList(options.fileNames),
   encap: normalizeEncap(options.encap),
-  layer: normalizeLayer(options.layer),
-  css: normalizeCss(options.css),
 });
 
 const stableKey = (value: unknown) => JSON.stringify(value);
@@ -175,7 +161,6 @@ const getEncapKey = (encap: NormalizedEncapT) => ({
  * ```ts
  * const key = getStyleAtomKey({
  *   fileNames: ["card", "theme"],
- *   layer: "components",
  * });
  * ```
  */
@@ -185,8 +170,6 @@ export const getStyleAtomKey = (options: StyleAtomOptionsT) => {
   return stableKey({
     fileNames: normalized.fileNames,
     encap: getEncapKey(normalized.encap),
-    layer: normalized.layer ?? null,
-    css: normalized.css || null,
   });
 };
 
@@ -205,12 +188,7 @@ const cssEscape = (value: string) => {
   });
 };
 
-const getStyleEntryKey = (fileName: string, options: NormalizedStyleOptionsT) =>
-  stableKey({
-    fileName,
-    layer: options.layer ?? null,
-    css: options.css || null,
-  });
+const getStyleEntryKey = (fileName: string) => stableKey({ fileName });
 
 const getContentClassNames = (options: NormalizedStyleOptionsT) => {
   if (!options.encap.content) return [];
@@ -305,15 +283,6 @@ const normalizeLoaderResult = (value: unknown) => {
   return "";
 };
 
-const createCssText = (entry: StyleEntryT, css: string) => {
-  const additionalCss = entry.options.css;
-  const cssText = [additionalCss, css].filter(Boolean).join("\n");
-
-  return entry.options.layer
-    ? `@layer ${entry.options.layer}{${cssText}}`
-    : cssText;
-};
-
 const formatError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
@@ -386,7 +355,6 @@ export class StyledAtomStore {
    * ```ts
    * const atom = store.registerAtom({
    *   fileNames: ["card", "theme"],
-   *   layer: "components",
    * });
    * ```
    */
@@ -424,14 +392,8 @@ export class StyledAtomStore {
 
     const normalized = normalizeStyleAtomOptions(options);
     const nextKeys = new Set<string>();
-    const styleFileNames =
-      normalized.fileNames.length > 0
-        ? normalized.fileNames
-        : normalized.css
-          ? [`inline-${id}`]
-          : [];
-    const nextEntries = styleFileNames.map((fileName) => {
-      const key = getStyleEntryKey(fileName, normalized);
+    const nextEntries = normalized.fileNames.map((fileName) => {
+      const key = getStyleEntryKey(fileName);
       nextKeys.add(key);
 
       let entry = this.styles.get(key);
@@ -440,8 +402,6 @@ export class StyledAtomStore {
         entry = {
           key,
           fileName,
-          inline: normalized.fileNames.length === 0,
-          options: normalized,
           refs: new Set(),
           status: "idle",
           revision: 0,
@@ -527,9 +487,7 @@ export class StyledAtomStore {
    * Use it for shared resets, themes or shell styles that should stay mounted while a tool surface is alive. Dispose the returned controller when those styles are no longer needed.
    * @example
    * ```ts
-   * const preloaded = store.preload(["reset", "theme"], {
-   *   layer: "base",
-   * });
+   * const preloaded = store.preload(["reset", "theme"]);
    * ```
    */
   preload(
@@ -548,7 +506,7 @@ export class StyledAtomStore {
    * ### ***reload***:
    * reload registered style entries from the configured loader.
    * @description
-   * When `fileNames` is omitted every registered file entry is reloaded. Inline CSS atoms are not loaded through the loader.
+   * When `fileNames` is omitted every registered file entry is reloaded.
    */
   reload(fileNames?: readonly string[]) {
     const requested = new Set(compactList(fileNames));
@@ -588,15 +546,12 @@ export class StyledAtomStore {
     if (replacements.size === 0) return;
 
     this.styles.forEach((entry) => {
-      if (entry.inline) return;
       const css = replacements.get(entry.fileName);
       if (css === undefined) return;
 
       const element = this.ensureStyleElement(entry);
-      const cssText = createCssText(entry, css);
-
-      if (element && element.textContent !== cssText) {
-        element.textContent = cssText;
+      if (element && element.textContent !== css) {
+        element.textContent = css;
       }
 
       entry.revision += 1;
@@ -719,10 +674,6 @@ export class StyledAtomStore {
     const element = doc.createElement("style");
     element.setAttribute("styled-atom-file", entry.fileName);
 
-    if (entry.options.layer) {
-      element.setAttribute("styled-atom-layer", entry.options.layer);
-    }
-
     if (this.options.nonce) {
       element.setAttribute("nonce", this.options.nonce);
     }
@@ -750,19 +701,6 @@ export class StyledAtomStore {
       return;
     }
 
-    if (entry.inline) {
-      const cssText = createCssText(entry, "");
-
-      if (element.textContent !== cssText) {
-        element.textContent = cssText;
-      }
-
-      entry.status = "loaded";
-      entry.error = undefined;
-      this.refreshAtomsForStyle(entry);
-      return;
-    }
-
     const loader = this.options.path;
 
     if (!loader) {
@@ -781,10 +719,9 @@ export class StyledAtomStore {
         if (entry.revision !== revision) return;
 
         const css = normalizeLoaderResult(result);
-        const cssText = createCssText(entry, css);
 
-        if (element.textContent !== cssText) {
-          element.textContent = cssText;
+        if (element.textContent !== css) {
+          element.textContent = css;
         }
 
         entry.status = "loaded";

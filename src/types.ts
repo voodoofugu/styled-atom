@@ -68,12 +68,11 @@ export type StyleEncapT =
  * ### ***StyleAtomOptionsT***:
  * shared style options used by React and framework-agnostic APIs.
  * @description
- * These options describe one atom: CSS file names, optional wrapper behavior, optional cascade layer and optional inline CSS. The same shape is accepted by `StyledAtom`, `registerAtom`, `preload` and `update`.
+ * These options describe one atom: CSS file names and optional wrapper behavior. The same shape is accepted by `StyledAtom`, `registerAtom`, `preload` and `update`.
  * @example
  * ```ts
  * const options: StyleAtomOptionsT = {
  *   fileNames: ["card", "theme"],
- *   layer: "components",
  *   encap: "customClass",
  * };
  * ```
@@ -83,10 +82,6 @@ export type StyleAtomOptionsT = {
   fileNames?: readonly string[];
   /** Optional CSS encapsulation settings. */
   encap?: StyleEncapT;
-  /** Optional CSS cascade layer name. */
-  layer?: string;
-  /** Additional CSS rules or variables injected before loaded CSS. */
-  css?: string;
 };
 
 /**---
@@ -156,7 +151,7 @@ export type StyleAtomCssReplacementT = {
  * ### ***StyledAtomStoreOptionsT***:
  * options used to create or configure a style store.
  * @description
- * Pass the loader and DOM placement once when a store is created, or later through `configure()`. `layers` writes a cascade layer order before generated atom styles so async load timing does not change priority.
+ * Pass the loader and DOM placement once when a store is created, or later through `configure()`. `layers` writes a cascade layer order before loaded atom styles so async load timing does not change priority for CSS files that declare layers themselves.
  * @example
  * ```ts
  * const options: StyledAtomStoreOptionsT = {
@@ -168,7 +163,7 @@ export type StyleAtomCssReplacementT = {
 export type StyledAtomStoreOptionsT = {
   /** Dynamic CSS loader. */
   path?: ImportStyleT;
-  /** CSS cascade layer order declared before generated layer styles. */
+  /** CSS cascade layer order declared before loaded atom styles. */
   layers?: readonly string[];
   /** DOM document used for style tag creation. Defaults to global document. */
   document?: Document;
@@ -217,7 +212,7 @@ export type StyleAtomControllerT = {
  * ### ***StyledAtomT***:
  * props accepted by the React `StyledAtom` component.
  * @description
- * Extends `StyleAtomOptionsT` with React rendering props. Children are rendered only after the atom is loaded. When there are no `fileNames` and no `css`, the component simply renders `children` or `fallback`.
+ * Extends `StyleAtomOptionsT` with React rendering props. Children are rendered only after the atom is loaded. When there are no `fileNames`, the component simply renders `children` or `fallback`.
  * @example
  * ```tsx
  * <StyledAtom fileNames={["button"]} fallback={<span>Loading...</span>}>

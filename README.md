@@ -101,7 +101,6 @@ export function PreviewCard() {
 ```tsx
 <StyledAtom
   fileNames={["card", "theme"]}
-  layer="components"
   fallback={<span>Loading...</span>}
   onLoad={() => console.log("styles loaded")}
 >
@@ -113,8 +112,6 @@ export function PreviewCard() {
 
 - `fileNames?: readonly string[]` - CSS atom names passed to the configured loader.
 - `encap?: boolean | string | StyleEncapT` - optional wrapper behavior for body-like preview scopes.
-- `layer?: string` - optional CSS cascade layer for loaded and inline CSS.
-- `css?: string` - raw CSS injected before loaded CSS in the same atom.
 - `fallback?: React.ReactNode` - content rendered while CSS is loading.
 - `onLoad?: () => void` - called once when this atom changes from loading to loaded.
 - `children?: React.ReactNode` - content shown after the atom is loaded.
@@ -215,7 +212,6 @@ const store = new StyledAtomStore({
 
 const atom = store.registerAtom({
   fileNames: ["reset", "theme"],
-  layer: "base",
 });
 
 atom.subscribe(() => {
@@ -226,7 +222,7 @@ atom.dispose();
 ```
 
 <b>Description:</b><em><br />
-The store owns every style tag it creates. It caches style entries by file name, layer and inline CSS, keeps reference counts for mounted atoms, writes cascade layer order before generated styles, and notifies only the atoms affected by a changed style entry.
+The store owns every style tag it creates. It caches style entries by file name, keeps reference counts for mounted atoms, writes cascade layer order before loaded styles, and notifies only the atoms affected by a changed style entry.
 </em><br />
 
 <b>Methods:</b><br />
@@ -276,7 +272,6 @@ const props = getStyledAtomWrapperProps(
     fileNames: ["screen-main"],
     encap: { className: "customClass" },
   },
-  "preview-1",
 );
 ```
 
@@ -295,7 +290,6 @@ Normalizes <code>encap</code> and returns the wrapper props that React <code>Sty
 ```ts
 const key = getStyleAtomKey({
   fileNames: ["card", "theme"],
-  layer: "components",
 });
 ```
 
@@ -354,30 +348,16 @@ const styleAtoms = createStyledAtomStore({
 });
 ```
 
-Generated styles are wrapped as needed:
+Loaded CSS is not wrapped by `styled-atom`; declare layers in the CSS files that need them:
 
 ```css
 @layer reset, workbench, host, demo;
 
 @layer demo {
-  /* loaded CSS */
+  .preview-card {
+    color: CanvasText;
+  }
 }
-```
-
-</details>
-
-<details><summary><b>Inline host CSS</b>: <em>inject variables, resets or preview wrappers without a file</em></summary><br />
-
-```tsx
-<StyledAtom
-  layer="host"
-  css={`
-    .customClass {
-      color-scheme: dark;
-      min-height: 100%;
-    }
-  `}
-/>
 ```
 
 </details>
@@ -400,9 +380,7 @@ This updates already registered file atoms and leaves unrelated style entries un
 <details><summary><b>Preload and cleanup</b>: <em>keep shared styles mounted while a tool surface is alive</em></summary><br />
 
 ```ts
-const preloaded = styleAtoms.preload(["reset", "theme"], {
-  layer: "base",
-});
+const preloaded = styleAtoms.preload(["reset", "theme"]);
 
 function destroySurface() {
   preloaded.dispose();

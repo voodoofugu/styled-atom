@@ -2,7 +2,7 @@
   "name": "styled-atom",
   "author": "Georg Schilin",
   "version": "3.0.0-beta.0",
-  "description": "CSS in JS React library",
+  "description": "Tiny runtime for loading CSS atoms in React previews",
   "license": "MIT",
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.js",
@@ -38,8 +38,7 @@
     "styled-atom",
     "styles",
     "react",
-    "css",
-    "css-in-js"
+    "css"
   ],
   "devDependencies": {
     "@eslint/js": "^9.13.0",

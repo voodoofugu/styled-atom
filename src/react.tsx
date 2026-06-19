@@ -62,7 +62,7 @@ const useStyledAtomController = (
 ) => {
   const normalized = normalizeStyleAtomOptions(props);
   const atomKey = getStyleAtomKey(props);
-  const hasStyles = normalized.fileNames.length > 0 || Boolean(normalized.css);
+  const hasStyles = normalized.fileNames.length > 0;
   const controllerRef = React.useRef<StyleAtomControllerT | null>(null);
   const cleanupRef = React.useRef<(() => void) | null>(null);
   const [snapshot, setSnapshot] = React.useState<StyleAtomSnapshotT>(() =>
@@ -130,8 +130,6 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
     encap,
     fallback,
     onLoad,
-    layer,
-    css,
     children,
   }: StyledAtomT) => {
     const reactId = React.useId();
@@ -139,8 +137,6 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
     const props = {
       fileNames,
       encap,
-      layer,
-      css,
     };
     const { normalized, snapshot } = useStyledAtomController(store, id, props);
     const wasLoadedRef = React.useRef(snapshot.loaded);
@@ -153,7 +149,7 @@ export const createStyledAtomComponent = (store: StyledAtomStore) => {
       wasLoadedRef.current = snapshot.loaded;
     }, [onLoad, snapshot.loaded]);
 
-    if (normalized.fileNames.length === 0 && !normalized.css) {
+    if (normalized.fileNames.length === 0) {
       return fallback ?? children ?? null;
     }
 
