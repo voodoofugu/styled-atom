@@ -54,9 +54,25 @@ There are two `StyledAtom` entry points:
 - `import { StyledAtom } from "styled-atom"` - a standalone inline style atom. It does not need a store or loader and accepts `name` + `styles`.
 - `styleAtomsStore.StyledAtom` - a store-bound style atom returned by `createStyledAtomStore`. It accepts `files` and loads CSS through the store loader.
 
-The inline component is useful for small self-contained UI states, loaders and shell elements where the style data already lives in JS. The store-bound component is for shared CSS files, async imports, dev reload and multiple previews using the same CSS cache.
+###### **— INLINE USAGE —**
 
-<b>Inline usage:</b><br />
+<b>Description:</b><em><br />
+Mounts one inline CSS atom without creating a store. The component compiles a React-like style object into an owned <code>&lt;style&gt;</code> tag and releases it on unmount.<br />
+By default the rendered content is wrapped with a class derived from <code>name</code>, so root declarations target that atom.
+</em><br />
+
+<b>Props:</b><br />
+
+- `name: string` - inline atom name used for the style tag, default wrapper class and dev `sourceURL`.
+- `styles: StyledAtomStylesT` - React-like CSS object.
+- `encap?: boolean | string | StyleEncapT` - optional wrapper behavior for body-like preview scopes.
+- `fallback?: React.ReactNode` - content rendered before the style atom is mounted.
+- `onLoad?: () => void` - called once when this atom changes from loading to loaded.
+- `children?: React.ReactNode` - content shown after the atom is mounted.
+
+<br />
+
+<b>Example:</b><br />
 
 ```tsx
 import { StyledAtom } from "styled-atom";
@@ -87,22 +103,6 @@ export function LoadingScreen() {
 }
 ```
 
-<b>Description:</b><em><br />
-Mounts one inline CSS atom without creating a store. The component compiles a React-like style object into an owned <code>&lt;style&gt;</code> tag and releases it on unmount.<br />
-By default the rendered content is wrapped with a class derived from <code>name</code>, so root declarations target that atom.
-</em><br />
-
-<b>Inline props:</b><br />
-
-- `name: string` - inline atom name used for the style tag, default wrapper class and dev `sourceURL`.
-- `styles: StyledAtomStylesT` - React-like CSS object.
-- `encap?: boolean | string | StyleEncapT` - optional wrapper behavior for body-like preview scopes.
-- `fallback?: React.ReactNode` - content rendered before the style atom is mounted.
-- `onLoad?: () => void` - called once when this atom changes from loading to loaded.
-- `children?: React.ReactNode` - content shown after the atom is mounted.
-
-<br />
-
 <b>Style object:</b><br />
 
 ```ts
@@ -130,7 +130,12 @@ Nested selectors are resolved from the atom class. At-rules such as `@media` and
 
 <br />
 
-<b>Store-bound usage:</b><br />
+###### **— STORE BOUND USAGE —**
+
+<b>Description:</b><em><br />
+The store-bound component registers requested files in the shared runtime, renders `fallback` while the loader resolves them and reuses already mounted style tags with other atoms from the same store.
+
+<b>Example:</b><br />
 
 ```tsx
 const StyledAtomImport = styleAtomsStore.StyledAtom;
@@ -140,12 +145,10 @@ const StyledAtomImport = styleAtomsStore.StyledAtom;
   fallback={<span>Loading...</span>}
 >
   <PreviewCard />
-</StyledAtomImport>
+</StyledAtomImport>;
 ```
 
-The store-bound component registers requested files in the shared runtime, renders `fallback` while the loader resolves them and reuses already mounted style tags with other atoms from the same store.
-
-<b>Store-bound props:</b><br />
+<b>Props:</b><br />
 
 - `files?: string | readonly string[]` - CSS atom names passed to the configured loader.
 - `encap?: boolean | string | StyleEncapT` - optional wrapper behavior.
@@ -172,37 +175,10 @@ The store-bound component registers requested files in the shared runtime, rende
 
 <details><summary><b><code>createStyledAtomStore</code></b>: <em>load CSS files through a shared runtime</em></summary><br /><ul><div>
 
-<b>Usage:</b><br />
-
-```tsx
-import { createStyledAtomStore } from "styled-atom";
-
-export const styleAtomsStore = createStyledAtomStore(
-  (name) => import(`./styles/${name}.css`),
-);
-
-export const StyledAtomImport = styleAtomsStore.StyledAtom;
-```
-
 <b>Description:</b><em><br />
 Creates one React-bound style runtime and a <code>StyledAtom</code> component bound to that runtime.<br />
 Use one runtime for a shell, workspace or isolated UI surface. Every mounted atom shares the same CSS cache and loader.
 </em><br />
-
-<b>Loader:</b><br />
-
-```ts
-type ImportStyleResultT =
-  | string
-  | { default?: unknown }
-  | null
-  | undefined
-  | void;
-
-type ImportStyleT = (
-  fileName: string,
-) => ImportStyleResultT | Promise<ImportStyleResultT>;
-```
 
 <b>Return:</b><br />
 Returns the bound component and a small runtime control surface:
@@ -221,15 +197,13 @@ const { StyledAtom, configure, reload, replace, dispose } =
 <br /><b>Example:</b>
 
 ```tsx
-import { StyledAtomImport } from "./styled-atom-store";
+import { createStyledAtomStore } from "styled-atom";
 
-export function PreviewCard() {
-  return (
-    <StyledAtomImport files="preview-card" fallback={<span>Loading...</span>}>
-      <article className="preview-card">Demo preview</article>
-    </StyledAtomImport>
-  );
-}
+export const styleAtomsStore = createStyledAtomStore(
+  (name) => import(`./styles/${name}.css`),
+);
+
+export const StyledAtomImport = styleAtomsStore.StyledAtom;
 ```
 
 </div></ul></details>
