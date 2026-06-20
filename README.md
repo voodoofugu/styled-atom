@@ -54,7 +54,7 @@ There are two `StyledAtom` entry points:
 - `import { StyledAtom } from "styled-atom"` - a standalone inline style atom. It does not need a store or loader and accepts `name` + `styles`.
 - `styleAtomsStore.StyledAtom` - a store-bound style atom returned by `createStyledAtomStore`. It accepts `files` and loads CSS through the store loader.
 
-###### **— INLINE USAGE —**
+<details><summary><b>Inline usage</b>:</summary><br />
 
 <b>Description:</b><em><br />
 Mounts one inline CSS atom without creating a store. The component compiles a React-like style object into an owned <code>&lt;style&gt;</code> tag and releases it on unmount.<br />
@@ -65,7 +65,7 @@ By default the rendered content is wrapped with a class derived from <code>name<
 
 - `name: string` - inline atom name used for the style tag, default wrapper class and dev `sourceURL`.
 - `styles: StyledAtomStylesT` - React-like CSS object.
-- `encap?: boolean | string | StyleEncapT` - optional wrapper behavior for body-like preview scopes.
+- `encap?: boolean | string | StyleEncapT` - wraps children with a container and adds a class derived from `name`, so root CSS selectors are scoped to that wrapper.
 - `fallback?: React.ReactNode` - content rendered before the style atom is mounted.
 - `onLoad?: () => void` - called once when this atom changes from loading to loaded.
 - `children?: React.ReactNode` - content shown after the atom is mounted.
@@ -105,32 +105,13 @@ export function LoadingScreen() {
 
 <b>Style object:</b><br />
 
-```ts
-import type { StyledAtomStylesT } from "styled-atom";
+In the `styles` props nested selectors are resolved from the atom class. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless.
 
-const styles = {
-  backgroundColor: "#fff",
-  color: "#111",
+</details>
 
-  "&:hover": {
-    color: "#333",
-  },
+<h2></h2>
 
-  "[data-state='active']": {
-    color: "#000",
-  },
-
-  ".child": {
-    marginTop: 12,
-  },
-} satisfies StyledAtomStylesT;
-```
-
-Nested selectors are resolved from the atom class. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless.
-
-<br />
-
-###### **— STORE BOUND USAGE —**
+<details><summary><b>Store bound usage</b>:</summary><br />
 
 <b>Description:</b><em><br />
 The store-bound component registers requested files in the shared runtime, renders `fallback` while the loader resolves them and reuses already mounted style tags with other atoms from the same store.
@@ -151,19 +132,17 @@ const StyledAtomImport = styleAtomsStore.StyledAtom;
 <b>Props:</b><br />
 
 - `files?: string | readonly string[]` - CSS atom names passed to the configured loader.
-- `encap?: boolean | string | StyleEncapT` - optional wrapper behavior.
+- `encap?: boolean | string | StyleEncapT` - does not wrap content by default, supports class, id or attribute for wrapper.
 - `fallback?: React.ReactNode` - content rendered while requested files are loading.
 - `onLoad?: () => void` - called once when this atom changes from loading to loaded.
 - `children?: React.ReactNode` - content shown after the requested files are loaded.
 
-<br />
+</details>
+
+<h2></h2>
 
 <b>Encap:</b><br />
 
-`encap` controls only the wrapper around `children`; it does not rewrite or scope CSS selectors by itself.
-
-- Inline `StyledAtom` enables `encap` by default and adds a class derived from `name`, so root declarations in `styles` target that wrapper.
-- Store-bound `StyledAtom` does not wrap content by default. Pass `encap` when the loaded CSS expects a wrapper class, id or attribute.
 - `encap={true}` adds default classes derived from `name` or `files`.
 - `encap="customClass"` adds that class and the default class.
 - `encap={{ className, id, attribute }}` lets you choose exact wrapper props.
