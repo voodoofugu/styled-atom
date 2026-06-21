@@ -209,8 +209,9 @@ const compileRule = (
 export const compileStyleAtomStyles = (
   name: string,
   styles: StyleAtomStylesT,
+  scopeSelector?: string | null,
 ) => {
-  const baseSelector = `.${cssEscape(name)}`;
+  const baseSelector = scopeSelector ?? `.${cssEscape(name)}`;
 
   return compileRule(styles, baseSelector, []).join("\n\n");
 };

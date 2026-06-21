@@ -1,0 +1,26 @@
+.attribute-card[data-preview-scope="attribute-card"] {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  border: 1px dashed #dc8a29;
+  border-radius: 14px;
+  background: #fff7ed;
+  color: #7c2d12;
+  padding: 22px;
+}
+
+.attribute-card[data-preview-scope="attribute-card"] .attribute-card__body {
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+
+.attribute-card[data-preview-scope="attribute-card"] strong {
+  font-size: 22px;
+}
+
+.attribute-card[data-preview-scope="attribute-card"] span {
+  color: #9a3412;
+  font-size: 13px;
+  font-weight: 700;
+}

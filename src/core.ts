@@ -94,13 +94,19 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
     };
   }
 
-  if (encap === true || typeof encap === "string") {
+  if (encap === true) {
     return {
       content: true,
-      classNames: splitClassNames(
-        typeof encap === "string" ? encap : undefined,
-      ),
+      classNames: [],
       defaultSelector: true,
+    };
+  }
+
+  if (typeof encap === "string") {
+    return {
+      content: true,
+      classNames: splitClassNames(encap),
+      defaultSelector: false,
     };
   }
 
@@ -117,6 +123,10 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
           ),
         )
       : undefined;
+  const hasExplicitSelector =
+    classNames.length > 0 ||
+    Boolean(id) ||
+    Boolean(attributes && Object.keys(attributes).length > 0);
 
   return {
     content: encap.content ?? encap.wrap ?? true,
@@ -124,7 +134,7 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
     id: id || undefined,
     attributes:
       attributes && Object.keys(attributes).length ? attributes : undefined,
-    defaultSelector: false,
+    defaultSelector: !hasExplicitSelector,
   };
 };
 
@@ -223,12 +233,43 @@ const getContentClassNames = (options: NormalizedStyleOptionsT) => {
   const classNames = options.encap.defaultSelector
     ? [
         ...options.encap.classNames,
-        ...options.files.map((name) => cssEscape(name)),
-        ...(options.inlineStyle ? [cssEscape(options.inlineStyle.name)] : []),
+        ...options.files,
+        ...(options.inlineStyle ? [options.inlineStyle.name] : []),
       ]
     : [...options.encap.classNames];
 
   return Array.from(new Set(classNames.filter(Boolean)));
+};
+
+const cssStringEscape = (value: string) =>
+  value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\a ");
+
+const getContentSelector = (options: NormalizedStyleOptionsT) => {
+  if (!options.encap.content) return null;
+
+  const idSelector = options.encap.id
+    ? `#${cssEscape(options.encap.id)}`
+    : "";
+  const attributeSelector = options.encap.attributes
+    ? Object.entries(options.encap.attributes)
+        .map(([name, value]) => {
+          const attributeName = cssEscape(name);
+
+          return value
+            ? `[${attributeName}="${cssStringEscape(value)}"]`
+            : `[${attributeName}]`;
+        })
+        .join("")
+    : "";
+  const classSelector = getContentClassNames(options)
+    .map((className) => `.${cssEscape(className)}`)
+    .join("");
+  const selector = `${idSelector}${attributeSelector}${classSelector}`;
+
+  return selector || null;
 };
 
 /**---
@@ -274,6 +315,9 @@ export const getStyledAtomWrapperProps = (options: StyleAtomOptionsT) => {
 
   return props;
 };
+
+export const getStyledAtomWrapperSelector = (options: StyleAtomOptionsT) =>
+  getContentSelector(normalizeStyleAtomOptions(options));
 
 const isUsefulCssText = (value: string) => {
   const text = value.trim();

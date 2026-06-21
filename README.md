@@ -54,18 +54,20 @@ There are two `StyledAtom` entry points:
 - `import { StyledAtom } from "styled-atom"` - a standalone inline style atom. It does not need a store or loader and accepts `name` + `styles`.
 - `styleAtomsStore.StyledAtom` - a store-bound style atom returned by `createStyledAtomStore`. It accepts `files` and loads CSS through the store loader.
 
+<br />
+
 <details><summary><b>Inline usage</b>:</summary><br />
 
 <b>Description:</b><em><br />
 Mounts one inline CSS atom without creating a store. The component compiles a React-like style object into an owned <code>&lt;style&gt;</code> tag and releases it on unmount.<br />
-By default the rendered content is wrapped with a class derived from <code>name</code>, so root declarations target that atom.
+It does not render a wrapper by default. Add <code>encap</code> when the atom should wrap children and compile styles through that wrapper selector.
 </em><br />
 
 <b>Props:</b><br />
 
-- `name: string` - inline atom name used for the style tag, default wrapper class and dev `sourceURL`.
+- `name: string` - inline atom name used for the style tag, default root selector and dev `sourceURL`.
 - `styles: StyledAtomStylesT` - React-like CSS object.
-- `encap?: boolean | string | StyleEncapT` - wraps children with a container and adds a class derived from `name`, so root CSS selectors are scoped to that wrapper.
+- `encap?: boolean | string | StyleEncapT` - optional wrapper scope. Omitted means no wrapper. `encap={true}` uses the `name` class. String, `className`, `id` and `attribute` use the selector you provide and the inline CSS is compiled under that selector.
 - `fallback?: React.ReactNode` - content rendered before the style atom is mounted.
 - `onLoad?: () => void` - called once when this atom changes from loading to loaded.
 - `children?: React.ReactNode` - content shown after the atom is mounted.
@@ -81,6 +83,7 @@ export function LoadingScreen() {
   return (
     <StyledAtom
       name="loading-screen"
+      encap
       styles={{
         backgroundColor: "#fff",
         minHeight: "100vh",
@@ -105,7 +108,7 @@ export function LoadingScreen() {
 
 <b>Style object:</b><br />
 
-In the `styles` props nested selectors are resolved from the atom class. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless.
+In the `styles` prop nested selectors are resolved from the root selector. Without `encap` the root selector is `.${name}`, so add that class yourself when root declarations should apply to your markup. With `encap`, the root selector is the generated wrapper selector. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless.
 
 </details>
 
@@ -132,7 +135,7 @@ const StyledAtomImport = styleAtomsStore.StyledAtom;
 <b>Props:</b><br />
 
 - `files?: string | readonly string[]` - CSS atom names passed to the configured loader.
-- `encap?: boolean | string | StyleEncapT` - does not wrap content by default, supports class, id or attribute for wrapper.
+- `encap?: boolean | string | StyleEncapT` - optional wrapper props only. Omitted means no wrapper. `encap={true}` adds classes from `files`; string, `className`, `id` and `attribute` use the selector you provide. Imported CSS is not rewritten, so files should target that wrapper themselves.
 - `fallback?: React.ReactNode` - content rendered while requested files are loading.
 - `onLoad?: () => void` - called once when this atom changes from loading to loaded.
 - `children?: React.ReactNode` - content shown after the requested files are loaded.
@@ -143,10 +146,11 @@ const StyledAtomImport = styleAtomsStore.StyledAtom;
 
 <b>Encap:</b><br />
 
-- `encap={true}` adds default classes derived from `name` or `files`.
-- `encap="customClass"` adds that class and the default class.
-- `encap={{ className, id, attribute }}` lets you choose exact wrapper props.
-- `encap={{ content: false }}` mounts styles without adding a wrapper, useful for resets, themes and other global CSS atoms.
+- `encap={true}` renders a wrapper with default classes derived from inline `name` or store-bound `files`.
+- `encap="customClass"` renders a wrapper with that class.
+- `encap={{ className, id, attribute }}` renders exact wrapper props. Inline CSS uses selector priority `id`, then `attribute`, then `className`.
+- `encap={{ content: false }}` mounts styles without adding a wrapper.
+- Inline `StyledAtom` compiles selectors through the wrapper when `encap` is enabled. Store-bound `StyledAtom` only renders wrapper props; imported CSS files stay as written.
 
 </div></ul></details>
 
@@ -211,7 +215,7 @@ const splashStyles: StyledAtomStylesT = {
 
 export function SplashScreen() {
   return (
-    <StyledAtom name="splash-screen" styles={splashStyles}>
+    <StyledAtom name="splash-screen" encap styles={splashStyles}>
       <img className="logo" src="/logo.svg" alt="" />
     </StyledAtom>
   );

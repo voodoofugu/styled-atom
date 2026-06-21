@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  getStyledAtomWrapperSelector,
   getStyledAtomWrapperProps,
   getStyleAtomKey,
   normalizeStyleAtomOptions,
@@ -194,13 +195,20 @@ const createInlineStyledAtomComponent = (store: StyledAtomStore) => {
 
     const { name, styles, encap, fallback, onLoad, children } = props;
     const inlineName = name.trim();
-    const css = compileStyleAtomStyles(inlineName, styles);
+    const scopeSelector = getStyledAtomWrapperSelector({
+      encap,
+      inlineStyle: {
+        name: inlineName,
+        css: "",
+      },
+    });
+    const css = compileStyleAtomStyles(inlineName, styles, scopeSelector);
 
     return (
       <RuntimeStyledAtom
         store={store}
         options={{
-          encap: encap ?? true,
+          encap,
           inlineStyle: {
             name: inlineName,
             css,

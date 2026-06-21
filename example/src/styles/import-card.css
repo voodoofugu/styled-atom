@@ -1,0 +1,35 @@
+.import-card {
+  min-height: 180px;
+  border: 1px solid var(--atom-card-border);
+  border-radius: 14px;
+  background: var(--atom-card-bg);
+  color: var(--atom-card-copy);
+  padding: 22px;
+  box-shadow: 0 18px 50px rgba(31, 42, 68, 0.1);
+}
+
+.import-card .badge {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 9px;
+}
+
+.import-card .title {
+  margin: 18px 0 10px;
+  color: var(--atom-card-title);
+  font-size: 24px;
+}
+
+.import-card .copy {
+  margin: 0 0 16px;
+  line-height: 1.55;
+}
+
+.import-card small {
+  color: #64748b;
+  font-weight: 700;
+}

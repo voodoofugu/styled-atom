@@ -37,9 +37,9 @@ export type ImportStyleT = (
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleEncapT***:
- * wrapper configuration for body-like preview scopes.
+ * wrapper configuration for optional style scopes.
  * @description
- * `encap` only controls the rendered wrapper element. Loaded CSS is injected as raw CSS. Projects that need body-like scoping should rewrite selectors during their CSS build step and add the same class, id or attribute to this wrapper.
+ * Store-bound atoms use `encap` only for the rendered wrapper element. Loaded CSS is injected as raw CSS, so imported files should target the same class, id or attribute themselves. Inline atoms also use this wrapper as the generated selector scope.
  * @example
  * ```tsx
  * <StyledAtom files="screen-main" encap />
@@ -201,7 +201,7 @@ export type StyleAtomControllerT = {
 };
 
 export type StyledAtomBaseT = {
-  /** Optional CSS encapsulation settings. */
+  /** Optional wrapper and style scope settings. */
   encap?: StyleEncapT;
   /** Content rendered while requested styles are loading. */
   fallback?: React.ReactNode;
@@ -219,7 +219,7 @@ export type StyledAtomImportT = StyledAtomBaseT & {
 };
 
 export type StyledAtomInlineT = StyledAtomBaseT & {
-  /** Inline style atom name used for the DOM style tag and dev sourceURL. */
+  /** Inline style atom name used for the DOM style tag, dev sourceURL and default root selector. */
   name: string;
   /** React-like CSS object compiled into an owned style tag. */
   styles: StyledAtomStylesT;

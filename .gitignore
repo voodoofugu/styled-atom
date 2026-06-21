@@ -3,3 +3,4 @@ Zone.Identifier
 .DS_Store
 publish
 dist
+example/dist
