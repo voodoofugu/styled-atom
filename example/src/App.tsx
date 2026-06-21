@@ -66,6 +66,8 @@ const replacedImportCardCss = `
 `;
 
 function InlineAtomExample() {
+  const [count, setCount] = useState(0);
+
   return (
     <section className="example-panel">
       <div className="example-copy">
@@ -76,6 +78,15 @@ function InlineAtomExample() {
           <code> name</code> plus <code>styles</code>. The explicit
           <code> encap</code> prop wraps this card and scopes root declarations.
         </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            setCount((num) => num + 1);
+          }}
+        >
+          {count}
+        </button>
       </div>
 
       <StyledAtom name="inline-loader" encap styles={inlineLoaderStyles}>

@@ -51,10 +51,6 @@ export type StyleEncapT =
   | boolean
   | string
   | {
-      /** Whether React content should receive an extra wrapper element. */
-      content?: boolean;
-      /** Alias for `content`, useful for declarative configs. */
-      wrap?: boolean;
       /** Wrapper element class names. */
       className?: string | string[];
       /** Wrapper element id. */

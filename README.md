@@ -54,7 +54,7 @@ There are two `StyledAtom` entry points:
 - `import { StyledAtom } from "styled-atom"` - a standalone inline style atom. It does not need a store or loader and accepts `name` + `styles`.
 - `styleAtomsStore.StyledAtom` - a store-bound style atom returned by `createStyledAtomStore`. It accepts `files` and loads CSS through the store loader.
 
-<br />
+<h2></h2>
 
 <details><summary><b>Inline usage</b>:</summary><br />
 
@@ -117,12 +117,12 @@ In the `styles` prop nested selectors are resolved from the root selector. Witho
 <details><summary><b>Store bound usage</b>:</summary><br />
 
 <b>Description:</b><em><br />
-The store-bound component registers requested files in the shared runtime, renders `fallback` while the loader resolves them and reuses already mounted style tags with other atoms from the same store.
+The store-bound component registers requested files in the shared runtime, renders `fallback` while the loader resolves them and reuses already mounted style tags with other atoms from the same store.</em>
 
 <b>Example:</b><br />
 
 ```tsx
-const StyledAtomImport = styleAtomsStore.StyledAtom;
+import StyledAtomImport from "your-styled-atom-store";
 
 <StyledAtomImport
   files={["reset", "preview-card"]}
@@ -141,16 +141,6 @@ const StyledAtomImport = styleAtomsStore.StyledAtom;
 - `children?: React.ReactNode` - content shown after the requested files are loaded.
 
 </details>
-
-<h2></h2>
-
-<b>Encap:</b><br />
-
-- `encap={true}` renders a wrapper with default classes derived from inline `name` or store-bound `files`.
-- `encap="customClass"` renders a wrapper with that class.
-- `encap={{ className, id, attribute }}` renders exact wrapper props. Inline CSS uses selector priority `id`, then `attribute`, then `className`.
-- `encap={{ content: false }}` mounts styles without adding a wrapper.
-- Inline `StyledAtom` compiles selectors through the wrapper when `encap` is enabled. Store-bound `StyledAtom` only renders wrapper props; imported CSS files stay as written.
 
 </div></ul></details>
 

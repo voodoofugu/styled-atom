@@ -17,7 +17,7 @@ import type {
  * The normalized shape removes shorthand forms from `StyleEncapT`, splits class names and makes wrapper decisions explicit.
  */
 export type NormalizedEncapT = {
-  content: boolean;
+  enabled: boolean;
   classNames: string[];
   id?: string;
   attributes?: Record<string, string>;
@@ -88,7 +88,7 @@ const splitClassNames = (value?: string | string[]) => {
 const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
   if (!encap) {
     return {
-      content: false,
+      enabled: false,
       classNames: [],
       defaultSelector: false,
     };
@@ -96,7 +96,7 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
 
   if (encap === true) {
     return {
-      content: true,
+      enabled: true,
       classNames: [],
       defaultSelector: true,
     };
@@ -104,7 +104,7 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
 
   if (typeof encap === "string") {
     return {
-      content: true,
+      enabled: true,
       classNames: splitClassNames(encap),
       defaultSelector: false,
     };
@@ -129,7 +129,7 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
     Boolean(attributes && Object.keys(attributes).length > 0);
 
   return {
-    content: encap.content ?? encap.wrap ?? true,
+    enabled: true,
     classNames,
     id: id || undefined,
     attributes:
@@ -177,7 +177,7 @@ export const normalizeStyleAtomOptions = (
 const stableKey = (value: unknown) => JSON.stringify(value);
 
 const getEncapKey = (encap: NormalizedEncapT) => ({
-  content: encap.content,
+  enabled: encap.enabled,
   classNames: encap.classNames,
   id: encap.id ?? null,
   attributes: encap.attributes ?? null,
@@ -228,7 +228,7 @@ const getInlineStyleEntryKey = (name: string) =>
   stableKey({ kind: "inline", name });
 
 const getContentClassNames = (options: NormalizedStyleOptionsT) => {
-  if (!options.encap.content) return [];
+  if (!options.encap.enabled) return [];
 
   const classNames = options.encap.defaultSelector
     ? [
@@ -248,7 +248,7 @@ const cssStringEscape = (value: string) =>
     .replace(/\n/g, "\\a ");
 
 const getContentSelector = (options: NormalizedStyleOptionsT) => {
-  if (!options.encap.content) return null;
+  if (!options.encap.enabled) return null;
 
   const idSelector = options.encap.id
     ? `#${cssEscape(options.encap.id)}`
@@ -289,7 +289,7 @@ const getContentSelector = (options: NormalizedStyleOptionsT) => {
 export const getStyledAtomWrapperProps = (options: StyleAtomOptionsT) => {
   const normalized = normalizeStyleAtomOptions(options);
 
-  if (!normalized.encap.content) return null;
+  if (!normalized.encap.enabled) return null;
 
   const classNames = getContentClassNames(normalized);
   const props: Record<string, string> = {};
