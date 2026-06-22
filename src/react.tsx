@@ -15,6 +15,9 @@ import type {
   StyleAtomSnapshotT,
   StyledAtomImportT,
   StyledAtomInlineT,
+  StyleAtomCssReplacementT,
+  StyledAtomImportComponentT,
+  StyleAtomFilesT,
 } from "./types";
 
 const useIsomorphicLayoutEffect =
@@ -161,7 +164,11 @@ const RuntimeStyledAtom = ({
   }
 
   const wrapperProps = getStyledAtomWrapperProps(options);
-  const content = wrapperProps ? <div {...wrapperProps}>{children}</div> : children;
+  const content = wrapperProps ? (
+    <div {...wrapperProps}>{children}</div>
+  ) : (
+    children
+  );
 
   return snapshot.loaded ? content : (fallback ?? null);
 };
@@ -247,16 +254,24 @@ export const StyledAtom = createInlineStyledAtomComponent(inlineStyleStore);
  * export const StyledAtomImport = styleAtomsStore.StyledAtom;
  * ```
  */
-export const createStyledAtomStore = (
-  path?: ImportStyleT,
-): ReactStyledAtomStoreT => {
-  const store = new StyledAtomStore(path);
+export const createStyledAtomStore = <TFile extends string = string>(
+  path?: ImportStyleT<TFile>,
+): ReactStyledAtomStoreT<TFile> => {
+  const store = new StyledAtomStore(path as ImportStyleT);
 
   return {
-    StyledAtom: createStyledAtomComponent(store),
-    configure: store.configure.bind(store),
-    reload: store.reload.bind(store),
-    replace: store.replace.bind(store),
+    StyledAtom: createStyledAtomComponent(
+      store,
+    ) as StyledAtomImportComponentT<TFile>,
+    configure: store.configure.bind(store) as (
+      path?: ImportStyleT<TFile>,
+    ) => void,
+    reload: store.reload.bind(store) as (
+      files?: StyleAtomFilesT<TFile>,
+    ) => void,
+    replace: store.replace.bind(store) as (
+      styles: readonly StyleAtomCssReplacementT<TFile>[],
+    ) => void,
     dispose: store.dispose.bind(store),
   };
 };

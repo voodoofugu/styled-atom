@@ -74,8 +74,7 @@ const compactList = (values?: StyleAtomFilesT) => {
   const list = Array.isArray(values) ? values : values ? [values] : [];
 
   return list.filter(
-    (value): value is string =>
-      typeof value === "string" && value.length > 0,
+    (value): value is string => typeof value === "string" && value.length > 0,
   );
 };
 
@@ -222,7 +221,8 @@ const cssEscape = (value: string) => {
   });
 };
 
-const getFileStyleEntryKey = (file: string) => stableKey({ kind: "file", file });
+const getFileStyleEntryKey = (file: string) =>
+  stableKey({ kind: "file", file });
 
 const getInlineStyleEntryKey = (name: string) =>
   stableKey({ kind: "inline", name });
@@ -242,17 +242,12 @@ const getContentClassNames = (options: NormalizedStyleOptionsT) => {
 };
 
 const cssStringEscape = (value: string) =>
-  value
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, "\\a ");
+  value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\a ");
 
 const getContentSelector = (options: NormalizedStyleOptionsT) => {
   if (!options.encap.enabled) return null;
 
-  const idSelector = options.encap.id
-    ? `#${cssEscape(options.encap.id)}`
-    : "";
+  const idSelector = options.encap.id ? `#${cssEscape(options.encap.id)}` : "";
   const attributeSelector = options.encap.attributes
     ? Object.entries(options.encap.attributes)
         .map(([name, value]) => {
@@ -447,12 +442,12 @@ export class StyledAtomStore {
    * @description
    * Keep the returned controller while the styles should stay mounted. Releasing it removes this atom's references and cleans up style tags that are no longer shared.
    * @returns controller for updating, subscribing, reloading and disposing the atom.
- * @example
- * ```ts
- * const atom = store.registerAtom({
- *   files: ["card", "theme"],
- * });
- * ```
+   * @example
+   * ```ts
+   * const atom = store.registerAtom({
+   *   files: ["card", "theme"],
+   * });
+   * ```
    */
   registerAtom(
     options: StyleAtomOptionsT & { id?: string },

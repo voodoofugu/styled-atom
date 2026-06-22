@@ -1,15 +1,7 @@
 import { useState } from "react";
-import {
-  StyledAtom,
-  createStyledAtomStore,
-  type StyledAtomStylesT,
-} from "styled-atom";
+import { StyledAtom, type StyledAtomStylesT } from "styled-atom";
 
-const styleAtomsStore = createStyledAtomStore(
-  (name) => import(`./styles/${name}.css?raw`),
-);
-
-const StyledAtomImport = styleAtomsStore.StyledAtom;
+import { styleAtomsStore, StyledAtomImport } from "./styledAtomStore";
 
 const inlineLoaderStyles = {
   display: "grid",
@@ -90,10 +82,8 @@ function InlineAtomExample() {
       </div>
 
       <StyledAtom name="inline-loader" encap styles={inlineLoaderStyles}>
-        <div>
-          <div className="loader" />
-          <div className="label">Inline styles are mounted</div>
-        </div>
+        <div className="loader" />
+        <div className="label">Inline styles are mounted</div>
       </StyledAtom>
     </section>
   );
@@ -173,7 +163,7 @@ function EncapExample() {
       >
         <div className="attribute-card__body">
           <strong>Attribute-scoped surface</strong>
-          <span>data-preview-scope="attribute-card"</span>
+          <span>{`data-preview-scope="attribute-card"`}</span>
         </div>
       </StyledAtomImport>
     </section>
@@ -185,11 +175,6 @@ export default function App() {
     <main className="page-shell">
       <header className="hero">
         <p className="eyebrow">styled-atom example</p>
-        <h1>Inline atoms and imported CSS in one tiny sandbox</h1>
-        <p>
-          Use this page to test style mounting, file loading, <code>encap</code>
-          and dev-time CSS replacement.
-        </p>
       </header>
 
       <div className="example-grid">

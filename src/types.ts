@@ -30,8 +30,8 @@ export type ImportStyleResultT =
  * const path: ImportStyleT = (name) => import(`./css/${name}.css`);
  * ```
  */
-export type ImportStyleT = (
-  fileName: string,
+export type ImportStyleT<TFile extends string = string> = (
+  fileName: TFile,
 ) => ImportStyleResultT | Promise<ImportStyleResultT>;
 
 /**---
@@ -59,10 +59,43 @@ export type StyleEncapT =
       attribute?: Record<string, string>;
     };
 
-export type StyleAtomFilesT = string | readonly string[];
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleAtomFilesT***:
+ * one or many CSS atom names.
+ * @description
+ * Accepts a single CSS atom name or a readonly list of atom names.
+ * @example
+ * ```ts
+ * const files: StyleAtomFilesT = [
+ *   "stabilize",
+ *   "screen-main",
+ * ];
+ * ```
+ */
+export type StyleAtomFilesT<TFile extends string = string> =
+  | TFile
+  | readonly TFile[];
 
 export type StyleAtomCssValueT = string | number | null | undefined;
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomStylesT***:
+ * React-like object styles for inline atoms.
+ * @description
+ * Nested selectors, at-rules and declarations are compiled into an owned style tag.
+ * @example
+ * ```ts
+ * const styles: StyledAtomStylesT = {
+ *   display: "grid",
+ *
+ *   ".title": {
+ *     color: "#2563eb",
+ *   },
+ * };
+ * ```
+ */
 export type StyledAtomStylesT = React.CSSProperties & {
   [selectorOrProperty: string]:
     | StyleAtomCssValueT
@@ -91,9 +124,9 @@ export type StyleAtomInlineStyleT = {
  * };
  * ```
  */
-export type StyleAtomOptionsT = {
+export type StyleAtomOptionsT<TFile extends string = string> = {
   /** CSS atom names passed to the configured loader. */
-  files?: StyleAtomFilesT;
+  files?: StyleAtomFilesT<TFile>;
   /** Already compiled inline CSS owned by this atom. */
   inlineStyle?: StyleAtomInlineStyleT;
   /** Optional CSS encapsulation settings. */
@@ -155,9 +188,9 @@ export type StyleLoadErrorT = {
  * ]);
  * ```
  */
-export type StyleAtomCssReplacementT = {
+export type StyleAtomCssReplacementT<TFile extends string = string> = {
   /** CSS atom name to replace. */
-  file: string;
+  file: TFile;
   /** New CSS text for that atom. */
   css: string;
 };
@@ -207,13 +240,59 @@ export type StyledAtomBaseT = {
   children?: React.ReactNode;
 };
 
-export type StyledAtomImportT = StyledAtomBaseT & {
-  /** CSS atom names passed to the configured loader. */
-  files?: StyleAtomFilesT;
-  name?: never;
-  styles?: never;
-};
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomImportT***:
+ * props accepted by store-bound StyledAtom components.
+ * @description
+ * Loads CSS atoms through the loader configured by `createStyledAtomStore`.
+ * @example
+ * ```tsx
+ * <StyledAtomImport files="screen-main">
+ *   <Preview />
+ * </StyledAtomImport>
+ * ```
+ */
+export type StyledAtomImportT<TFile extends string = string> =
+  StyledAtomBaseT & {
+    /** CSS atom names passed to the configured loader. */
+    files?: StyleAtomFilesT<TFile>;
+    name?: never;
+    styles?: never;
+  };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomImportComponentT***:
+ * React component returned by `createStyledAtomStore`.
+ * @description
+ * Bound to a specific style atom runtime and loader configuration.
+ * @example
+ * ```ts
+ * const StyledAtomImport =
+ *   styleAtomsStore.StyledAtom;
+ * ```
+ */
+export type StyledAtomImportComponentT<TFile extends string = string> =
+  React.FC<StyledAtomImportT<TFile>>;
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomStylesT***:
+ * React-like object styles used by inline atoms.
+ * @description
+ * Compiles a React-like style object into an owned style tag.
+ * @example
+ * ```ts
+ * const styles: StyledAtomStylesT = {
+ *   display: "grid",
+ *
+ *   ".title": {
+ *     color: "#2563eb",
+ *   },
+ * };
+ * ```
+ */
 export type StyledAtomInlineT = StyledAtomBaseT & {
   /** Inline style atom name used for the DOM style tag, dev sourceURL and default root selector. */
   name: string;
@@ -244,15 +323,15 @@ export type StyledAtomT = StyledAtomImportT | StyledAtomInlineT;
  * @description
  * Contains the bound `StyledAtom` component and a small set of runtime controls for configuring the CSS loader and refreshing mounted style tags during development.
  */
-export type ReactStyledAtomStoreT = {
+export type ReactStyledAtomStoreT<TFile extends string = string> = {
   /** React component bound to this runtime. */
-  StyledAtom: React.FC<StyledAtomImportT>;
+  StyledAtom: StyledAtomImportComponentT<TFile>;
   /** Set or replace the CSS loader. */
-  configure: (path?: ImportStyleT) => void;
+  configure: (path?: ImportStyleT<TFile>) => void;
   /** Reload all or selected mounted CSS atoms through the configured loader. */
-  reload: (files?: StyleAtomFilesT) => void;
+  reload: (files?: StyleAtomFilesT<TFile>) => void;
   /** Replace CSS text for already mounted CSS atoms. */
-  replace: (styles: readonly StyleAtomCssReplacementT[]) => void;
+  replace: (styles: readonly StyleAtomCssReplacementT<TFile>[]) => void;
   /** Remove all mounted style tags owned by this runtime. */
   dispose: () => void;
 };
