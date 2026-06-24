@@ -66,8 +66,8 @@ It does not render a wrapper by default. Add <code>encap</code> when the atom sh
 <b>Props:</b><br />
 
 - `name: string` - inline atom name used for the style tag, default root selector and dev `sourceURL`.
-- `styles: StyledAtomStylesT` - React-like CSS object.
-- `encap?: boolean | string | StyleEncapT` - optional wrapper scope. Omitted means no wrapper. `encap={true}` uses the `name` class. String, `className`, `id` and `attribute` use the selector you provide and the inline CSS is compiled under that selector.
+- `styles: StyledAtomStyles` - React-like CSS object.
+- `encap?: boolean | string | StyleEncap` - optional wrapper scope. Omitted means no wrapper. `encap={true}` uses the `name` class. String, `className`, `id` and `attribute` use the selector you provide and the inline CSS is compiled under that selector.
 - `fallback?: React.ReactNode` - content rendered before the style atom is mounted.
 - `onLoad?: () => void` - called once when this atom changes from loading to loaded.
 - `children?: React.ReactNode` - content shown after the atom is mounted.
@@ -135,7 +135,7 @@ import StyledAtomImport from "your-styled-atom-store";
 <b>Props:</b><br />
 
 - `files?: string | readonly string[]` - CSS atom names passed to the configured loader.
-- `encap?: boolean | string | StyleEncapT` - optional wrapper props only. Omitted means no wrapper. `encap={true}` adds classes from `files`; string, `className`, `id` and `attribute` use the selector you provide. Imported CSS is not rewritten, so files should target that wrapper themselves.
+- `encap?: boolean | string | StyleEncap` - optional wrapper props only. Omitted means no wrapper. `encap={true}` adds classes from `files`; string, `className`, `id` and `attribute` use the selector you provide. Imported CSS is not rewritten, so files should target that wrapper themselves.
 - `fallback?: React.ReactNode` - content rendered while requested files are loading.
 - `onLoad?: () => void` - called once when this atom changes from loading to loaded.
 - `children?: React.ReactNode` - content shown after the requested files are loaded.
@@ -190,9 +190,9 @@ export const StyledAtomImport = styleAtomsStore.StyledAtom;
 <details><summary><b>Typed inline styles</b>: <em>keep style data outside render markup</em></summary><br />
 
 ```tsx
-import { StyledAtom, type StyledAtomStylesT } from "styled-atom";
+import { StyledAtom, type StyledAtomStyles } from "styled-atom";
 
-const splashStyles: StyledAtomStylesT = {
+const splashStyles: StyledAtomStyles = {
   display: "grid",
   placeItems: "center",
   minHeight: "100vh",

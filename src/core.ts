@@ -1,12 +1,12 @@
 import type {
-  ImportStyleT,
-  StyleAtomControllerT,
-  StyleAtomCssReplacementT,
-  StyleAtomFilesT,
-  StyleAtomInlineStyleT,
-  StyleAtomOptionsT,
-  StyleAtomSnapshotT,
-  StyleEncapT,
+  ImportStyle,
+  StyleAtomController,
+  StyleAtomCssReplacement,
+  StyleAtomFiles,
+  StyleAtomInlineStyle,
+  StyleAtomOptions,
+  StyleAtomSnapshot,
+  StyleEncap,
 } from "./types";
 
 /**---
@@ -14,7 +14,7 @@ import type {
  * ### ***NormalizedEncapT***:
  * normalized wrapper settings used internally by the core store and React component.
  * @description
- * The normalized shape removes shorthand forms from `StyleEncapT`, splits class names and makes wrapper decisions explicit.
+ * The normalized shape removes shorthand forms from `StyleEncap`, splits class names and makes wrapper decisions explicit.
  */
 export type NormalizedEncapT = {
   enabled: boolean;
@@ -33,7 +33,7 @@ export type NormalizedEncapT = {
  */
 export type NormalizedStyleOptionsT = {
   files: string[];
-  inlineStyle?: StyleAtomInlineStyleT;
+  inlineStyle?: StyleAtomInlineStyle;
   encap: NormalizedEncapT;
 };
 
@@ -58,11 +58,11 @@ type AtomStateT = {
   options: NormalizedStyleOptionsT;
   styleKeys: Set<string>;
   listeners: Set<() => void>;
-  snapshot: StyleAtomSnapshotT;
+  snapshot: StyleAtomSnapshot;
   snapshotKey: string;
 };
 
-const emptySnapshot = (id: string): StyleAtomSnapshotT => ({
+const emptySnapshot = (id: string): StyleAtomSnapshot => ({
   id,
   loaded: false,
   loading: false,
@@ -70,7 +70,7 @@ const emptySnapshot = (id: string): StyleAtomSnapshotT => ({
   errors: [],
 });
 
-const compactList = (values?: StyleAtomFilesT) => {
+const compactList = (values?: StyleAtomFiles) => {
   const list = Array.isArray(values) ? values : values ? [values] : [];
 
   return list.filter(
@@ -84,7 +84,7 @@ const splitClassNames = (value?: string | string[]) => {
   return values.flatMap((item) => item.split(/\s+/).filter(Boolean));
 };
 
-const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
+const normalizeEncap = (encap?: StyleEncap): NormalizedEncapT => {
   if (!encap) {
     return {
       enabled: false,
@@ -138,8 +138,8 @@ const normalizeEncap = (encap?: StyleEncapT): NormalizedEncapT => {
 };
 
 const normalizeInlineStyle = (
-  inlineStyle?: StyleAtomInlineStyleT,
-): StyleAtomInlineStyleT | undefined => {
+  inlineStyle?: StyleAtomInlineStyle,
+): StyleAtomInlineStyle | undefined => {
   const name =
     typeof inlineStyle?.name === "string" ? inlineStyle.name.trim() : "";
 
@@ -166,7 +166,7 @@ const normalizeInlineStyle = (
  * ```
  */
 export const normalizeStyleAtomOptions = (
-  options: StyleAtomOptionsT,
+  options: StyleAtomOptions,
 ): NormalizedStyleOptionsT => ({
   files: compactList(options.files),
   inlineStyle: normalizeInlineStyle(options.inlineStyle),
@@ -196,7 +196,7 @@ const getEncapKey = (encap: NormalizedEncapT) => ({
  * });
  * ```
  */
-export const getStyleAtomKey = (options: StyleAtomOptionsT) => {
+export const getStyleAtomKey = (options: StyleAtomOptions) => {
   const normalized = normalizeStyleAtomOptions(options);
 
   return stableKey({
@@ -281,7 +281,7 @@ const getContentSelector = (options: NormalizedStyleOptionsT) => {
  * );
  * ```
  */
-export const getStyledAtomWrapperProps = (options: StyleAtomOptionsT) => {
+export const getStyledAtomWrapperProps = (options: StyleAtomOptions) => {
   const normalized = normalizeStyleAtomOptions(options);
 
   if (!normalized.encap.enabled) return null;
@@ -311,7 +311,7 @@ export const getStyledAtomWrapperProps = (options: StyleAtomOptionsT) => {
   return props;
 };
 
-export const getStyledAtomWrapperSelector = (options: StyleAtomOptionsT) =>
+export const getStyledAtomWrapperSelector = (options: StyleAtomOptions) =>
   getContentSelector(normalizeStyleAtomOptions(options));
 
 const isUsefulCssText = (value: string) => {
@@ -396,12 +396,12 @@ const formatError = (error: unknown) =>
  * ```
  */
 export class StyledAtomStore {
-  private path?: ImportStyleT;
+  private path?: ImportStyle;
   private atoms = new Map<string, AtomStateT>();
   private styles = new Map<string, StyleEntryT>();
   private idCounter = 0;
 
-  constructor(path?: ImportStyleT) {
+  constructor(path?: ImportStyle) {
     this.path = path;
   }
 
@@ -416,7 +416,7 @@ export class StyledAtomStore {
    * store.configure((name) => import(`./css/${name}.css`));
    * ```
    */
-  configure(path?: ImportStyleT) {
+  configure(path?: ImportStyle) {
     const previousPath = this.path;
     this.path = path;
 
@@ -450,8 +450,8 @@ export class StyledAtomStore {
    * ```
    */
   registerAtom(
-    options: StyleAtomOptionsT & { id?: string },
-  ): StyleAtomControllerT {
+    options: StyleAtomOptions & { id?: string },
+  ): StyleAtomController {
     const id = options.id ?? this.createId();
 
     if (!this.atoms.has(id)) {
@@ -477,7 +477,7 @@ export class StyledAtomStore {
    * @description
    * Reconciles file references for the atom id without touching unrelated atoms in the store.
    */
-  updateAtom(id: string, options: StyleAtomOptionsT) {
+  updateAtom(id: string, options: StyleAtomOptions) {
     const atom = this.atoms.get(id);
     if (!atom) return;
 
@@ -594,7 +594,7 @@ export class StyledAtomStore {
    * const snapshot = store.getSnapshot(atom.id);
    * ```
    */
-  getSnapshot(id: string): StyleAtomSnapshotT {
+  getSnapshot(id: string): StyleAtomSnapshot {
     return this.atoms.get(id)?.snapshot ?? emptySnapshot(id);
   }
 
@@ -610,8 +610,8 @@ export class StyledAtomStore {
    * ```
    */
   preload(
-    files: StyleAtomFilesT,
-    options: Omit<StyleAtomOptionsT, "files"> = {},
+    files: StyleAtomFiles,
+    options: Omit<StyleAtomOptions, "files"> = {},
   ) {
     return this.registerAtom({
       ...options,
@@ -627,7 +627,7 @@ export class StyledAtomStore {
    * @description
    * When `files` is omitted every registered file entry is reloaded.
    */
-  reload(files?: StyleAtomFilesT) {
+  reload(files?: StyleAtomFiles) {
     const requested = new Set(compactList(files));
 
     this.styles.forEach((entry) => {
@@ -651,11 +651,11 @@ export class StyledAtomStore {
    * store.replace([{ file: "card", css: nextCss }]);
    * ```
    */
-  replace(styles: readonly StyleAtomCssReplacementT[]) {
+  replace(styles: readonly StyleAtomCssReplacement[]) {
     const replacements = new Map(
       styles
         .filter(
-          (style): style is StyleAtomCssReplacementT =>
+          (style): style is StyleAtomCssReplacement =>
             typeof style?.file === "string" &&
             style.file.length > 0 &&
             typeof style.css === "string",
@@ -697,7 +697,7 @@ export class StyledAtomStore {
     this.styles.clear();
   }
 
-  private createController(id: string): StyleAtomControllerT {
+  private createController(id: string): StyleAtomController {
     return {
       id,
       update: (options) => this.updateAtom(id, options),
@@ -856,7 +856,7 @@ export class StyledAtomStore {
       entries.every(
         (entry) => entry.status === "loaded" || entry.status === "error",
       );
-    const snapshot: StyleAtomSnapshotT = {
+    const snapshot: StyleAtomSnapshot = {
       id: atom.id,
       loaded,
       loading,

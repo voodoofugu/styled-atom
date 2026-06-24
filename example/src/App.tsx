@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyledAtom, type StyledAtomStylesT } from "styled-atom";
+import { StyledAtom, type StyledAtomStyles } from "styled-atom";
 
 import { styleAtomsStore, StyledAtomImport } from "./styledAtomStore";
 
@@ -33,7 +33,7 @@ const inlineLoaderStyles = {
       transform: "rotate(360deg)",
     },
   },
-} satisfies StyledAtomStylesT;
+} satisfies StyledAtomStyles;
 
 const replacedImportCardCss = `
 .import-card {

@@ -8,16 +8,16 @@ import {
 } from "./core";
 import { compileStyleAtomStyles } from "./styles";
 import type {
-  ImportStyleT,
-  ReactStyledAtomStoreT,
-  StyleAtomControllerT,
-  StyleAtomOptionsT,
-  StyleAtomSnapshotT,
-  StyledAtomImportT,
-  StyledAtomInlineT,
-  StyleAtomCssReplacementT,
-  StyledAtomImportComponentT,
-  StyleAtomFilesT,
+  ImportStyle,
+  StyledAtomRuntime,
+  StyleAtomController,
+  StyleAtomOptions,
+  StyleAtomSnapshot,
+  StyledAtomImport,
+  StyledAtomInline,
+  StyleAtomCssReplacement,
+  StyledAtomImportComponent,
+  StyleAtomFiles,
 } from "./types";
 
 const useIsomorphicLayoutEffect =
@@ -27,7 +27,7 @@ const initialSnapshot = (
   id: string,
   files: string[],
   hasStyles: boolean,
-): StyleAtomSnapshotT => ({
+): StyleAtomSnapshot => ({
   id,
   loaded: !hasStyles,
   loading: hasStyles,
@@ -44,15 +44,15 @@ const createReactAtomId = (id: string) => {
 const useStyledAtomController = (
   store: StyledAtomStore,
   id: string,
-  props: StyleAtomOptionsT,
+  props: StyleAtomOptions,
 ) => {
   const normalized = normalizeStyleAtomOptions(props);
   const atomKey = getStyleAtomKey(props);
   const hasStyles =
     normalized.files.length > 0 || Boolean(normalized.inlineStyle);
-  const controllerRef = React.useRef<StyleAtomControllerT | null>(null);
+  const controllerRef = React.useRef<StyleAtomController | null>(null);
   const cleanupRef = React.useRef<(() => void) | null>(null);
-  const [snapshot, setSnapshot] = React.useState<StyleAtomSnapshotT>(() =>
+  const [snapshot, setSnapshot] = React.useState<StyleAtomSnapshot>(() =>
     initialSnapshot(id, normalized.files, hasStyles),
   );
 
@@ -70,25 +70,29 @@ const useStyledAtomController = (
       cleanupRef.current = null;
       controllerRef.current = null;
       setSnapshot(initialSnapshot(id, normalized.files, hasStyles));
+
       return;
     }
 
     if (!controllerRef.current) {
       const controller = store.registerAtom({ ...props, id });
+
       const unsubscribe = controller.subscribe(() => {
         setSnapshot(controller.getSnapshot());
       });
 
       controllerRef.current = controller;
+
       cleanupRef.current = () => {
         unsubscribe();
         controller.dispose();
       };
-    } else {
-      controllerRef.current.update(props);
-    }
+    } else controllerRef.current.update(props);
 
-    setSnapshot(controllerRef.current.getSnapshot());
+    const controller = controllerRef.current!;
+
+    setSnapshot(controller.getSnapshot());
+
     // `atomKey` is a content key, so inline arrays/objects with the same values
     // do not cause a store update.
   }, [atomKey, hasStyles, id, store]);
@@ -103,7 +107,7 @@ const hasPropValue = (props: object, key: string) =>
 const isStyleObject = (value: unknown) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const validateStoreStyledAtomProps = (props: StyledAtomImportT) => {
+const validateStoreStyledAtomProps = (props: StyledAtomImport) => {
   if (hasPropValue(props, "name") || hasPropValue(props, "styles")) {
     throw new Error(
       "`styleAtomsStore.StyledAtom` only accepts `files`. Import `StyledAtom` from `styled-atom` directly for inline `name` and `styles`.",
@@ -111,7 +115,7 @@ const validateStoreStyledAtomProps = (props: StyledAtomImportT) => {
   }
 };
 
-const validateInlineStyledAtomProps = (props: StyledAtomInlineT) => {
+const validateInlineStyledAtomProps = (props: StyledAtomInline) => {
   if (hasPropValue(props, "files")) {
     throw new Error(
       "`StyledAtom` inline mode does not accept `files`. Use `createStyledAtomStore` for imported CSS files.",
@@ -137,7 +141,7 @@ const RuntimeStyledAtom = ({
   children,
 }: {
   store: StyledAtomStore;
-  options: StyleAtomOptionsT;
+  options: StyleAtomOptions;
   fallback?: React.ReactNode;
   onLoad?: () => void;
   children?: React.ReactNode;
@@ -174,7 +178,7 @@ const RuntimeStyledAtom = ({
 };
 
 const createStyledAtomComponent = (store: StyledAtomStore) => {
-  const StyledAtom = (props: StyledAtomImportT) => {
+  const StyledAtom = (props: StyledAtomImport) => {
     validateStoreStyledAtomProps(props);
 
     const { files, encap, fallback, onLoad, children } = props;
@@ -197,7 +201,7 @@ const createStyledAtomComponent = (store: StyledAtomStore) => {
 };
 
 const createInlineStyledAtomComponent = (store: StyledAtomStore) => {
-  const StyledAtom = (props: StyledAtomInlineT) => {
+  const StyledAtom = (props: StyledAtomInline) => {
     validateInlineStyledAtomProps(props);
 
     const { name, styles, encap, fallback, onLoad, children } = props;
@@ -255,22 +259,20 @@ export const StyledAtom = createInlineStyledAtomComponent(inlineStyleStore);
  * ```
  */
 export const createStyledAtomStore = <TFile extends string = string>(
-  path?: ImportStyleT<TFile>,
-): ReactStyledAtomStoreT<TFile> => {
-  const store = new StyledAtomStore(path as ImportStyleT);
+  path?: ImportStyle<TFile>,
+): StyledAtomRuntime<TFile> => {
+  const store = new StyledAtomStore(path as ImportStyle);
 
   return {
     StyledAtom: createStyledAtomComponent(
       store,
-    ) as StyledAtomImportComponentT<TFile>,
+    ) as StyledAtomImportComponent<TFile>,
     configure: store.configure.bind(store) as (
-      path?: ImportStyleT<TFile>,
+      path?: ImportStyle<TFile>,
     ) => void,
-    reload: store.reload.bind(store) as (
-      files?: StyleAtomFilesT<TFile>,
-    ) => void,
+    reload: store.reload.bind(store) as (files?: StyleAtomFiles<TFile>) => void,
     replace: store.replace.bind(store) as (
-      styles: readonly StyleAtomCssReplacementT<TFile>[],
+      styles: readonly StyleAtomCssReplacement<TFile>[],
     ) => void,
     dispose: store.dispose.bind(store),
   };

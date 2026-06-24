@@ -1,4 +1,4 @@
-import type { StyleAtomStylesT } from "./types";
+import type { StyleAtomStyles } from "./types";
 
 const unitlessCssProperties = new Set([
   "animation-iteration-count",
@@ -39,7 +39,7 @@ const unitlessCssProperties = new Set([
   "zoom",
 ]);
 
-const isStyleObject = (value: unknown): value is StyleAtomStylesT =>
+const isStyleObject = (value: unknown): value is StyleAtomStyles =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const cssEscape = (value: string) => {
@@ -82,10 +82,7 @@ const formatStyleValue = (property: string, value: string | number) => {
   return String(value);
 };
 
-const resolveSelector = (
-  parentSelector: string,
-  selector: string,
-) => {
+const resolveSelector = (parentSelector: string, selector: string) => {
   const trimmedSelector = selector.trim();
 
   if (!trimmedSelector) return parentSelector;
@@ -94,14 +91,19 @@ const resolveSelector = (
   }
 
   if (!parentSelector) return trimmedSelector;
-  if (/^[:[]/.test(trimmedSelector)) return `${parentSelector}${trimmedSelector}`;
-  if (/^[>+~]/.test(trimmedSelector)) return `${parentSelector} ${trimmedSelector}`;
+  if (/^[:[]/.test(trimmedSelector))
+    return `${parentSelector}${trimmedSelector}`;
+  if (/^[>+~]/.test(trimmedSelector))
+    return `${parentSelector} ${trimmedSelector}`;
 
   return `${parentSelector} ${trimmedSelector}`;
 };
 
 const wrapAtRules = (css: string, atRules: readonly string[]) =>
-  atRules.reduceRight((result, atRule) => `${atRule} {\n${indent(result)}\n}`, css);
+  atRules.reduceRight(
+    (result, atRule) => `${atRule} {\n${indent(result)}\n}`,
+    css,
+  );
 
 const compileDeclarations = (
   selector: string,
@@ -123,7 +125,7 @@ const compileDeclarations = (
 
 const compileDescriptorAtRule = (
   atRule: string,
-  styles: StyleAtomStylesT,
+  styles: StyleAtomStyles,
   atRules: readonly string[],
 ) => {
   const declarations = Object.entries(styles).filter(
@@ -146,30 +148,38 @@ const compileDescriptorAtRule = (
 
 const compileKeyframes = (
   atRule: string,
-  styles: StyleAtomStylesT,
+  styles: StyleAtomStyles,
   atRules: readonly string[],
 ) => {
   const frames = Object.entries(styles).flatMap(([frame, value]) => {
     if (!isStyleObject(value)) return [];
 
-    return compileDeclarations(frame, Object.entries(value).filter(
-      (entry): entry is [string, string | number] =>
-        !isStyleObject(entry[1]) && entry[1] !== null && entry[1] !== undefined,
-    ), []);
+    return compileDeclarations(
+      frame,
+      Object.entries(value).filter(
+        (entry): entry is [string, string | number] =>
+          !isStyleObject(entry[1]) &&
+          entry[1] !== null &&
+          entry[1] !== undefined,
+      ),
+      [],
+    );
   });
 
   if (frames.length === 0) return [];
 
-  return [wrapAtRules(`${atRule} {\n${indent(frames.join("\n\n"))}\n}`, atRules)];
+  return [
+    wrapAtRules(`${atRule} {\n${indent(frames.join("\n\n"))}\n}`, atRules),
+  ];
 };
 
 const compileRule = (
-  styles: StyleAtomStylesT,
+  styles: StyleAtomStyles,
   selector: string,
   atRules: readonly string[],
 ): string[] => {
   const declarations: [string, string | number][] = [];
-  const nestedRules: [string, StyleAtomStylesT][] = [];
+  const nestedRules: [string, StyleAtomStyles][] = [];
 
   Object.entries(styles).forEach(([propertyOrSelector, value]) => {
     if (isStyleObject(value)) {
@@ -194,7 +204,10 @@ const compileRule = (
           return compileDescriptorAtRule(nestedSelector, nestedStyles, atRules);
         }
 
-        return compileRule(nestedStyles, selector, [...atRules, nestedSelector]);
+        return compileRule(nestedStyles, selector, [
+          ...atRules,
+          nestedSelector,
+        ]);
       }
 
       return compileRule(
@@ -208,7 +221,7 @@ const compileRule = (
 
 export const compileStyleAtomStyles = (
   name: string,
-  styles: StyleAtomStylesT,
+  styles: StyleAtomStyles,
   scopeSelector?: string | null,
 ) => {
   const baseSelector = scopeSelector ?? `.${cssEscape(name)}`;
