@@ -31,7 +31,7 @@ npm install styled-atom
 ```
 
 ```tsx
-import { StyledAtom, createStyledAtomStore } from "styled-atom";
+import StyledAtom, { createStyledAtomStore } from "styled-atom";
 ```
 
 > **✦ Note:**
@@ -51,7 +51,7 @@ import { StyledAtom, createStyledAtomStore } from "styled-atom";
 
 There are two `StyledAtom` entry points:
 
-- `import { StyledAtom } from "styled-atom"` - a standalone inline style atom. It does not need a store or loader and accepts `name` + `styles`.
+- `import StyledAtom from "styled-atom"` - a standalone inline style atom. It does not need a store or loader and accepts `name` + `styles`.
 - `styleAtomsStore.StyledAtom` - a store-bound style atom returned by `createStyledAtomStore`. It accepts `files` and loads CSS through the store loader.
 
 <h2></h2>
@@ -77,7 +77,7 @@ It does not render a wrapper by default. Add <code>encap</code> when the atom sh
 <b>Example:</b><br />
 
 ```tsx
-import { StyledAtom } from "styled-atom";
+import StyledAtom from "styled-atom";
 
 export function LoadingScreen() {
   return (
@@ -108,7 +108,7 @@ export function LoadingScreen() {
 
 <b>Style object:</b><br />
 
-In the `styles` prop nested selectors are resolved from the root selector. Without `encap` the root selector is `.${name}`, so add that class yourself when root declarations should apply to your markup. With `encap`, the root selector is the generated wrapper selector. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless.
+In the `styles` prop nested selectors are resolved from the root selector. Without `encap` the root selector is `.${name}`, so add that class yourself when root declarations should apply to your markup. With `encap`, the root selector is the generated wrapper selector. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless. For pseudo-element `content`, pass the literal text directly (`content: ""`, `content: "×"`); existing CSS values such as `content: '""'`, `attr(...)`, `counter(...)` and `none` are preserved.
 
 </details>
 
@@ -190,7 +190,7 @@ export const StyledAtomImport = styleAtomsStore.StyledAtom;
 <details><summary><b>Typed inline styles</b>: <em>keep style data outside render markup</em></summary><br />
 
 ```tsx
-import { StyledAtom, type StyledAtomStyles } from "styled-atom";
+import StyledAtom, { type StyledAtomStyles } from "styled-atom";
 
 const splashStyles: StyledAtomStyles = {
   display: "grid",

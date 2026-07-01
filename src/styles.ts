@@ -39,6 +39,20 @@ const unitlessCssProperties = new Set([
   "zoom",
 ]);
 
+const contentKeywords = new Set([
+  "normal",
+  "none",
+  "open-quote",
+  "close-quote",
+  "no-open-quote",
+  "no-close-quote",
+  "inherit",
+  "initial",
+  "revert",
+  "revert-layer",
+  "unset",
+]);
+
 const isStyleObject = (value: unknown): value is StyleAtomStyles =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -69,7 +83,47 @@ const toKebabCase = (property: string) => {
   return property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 };
 
+const isQuotedCssString = (value: string) => {
+  const trimmed = value.trim();
+  if (trimmed.length < 2) return false;
+
+  const quote = trimmed[0];
+  return (
+    (quote === '"' || quote === "'") && trimmed[trimmed.length - 1] === quote
+  );
+};
+
+const isCssFunction = (value: string) => /^[a-z-]+\(/i.test(value.trim());
+
+const formatContentValue = (value: string | number) => {
+  if (typeof value !== "string") return String(value);
+
+  const trimmed = value.trim();
+  if (
+    isQuotedCssString(trimmed) ||
+    isCssFunction(trimmed) ||
+    contentKeywords.has(trimmed.toLowerCase())
+  ) {
+    return trimmed;
+  }
+
+  return JSON.stringify(trimmed);
+};
+
+// проверка на то является ли свойство подходящим для форматирования
+const specialPropertyFormatters: Record<
+  string,
+  (value: string | number) => string
+> = {
+  // пока только content что бы избежать '""'
+  content: formatContentValue,
+};
+
 const formatStyleValue = (property: string, value: string | number) => {
+  const formatter = specialPropertyFormatters[property];
+
+  if (formatter) return formatter(value);
+
   if (
     typeof value === "number" &&
     value !== 0 &&

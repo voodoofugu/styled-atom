@@ -1,4 +1,5 @@
 export { createStyledAtomStore, StyledAtom } from "./react";
+export { StyledAtom as default } from "./react";
 export type {
   ImportStyleResult,
   ImportStyle,
