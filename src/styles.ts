@@ -83,6 +83,62 @@ const toKebabCase = (property: string) => {
   return property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 };
 
+const splitSelectorList = (selector: string) => {
+  const parts: string[] = [];
+  let current = "";
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let quote: string | null = null;
+  let escaped = false;
+
+  for (const char of selector) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      current += char;
+      escaped = true;
+      continue;
+    }
+
+    if (quote) {
+      current += char;
+      if (char === quote) quote = null;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      current += char;
+      quote = char;
+      continue;
+    }
+
+    if (char === "(") {
+      parenDepth += 1;
+    } else if (char === ")" && parenDepth > 0) {
+      parenDepth -= 1;
+    } else if (char === "[") {
+      bracketDepth += 1;
+    } else if (char === "]" && bracketDepth > 0) {
+      bracketDepth -= 1;
+    } else if (char === "," && parenDepth === 0 && bracketDepth === 0) {
+      const part = current.trim();
+      if (part) parts.push(part);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  const part = current.trim();
+  if (part) parts.push(part);
+  return parts;
+};
+
 const isQuotedCssString = (value: string) => {
   const trimmed = value.trim();
   if (trimmed.length < 2) return false;
@@ -136,7 +192,7 @@ const formatStyleValue = (property: string, value: string | number) => {
   return String(value);
 };
 
-const resolveSelector = (parentSelector: string, selector: string) => {
+const resolveSingleSelector = (parentSelector: string, selector: string) => {
   const trimmedSelector = selector.trim();
 
   if (!trimmedSelector) return parentSelector;
@@ -151,6 +207,25 @@ const resolveSelector = (parentSelector: string, selector: string) => {
     return `${parentSelector} ${trimmedSelector}`;
 
   return `${parentSelector} ${trimmedSelector}`;
+};
+
+const resolveSelector = (parentSelector: string, selector: string) => {
+  const parentSelectors = splitSelectorList(parentSelector);
+  const childSelectors = splitSelectorList(selector);
+
+  if (parentSelectors.length === 0) {
+    return childSelectors
+      .map((childSelector) => resolveSingleSelector("", childSelector))
+      .join(", ");
+  }
+
+  return parentSelectors
+    .flatMap((parent) =>
+      childSelectors.map((childSelector) =>
+        resolveSingleSelector(parent, childSelector),
+      ),
+    )
+    .join(", ");
 };
 
 const wrapAtRules = (css: string, atRules: readonly string[]) =>

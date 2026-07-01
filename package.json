@@ -1,7 +1,7 @@
 {
   "name": "styled-atom",
   "author": "Georg Schilin",
-  "version": "3.0.1",
+  "version": "3.0.3",
   "description": "Runtime for loading and mounting CSS atoms in React",
   "license": "MIT",
   "main": "./dist/cjs/index.cjs",
@@ -29,6 +29,7 @@
     "publish:dry": "npm run package-prepare && npm publish ./publish --dry-run",
     "publish": "npm publish",
     "lint": "eslint src",
+    "test": "node --test test/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [

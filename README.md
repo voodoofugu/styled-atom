@@ -108,7 +108,7 @@ export function LoadingScreen() {
 
 <b>Style object:</b><br />
 
-In the `styles` prop nested selectors are resolved from the root selector. Without `encap` the root selector is `.${name}`, so add that class yourself when root declarations should apply to your markup. With `encap`, the root selector is the generated wrapper selector. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless. For pseudo-element `content`, pass the literal text directly (`content: ""`, `content: "×"`); existing CSS values such as `content: '""'`, `attr(...)`, `counter(...)` and `none` are preserved.
+In the `styles` prop nested selectors are resolved from the root selector. Without `encap` the root selector is `.${name}`, so add that class yourself when root declarations should apply to your markup. With `encap`, the root selector is the generated wrapper selector. Selector lists are scoped per item, so a nested selector list such as `.card, .panel` inside `.dark` compiles both selectors under `.dark`. At-rules such as `@media` and `@keyframes` are supported. Numeric values receive `px` unless the CSS property is unitless. For pseudo-element `content`, pass the literal text directly (`content: ""`, `content: "×"`); existing CSS values such as `content: '""'`, `attr(...)`, `counter(...)` and `none` are preserved.
 
 </details>
 
