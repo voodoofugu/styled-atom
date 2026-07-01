@@ -4,6 +4,28 @@ import terser from "@rollup/plugin-terser";
 import del from "rollup-plugin-delete";
 import commonjs from "@rollup/plugin-commonjs";
 
+const createMinify = () =>
+  terser({
+    ecma: 5,
+    compress: {
+      ecma: 5,
+      passes: 2,
+      unsafe: true,
+      unsafe_arrows: true,
+      unsafe_comps: true,
+      unsafe_math: true,
+      drop_console: true,
+      pure_funcs: ["console.log"],
+    },
+    mangle: {
+      toplevel: true,
+    },
+    output: {
+      comments: false,
+      ecma: 5,
+    },
+  });
+
 export default [
   // ESM точки входа
   {
@@ -26,23 +48,7 @@ export default [
           outDir: "./dist/esm",
         },
       }),
-      terser({
-        compress: {
-          passes: 2,
-          unsafe: true,
-          unsafe_arrows: true,
-          unsafe_comps: true,
-          unsafe_math: true,
-          drop_console: true,
-          pure_funcs: ["console.log"],
-        },
-        mangle: {
-          toplevel: true,
-        },
-        output: {
-          comments: false,
-        },
-      }),
+      createMinify(),
     ],
   },
 
@@ -67,23 +73,7 @@ export default [
           outDir: "./dist/cjs",
         },
       }),
-      terser({
-        compress: {
-          passes: 2,
-          unsafe: true,
-          unsafe_arrows: true,
-          unsafe_comps: true,
-          unsafe_math: true,
-          drop_console: true,
-          pure_funcs: ["console.log"],
-        },
-        mangle: {
-          toplevel: true,
-        },
-        output: {
-          comments: false,
-        },
-      }),
+      createMinify(),
     ],
   },
 ];
