@@ -46,14 +46,14 @@ describe("StyledAtom", () => {
   it("scopes styles through a semantic wrapper and exposes status", () => {
     const { container } = render(
       <StyledAtom
-        as="section"
         name="card"
         scope={{
+          element: "section",
           className: "preview",
-          attribute: { "data-surface": "docs" },
+          "data-surface": "docs",
+          "aria-label": "preview",
         }}
         styles={{ color: "red" }}
-        wrapperProps={{ "aria-label": "preview" }}
       >
         content
       </StyledAtom>,
@@ -226,7 +226,9 @@ describe("store-bound StyledAtom", () => {
   });
 
   it("renders eager children while a file loads", () => {
-    const store = createStyledAtomStore(() => new Promise(() => undefined));
+    const store = createStyledAtomStore({
+      loader: () => new Promise(() => undefined),
+    });
     render(
       <store.StyledAtom files="card">
         {({ status }) => <span>{status}:content</span>}
@@ -241,7 +243,7 @@ describe("store-bound StyledAtom", () => {
       .fn()
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce(".card{color:green}");
-    const store = createStyledAtomStore(loader);
+    const store = createStyledAtomStore({ loader });
     render(
       <store.StyledAtom
         files="card"

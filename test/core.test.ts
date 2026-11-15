@@ -234,7 +234,7 @@ describe("StyleRuntime", () => {
 
   it("loads asynchronously and exposes loading then ready", async () => {
     const css = deferred<string>();
-    const runtime = createStyleRuntime(() => css.promise);
+    const runtime = createStyleRuntime({ loader: () => css.promise });
     const atom = runtime.registerAtom({ files: "card" });
 
     expect(atom.getSnapshot().status).toBe("loading");
@@ -250,7 +250,7 @@ describe("StyleRuntime", () => {
       .fn()
       .mockImplementationOnce(() => loads[0].promise)
       .mockImplementationOnce(() => loads[1].promise);
-    const runtime = createStyleRuntime(loader);
+    const runtime = createStyleRuntime({ loader });
     const atom = runtime.registerAtom({ files: "card" });
     atom.reload();
 
@@ -291,7 +291,7 @@ describe("StyleRuntime", () => {
     const atom = runtime.registerAtom({ files: "card" });
     expect(atom.getSnapshot().status).toBe("failed");
 
-    runtime.configure(() => ".card{color:green}");
+    runtime.configure({ loader: () => ".card{color:green}" });
     await flush();
 
     expect(atom.getSnapshot().status).toBe("ready");

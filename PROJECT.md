@@ -72,7 +72,8 @@ The core must be usable without React and must not import React types.
   callbacks and render-function children.
 - `scope` replaces the unclear `encap` name. v4 may provide a deprecated alias
   only where it does not complicate the type contract.
-- Wrapper semantics are configurable through `as` and `wrapperProps`.
+- Basic scoping stays `scope` or `scope="name"`; the optional wrapper element
+  and DOM attributes live in the same `scope` object instead of separate props.
 
 ### SSR
 

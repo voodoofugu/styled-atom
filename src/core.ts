@@ -188,27 +188,26 @@ export class StyleRuntime<TFile extends string = string> {
   private targetCounter = 0;
   private idCounter = 0;
 
-  constructor(options: StyleRuntimeOptions<TFile> | ImportStyle<TFile> = {}) {
-    const normalized = typeof options === "function" ? { loader: options } : options;
-    this.namespace = normalized.namespace?.trim() || nextRuntimeNamespace();
-    this.loader = normalized.loader;
-    this.runtimeTarget = normalized.target;
-    this.defaultPlacement = normalized.placement ?? "head";
-    this.defaultNonce = normalized.nonce;
-    this.onError = normalized.onError;
-    this.setOrder(normalized.order);
-    this.setInitialStyles(normalized.initialStyles);
+  constructor(options: StyleRuntimeOptions<TFile> = {}) {
+    this.namespace = options.namespace?.trim() || nextRuntimeNamespace();
+    this.loader = options.loader;
+    this.runtimeTarget = options.target;
+    this.defaultPlacement = options.placement ?? "head";
+    this.defaultNonce = options.nonce;
+    this.onError = options.onError;
+    this.setOrder(options.order);
+    this.setInitialStyles(options.initialStyles);
   }
 
-  configure(options: Partial<StyleRuntimeOptions<TFile>> | ImportStyle<TFile>) {
-    const next = typeof options === "function" ? { loader: options } : options;
-    if ("loader" in next) this.loader = next.loader;
-    if ("target" in next) this.runtimeTarget = next.target;
-    if ("placement" in next && next.placement) this.defaultPlacement = next.placement;
-    if ("nonce" in next) this.defaultNonce = next.nonce;
-    if ("onError" in next) this.onError = next.onError;
-    if (next.order) this.setOrder(next.order);
-    if (next.initialStyles) this.setInitialStyles(next.initialStyles);
+  configure(options: Partial<StyleRuntimeOptions<TFile>>) {
+    if ("loader" in options) this.loader = options.loader;
+    if ("target" in options) this.runtimeTarget = options.target;
+    if ("placement" in options && options.placement)
+      this.defaultPlacement = options.placement;
+    if ("nonce" in options) this.defaultNonce = options.nonce;
+    if ("onError" in options) this.onError = options.onError;
+    if (options.order) this.setOrder(options.order);
+    if (options.initialStyles) this.setInitialStyles(options.initialStyles);
     this.atoms.forEach((atom) => {
       this.updateAtom(atom.id, atom.sourceOptions as StyleAtomOptions<TFile>);
     });
@@ -728,5 +727,5 @@ export class StyleRuntime<TFile extends string = string> {
 }
 
 export const createStyleRuntime = <TFile extends string = string>(
-  options: StyleRuntimeOptions<TFile> | ImportStyle<TFile> = {},
+  options: StyleRuntimeOptions<TFile> = {},
 ) => new StyleRuntime(options);

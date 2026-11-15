@@ -78,6 +78,28 @@ export function PreviewCard() {
 scope, the default root selector is `.preview-card`; add that class to your own
 markup when root declarations should apply.
 
+Use a string to choose the wrapper class, or keep advanced wrapper settings in
+the same prop:
+
+```tsx
+<StyledAtom
+  name="preview-card"
+  styles={styles}
+  scope={{
+    element: "section",
+    className: "preview-surface",
+    "aria-label": "Card preview",
+    "data-surface": "docs",
+  }}
+>
+  <PreviewCard />
+</StyledAtom>
+```
+
+This renders a `section.preview-surface`. `element` defaults to `div`, and the
+remaining values become attributes on that element. The runtime always adds
+`data-styled-atom-status` to a scope wrapper.
+
 The compiler supports:
 
 - camelCase declarations and custom properties;
@@ -148,8 +170,9 @@ export const StyleAtom = styles.StyledAtom;
 Vite's ordinary `.css` import injects CSS itself. Use `?inline` when
 `styled-atom` should receive and own the CSS text.
 
-Imported CSS is not rewritten. `scope` adds wrapper classes, ids or attributes;
-the file must target those selectors itself.
+Imported CSS is not rewritten. `scope` creates a wrapper and a stable class for
+the file to target; the file must contain that selector itself. This is a
+selector boundary, not Shadow DOM isolation.
 
 ## Lifecycle state
 
@@ -614,6 +637,23 @@ by stable public identity in v4, not insertion time:
 +   loader,
 +   order: ["reset", "button", "page"],
 + });
+```
+
+Wrapper configuration now lives in `scope`:
+
+```diff
+- <StyledAtom
+-   scope="preview-surface"
+-   as="section"
+-   wrapperProps={{ "aria-label": "Preview" }}
+- >
++ <StyledAtom
++   scope={{
++     element: "section",
++     className: "preview-surface",
++     "aria-label": "Preview",
++   }}
++ >
 ```
 
 ## License

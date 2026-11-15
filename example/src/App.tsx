@@ -149,16 +149,19 @@ function EncapExample() {
         <p className="eyebrow">Encap</p>
         <h2>Explicit wrapper props</h2>
         <p>
-          <code>scope</code> controls wrapper props. Imported CSS still remains
-          plain CSS and can target classes, ids or attributes you choose.
+          <code>scope</code> keeps the wrapper element, selector class and DOM
+          attributes together. Imported CSS remains plain CSS and targets the
+          wrapper class itself.
         </p>
       </div>
 
       <StyledAtomImport
         files="attribute-card"
         scope={{
+          element: "section",
           className: "attribute-card",
-          attribute: { "data-preview-scope": "attribute-card" },
+          "data-preview-scope": "attribute-card",
+          "aria-label": "Attribute-scoped surface",
         }}
       >
         <div className="attribute-card__body">

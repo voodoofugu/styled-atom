@@ -25,7 +25,7 @@ Semantic Versioning.
 - CSP nonce support.
 - SSR style collection, initial CSS manifests and client adoption of server
   style elements.
-- `as`, `wrapperProps` and render-function children.
+- Scope wrapper configuration and render-function children.
 - Conflict reporting for simultaneously mounted inline atoms that reuse a name
   with different CSS.
 - Runtime, React, SSR and compiler test suites.
@@ -59,6 +59,10 @@ Semantic Versioning.
 - React children render eagerly while CSS loads unless `render="ready"` or a
   `fallback` requests blocking behavior.
 - `scope` replaces `encap`.
+- Scope wrapper element and attributes now live in the `scope` prop instead of
+  separate `as` and `wrapperProps` props.
+- Runtime and store creation now use one object configuration form; the loader
+  function shorthand was removed.
 - Inline style compilation is cached by style-object identity and scope.
 - Initially ready atoms now call `onReady` and `onStatusChange` after mount.
 - Reconfiguring a runtime now updates existing atoms, including loader retries,
@@ -75,6 +79,8 @@ Semantic Versioning.
 
 - React exports from the root `styled-atom` entry.
 - The ambiguous `encap` prop.
+- The duplicate `as`, `wrapperProps`, `statusAttribute` and `store.runtime`
+  escape hatches from the React API.
 - The implicit behavior that treated a failed CSS load as successfully loaded.
 
 ### Migration from v3

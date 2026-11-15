@@ -3,7 +3,6 @@ import React from "react";
 import { StyleRuntime } from "./core";
 import { compileStyleAtomStyles } from "./styles";
 import type {
-  ImportStyle,
   StyleAtomController,
   StyleAtomCssReplacement,
   StyleAtomFiles,
@@ -16,14 +15,15 @@ import type {
   StyleTargetValue,
 } from "./types";
 
+type StyleScopeOptions = React.HTMLAttributes<HTMLElement> &
+  Record<string, unknown> & {
+    element?: React.ElementType;
+  };
+
 export type StyleScope =
   | boolean
   | string
-  | {
-      className?: string | readonly string[];
-      id?: string;
-      attribute?: Record<string, string>;
-    };
+  | StyleScopeOptions;
 
 export type StyledAtomRenderState = StyleAtomSnapshot & {
   retry: () => void;
@@ -47,9 +47,6 @@ type StyledAtomSharedProps = {
   fallback?: StyledAtomFallback;
   errorFallback?: StyledAtomFallback;
   children?: StyledAtomChildren;
-  as?: React.ElementType;
-  wrapperProps?: React.HTMLAttributes<HTMLElement> & Record<string, unknown>;
-  statusAttribute?: boolean | string;
   onStatusChange?: (state: StyledAtomRenderState) => void;
   onReady?: (state: StyledAtomRenderState) => void;
   onError?: (state: StyledAtomRenderState) => void;
@@ -82,7 +79,6 @@ export type StyledAtomComponent<TFile extends string = string> = React.FC<
 
 export type StyledAtomStore<TFile extends string = string> = {
   StyledAtom: StyledAtomComponent<TFile>;
-  runtime: StyleRuntime<TFile>;
   configure: StyleRuntime<TFile>["configure"];
   preload: StyleRuntime<TFile>["preload"];
   reload: StyleRuntime<TFile>["reload"];
@@ -95,9 +91,9 @@ export type StyledAtomStore<TFile extends string = string> = {
 type NormalizedScope = {
   enabled: boolean;
   classNames: string[];
-  id?: string;
-  attributes?: Record<string, string>;
   defaultSelector: boolean;
+  element?: React.ElementType;
+  props?: React.HTMLAttributes<HTMLElement> & Record<string, unknown>;
 };
 
 const CollectorContext = React.createContext<StyleCollector | null>(null);
@@ -135,24 +131,14 @@ const normalizeScope = (scope?: StyleScope): NormalizedScope => {
       defaultSelector: false,
     };
   }
-  const classNames = splitClassNames(scope.className);
-  const id = scope.id?.trim() || undefined;
-  const attributes = scope.attribute
-    ? Object.fromEntries(
-        Object.entries(scope.attribute).filter(
-          ([name, value]) => name.length > 0 && typeof value === "string",
-        ),
-      )
-    : undefined;
-  const explicit = Boolean(
-    classNames.length || id || (attributes && Object.keys(attributes).length),
-  );
+  const { element, className, ...props } = scope;
+  const classNames = splitClassNames(className);
   return {
     enabled: true,
     classNames,
-    id,
-    attributes,
-    defaultSelector: !explicit,
+    defaultSelector: classNames.length === 0,
+    element,
+    props,
   };
 };
 
@@ -164,9 +150,6 @@ const cssEscape = (value: string) => {
     return `\\${codePoint} `;
   });
 };
-
-const cssStringEscape = (value: string) =>
-  value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\a ");
 
 const scopeClassNames = (
   scope: NormalizedScope,
@@ -188,20 +171,10 @@ const scopeSelector = (
   inlineName?: string,
 ) => {
   if (!scope.enabled) return null;
-  const id = scope.id ? `#${cssEscape(scope.id)}` : "";
-  const attributes = scope.attributes
-    ? Object.entries(scope.attributes)
-        .map(([name, value]) =>
-          value
-            ? `[${cssEscape(name)}="${cssStringEscape(value)}"]`
-            : `[${cssEscape(name)}]`,
-        )
-        .join("")
-    : "";
   const classes = scopeClassNames(scope, files, inlineName)
     .map((name) => `.${cssEscape(name)}`)
     .join("");
-  return `${id}${attributes}${classes}` || null;
+  return classes || null;
 };
 
 type CachedStyle = {
@@ -329,9 +302,6 @@ const createComponent = <TFile extends string>(
       fallback,
       errorFallback,
       children,
-      as: Wrapper = "div",
-      wrapperProps,
-      statusAttribute = true,
       onStatusChange,
       onReady,
       onError,
@@ -435,22 +405,14 @@ const createComponent = <TFile extends string>(
       );
     }
 
+    const Wrapper = normalizedScope.element ?? "div";
     const classes = scopeClassNames(normalizedScope, fileNames, inlineName);
-    const userClassName = wrapperProps?.className;
     const nextProps: Record<string, unknown> = {
-      ...wrapperProps,
-      ...normalizedScope.attributes,
+      ...normalizedScope.props,
       "data-styled-atom-shell": "",
-      id: normalizedScope.id ?? wrapperProps?.id,
-      className: [...classes, ...(userClassName ? [userClassName] : [])].join(" ") || undefined,
+      "data-styled-atom-status": snapshot.status,
+      className: classes.join(" ") || undefined,
     };
-    if (statusAttribute) {
-      nextProps[
-        typeof statusAttribute === "string"
-          ? statusAttribute
-          : "data-styled-atom-status"
-      ] = snapshot.status;
-    }
 
     return (
       <Wrapper {...nextProps}>
@@ -472,12 +434,11 @@ export const StyledAtom = createComponent(
 ) as React.FC<InlineStyledAtomProps>;
 
 export const createStyledAtomStore = <TFile extends string = string>(
-  options: StyleRuntimeOptions<TFile> | ImportStyle<TFile> = {},
+  options: StyleRuntimeOptions<TFile> = {},
 ): StyledAtomStore<TFile> => {
   const runtime = new StyleRuntime(options);
   return {
     StyledAtom: createComponent(runtime, true),
-    runtime,
     configure: runtime.configure.bind(runtime),
     preload: runtime.preload.bind(runtime),
     reload: runtime.reload.bind(runtime),
