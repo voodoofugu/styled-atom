@@ -216,14 +216,14 @@ describe("StyleRuntime", () => {
       entries: [
         expect.objectContaining({
           name: "base",
-          owners: 1,
+          localOwners: 1,
           precedence: 0,
           status: "ready",
           target: "document",
         }),
         expect.objectContaining({
           name: "card",
-          owners: 1,
+          localOwners: 1,
           precedence: 1,
           status: "ready",
           target: "document",

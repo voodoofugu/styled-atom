@@ -235,7 +235,7 @@ export class StyleRuntime<TFile extends string = string> {
           placement: entry.placement,
           target: this.describeTarget(entry),
           precedence: entry.precedence,
-          owners: entry.refs.size,
+          localOwners: entry.refs.size,
           cssLength: entry.css?.length ?? 0,
           error: entry.error,
         }))

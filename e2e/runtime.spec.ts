@@ -375,7 +375,7 @@ test("shares one style between one thousand owners", async ({ page }) => {
     const mounted = {
       atoms: runtime.inspect().atoms,
       entries: runtime.inspect().entries.length,
-      localOwners: runtime.inspect().entries[0]?.owners,
+      localOwners: runtime.inspect().entries[0]?.localOwners,
       elements: document.head.querySelectorAll(
         'style[data-styled-atom-namespace="shared-scale-browser"]',
       ).length,

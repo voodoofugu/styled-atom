@@ -34,7 +34,7 @@ Semantic Versioning.
 - Cross-runtime conflict reporting for CSS, CSP nonce and cascade precedence.
 - Globally unique default runtime namespaces across physical bundle copies.
 - `runtime.inspect()` / `store.inspect()` diagnostics for active atoms,
-  ownership, targets, status, precedence and CSS size.
+  local ownership, targets, status, precedence and CSS size.
 - Fallback declaration arrays in the inline compiler.
 - Development detection and recompilation of mutated cached style objects.
 - Chromium coverage for computed cascade, iframe and ShadowRoot targets,

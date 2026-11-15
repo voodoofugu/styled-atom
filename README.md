@@ -262,9 +262,14 @@ Inspect a runtime without reading private state:
 ```ts
 const report = styles.inspect();
 
-// { namespace, atoms, entries: [{ name, status, owners, target, ... }] }
+// { namespace, atoms, entries: [{ name, status, localOwners, target, ... }] }
 console.table(report.entries);
 ```
+
+`localOwners` counts atoms registered with this runtime. The DOM registry may
+also have owners from another store, package copy or JavaScript realm; those
+internal shared owners are intentionally not added to the public inspection
+API.
 
 ## Source maps
 
@@ -558,6 +563,11 @@ ordinary extracted bundles, reuse atom names and style objects, and choose an
 atom granularity that follows real UI ownership. Use `store.inspect()` and the
 browser Elements panel to measure the result. Avoid generating a new atom name
 on every render.
+
+For example, 1,000 components requesting `files="button"` produce one shared
+entry and one `<style>`. By contrast, 1,000 simultaneously mounted atoms named
+`button-1` through `button-1000` produce 1,000 entries and 1,000 style elements.
+Use per-instance names only when those instances truly need different CSS.
 
 ## Tradeoffs and limits
 

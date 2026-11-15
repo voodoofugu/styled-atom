@@ -60,7 +60,7 @@
     "package-prepare": "npm run typecheck && npm run test && npm run build && node scripts/smoke-dist.mjs && node scripts/prepare-publish.mjs",
     "publish:dry": "npm run package-prepare && cd publish && npm pack --dry-run",
     "publish": "npm run package-prepare && npm publish ./publish --access public",
-    "release:check": "npm run lint && npm run site:check && npm run package-prepare && npm run test:e2e:run && npm run example:build && npm run site:build && cd publish && npm pack --dry-run",
+    "release:check": "npm run lint && npm run package-prepare && npm run site:check && npm run test:e2e:run && npm run example:build && npm run site:build && cd publish && npm pack --dry-run",
     "lint": "eslint src test e2e site/src example/src scripts rollup.config.js eslint.config.js vitest.config.ts playwright.config.ts playwright.benchmark.config.ts site/vite.config.ts example/vite.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",

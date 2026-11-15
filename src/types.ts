@@ -90,7 +90,7 @@ export type StyleRuntimeEntryInspection = {
   placement: StylePlacement;
   target: "document" | "shadow-root" | "element" | "inline" | "server";
   precedence: number;
-  owners: number;
+  localOwners: number;
   cssLength: number;
   error?: StyleLoadError;
 };

@@ -263,7 +263,7 @@ function OwnershipLab() {
     return () => window.clearTimeout(timer);
   }, [first, second]);
 
-  const owners = report.entries[0]?.owners ?? 0;
+  const owners = report.entries[0]?.localOwners ?? 0;
   return (
     <section aria-label="Shared ownership playground" className="live-example">
       <div className="example-heading">
