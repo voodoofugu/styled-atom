@@ -1,5 +1,12 @@
 import type { StyleLoadError, StyleTarget } from "./types";
 
+const registrySymbol = Symbol.for("styled-atom.registry.v4");
+const containerRegistrySymbol = Symbol.for(
+  "styled-atom.container-registry.v4",
+);
+const runtimeCounterSymbol = Symbol.for("styled-atom.runtime-counter.v4");
+const runtimeRealmSymbol = Symbol.for("styled-atom.runtime-realm.v4");
+
 type RegistryOwner = object;
 
 type RegistryRecord = {
@@ -16,6 +23,9 @@ type ContainerRegistry = {
   identities: Map<string, RegistryRecord>;
 };
 type SharedRegistry = WeakMap<object, ContainerRegistry>;
+type RegistryContainer = object & {
+  [containerRegistrySymbol]?: ContainerRegistry;
+};
 
 export type MountedRegistryEntry = {
   namespace: string;
@@ -33,24 +43,59 @@ export type RegistryMountResult =
   | { element: HTMLStyleElement; error?: never }
   | { element?: never; error: StyleLoadError };
 
-const registrySymbol = Symbol.for("styled-atom.registry.v4");
-const runtimeCounterSymbol = Symbol.for("styled-atom.runtime-counter.v4");
-
 type RegistryGlobal = typeof globalThis & {
   [registrySymbol]?: SharedRegistry;
   [runtimeCounterSymbol]?: number;
+  [runtimeRealmSymbol]?: string;
 };
 
 export const nextRuntimeNamespace = () => {
   const root = globalThis as RegistryGlobal;
+  root[runtimeRealmSymbol] ??=
+    globalThis.crypto?.randomUUID?.().slice(0, 8) ??
+    Math.random().toString(36).slice(2, 10);
   root[runtimeCounterSymbol] = (root[runtimeCounterSymbol] ?? 0) + 1;
-  return `runtime-${root[runtimeCounterSymbol]}`;
+  return `runtime-${root[runtimeRealmSymbol]}-${root[runtimeCounterSymbol]}`;
 };
 
 const sharedRegistry = () => {
   const root = globalThis as RegistryGlobal;
   root[registrySymbol] ??= new WeakMap<object, ContainerRegistry>();
   return root[registrySymbol];
+};
+
+const getContainerRegistry = (container: object) => {
+  const carrier = container as RegistryContainer;
+  const shared = carrier[containerRegistrySymbol];
+  if (shared) return shared;
+  return sharedRegistry().get(container);
+};
+
+const getOrCreateContainerRegistry = (container: object) => {
+  const carrier = container as RegistryContainer;
+  const existing = getContainerRegistry(container);
+  if (existing) return existing;
+  const records: ContainerRegistry = {
+    records: new Map(),
+    identities: new Map(),
+  };
+  try {
+    Object.defineProperty(carrier, containerRegistrySymbol, {
+      configurable: true,
+      value: records,
+    });
+  } catch {
+    sharedRegistry().set(container, records);
+  }
+  return records;
+};
+
+const releaseContainerRegistry = (container: object) => {
+  const carrier = container as RegistryContainer;
+  if (carrier[containerRegistrySymbol]) {
+    delete carrier[containerRegistrySymbol];
+  }
+  sharedRegistry().delete(container);
 };
 
 const targetContainer = (target?: StyleTarget): ParentNode | undefined => {
@@ -139,12 +184,7 @@ export const mountRegistryEntry = (
     };
   }
 
-  const registry = sharedRegistry();
-  let records = registry.get(container as object);
-  if (!records) {
-    records = { records: new Map(), identities: new Map() };
-    registry.set(container as object, records);
-  }
+  const records = getOrCreateContainerRegistry(container as object);
 
   const key = registryKey(entry.namespace, entry.publicKey);
   const identity = identityKey(entry.namespace, entry.kind, entry.name);
@@ -251,8 +291,7 @@ export const releaseRegistryEntry = (
 ) => {
   const container = targetContainer(entry.target);
   if (!container) return;
-  const registry = sharedRegistry();
-  const records = registry.get(container as object);
+  const records = getContainerRegistry(container as object);
   const key = registryKey(entry.namespace, entry.publicKey);
   const record = records?.records.get(key);
   if (!record) return;
@@ -261,10 +300,17 @@ export const releaseRegistryEntry = (
   record.element.remove();
   records?.records.delete(key);
   records?.identities.delete(record.identity);
-  if (records?.records.size === 0) registry.delete(container as object);
+  if (records?.records.size === 0) {
+    releaseContainerRegistry(container as object);
+  }
 };
 
 export const resetStyleRegistryForTests = () => {
-  delete (globalThis as RegistryGlobal)[registrySymbol];
-  delete (globalThis as RegistryGlobal)[runtimeCounterSymbol];
+  const root = globalThis as RegistryGlobal;
+  if (typeof document !== "undefined" && document.head) {
+    delete (document.head as RegistryContainer)[containerRegistrySymbol];
+  }
+  delete root[registrySymbol];
+  delete root[runtimeCounterSymbol];
+  delete root[runtimeRealmSymbol];
 };

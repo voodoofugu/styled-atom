@@ -87,6 +87,157 @@ test("styles ShadowRoot and iframe documents without leaking to the host", async
   });
 });
 
+test("shares iframe-document ownership across JavaScript realms", async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const frame = document.createElement("iframe");
+    const loaded = new Promise<void>((resolve) => {
+      frame.addEventListener("load", () => resolve(), { once: true });
+    });
+    frame.srcdoc = '<span class="realm-probe">realm</span>';
+    document.body.append(frame);
+    await loaded;
+    const frameWindow = frame.contentWindow!;
+    const frameDocument = frame.contentDocument!;
+    const hostPackage = await import("/dist/esm/index.js?host-realm");
+    const hostAtom = hostPackage
+      .createStyleRuntime({
+        namespace: "cross-realm",
+        target: frameDocument,
+        initialStyles: {
+          card: ".realm-probe{color:rgb(61, 71, 81)}",
+        },
+      })
+      .registerAtom({ files: "card" });
+
+    await frameWindow.eval(`(async () => {
+      const packageCopy = await import("/dist/esm/index.js?iframe-realm");
+      const runtime = packageCopy.createStyleRuntime({
+        namespace: "cross-realm",
+        target: document,
+        initialStyles: { card: ".realm-probe{color:rgb(61, 71, 81)}" },
+      });
+      window.crossRealmAtom = runtime.registerAtom({ files: "card" });
+    })()`);
+
+    const mounted = frameDocument.head.querySelectorAll(
+      'style[data-styled-atom-namespace="cross-realm"]',
+    ).length;
+    hostAtom.dispose();
+    const afterHostDispose = frameDocument.head.querySelectorAll(
+      'style[data-styled-atom-namespace="cross-realm"]',
+    ).length;
+    const colorAfterHostDispose = frameWindow.getComputedStyle(
+      frameDocument.querySelector(".realm-probe")!,
+    ).color;
+    (
+      frameWindow as typeof frameWindow & {
+        crossRealmAtom?: { dispose: () => void };
+      }
+    ).crossRealmAtom?.dispose();
+    const hostDefaultRuntime = hostPackage.createStyleRuntime({
+      target: frameDocument,
+      initialStyles: { private: ".realm-probe{background:rgb(1, 2, 3)}" },
+    });
+    const hostDefaultAtom = hostDefaultRuntime.registerAtom({ files: "private" });
+    const iframeDefault = (await frameWindow.eval(`(async () => {
+      const packageCopy = await import("/dist/esm/index.js?iframe-default-realm");
+      const runtime = packageCopy.createStyleRuntime({
+        target: document,
+        initialStyles: { private: ".realm-probe{background:rgb(4, 5, 6)}" },
+      });
+      const atom = runtime.registerAtom({ files: "private" });
+      window.defaultRealmAtom = atom;
+      return { namespace: runtime.namespace, status: atom.getSnapshot().status };
+    })()`)) as { namespace: string; status: string };
+    const defaultStyles = frameDocument.head.querySelectorAll(
+      'style[data-styled-atom-key^="file:private:"]',
+    ).length;
+    const hostDefaultStatus = hostDefaultAtom.getSnapshot().status;
+    hostDefaultAtom.dispose();
+    (
+      frameWindow as typeof frameWindow & {
+        defaultRealmAtom?: { dispose: () => void };
+      }
+    ).defaultRealmAtom?.dispose();
+    return {
+      mounted,
+      afterHostDispose,
+      colorAfterHostDispose,
+      afterBothDispose: frameDocument.head.querySelectorAll(
+        'style[data-styled-atom-namespace="cross-realm"]',
+      ).length,
+      defaultNamespacesDiffer:
+        hostDefaultRuntime.namespace !== iframeDefault.namespace,
+      defaultStatuses: [hostDefaultStatus, iframeDefault.status],
+      defaultStyles,
+    };
+  });
+
+  expect(result).toEqual({
+    mounted: 1,
+    afterHostDispose: 1,
+    colorAfterHostDispose: "rgb(61, 71, 81)",
+    afterBothDispose: 0,
+    defaultNamespacesDiffer: true,
+    defaultStatuses: ["ready", "ready"],
+    defaultStyles: 2,
+  });
+});
+
+test("applies compiled inline CSS as valid browser rules", async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { compileStyleAtomStyles, createStyleRuntime } = await import(
+      "/dist/esm/index.js?compiler-contract"
+    );
+    const parent = document.createElement("article");
+    parent.className = "compiler-probe";
+    parent.innerHTML = '<span class="child active">compiled</span>';
+    document.body.append(parent);
+    const css = compileStyleAtomStyles("compiler-probe", {
+      display: ["-webkit-box", "grid"],
+      gap: 6,
+      "&:has(> .child.active)": { color: "rgb(91, 101, 111)" },
+      "@supports (display: grid)": {
+        ".child:is(.active, .selected)": { fontWeight: 700 },
+      },
+      "@media (width >= 1px)": { padding: 9 },
+      "@keyframes compiler-pulse": {
+        from: { opacity: 0 },
+        to: { opacity: 1 },
+      },
+    });
+    const atom = createStyleRuntime({ namespace: "compiler-contract" }).registerAtom({
+      inlineStyle: { name: "compiler-probe", css },
+    });
+    const style = document.head.querySelector(
+      'style[data-styled-atom-namespace="compiler-contract"]',
+    ) as HTMLStyleElement | null;
+    const parentStyle = getComputedStyle(parent);
+    const childStyle = getComputedStyle(parent.querySelector(".child")!);
+    const value = {
+      status: atom.getSnapshot().status,
+      display: parentStyle.display,
+      gap: parentStyle.gap,
+      color: parentStyle.color,
+      padding: parentStyle.padding,
+      fontWeight: childStyle.fontWeight,
+      ruleCount: style?.sheet?.cssRules.length ?? 0,
+    };
+    atom.dispose();
+    return value;
+  });
+
+  expect(result).toEqual({
+    status: "ready",
+    display: "grid",
+    gap: "6px",
+    color: "rgb(91, 101, 111)",
+    padding: "9px",
+    fontWeight: "700",
+    ruleCount: 5,
+  });
+});
+
 test("shares ownership between two physical ESM bundle instances", async ({ page }) => {
   const result = await page.evaluate(async () => {
     const firstPackage = await import("/dist/esm/index.js?physical-copy=one");

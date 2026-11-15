@@ -38,6 +38,10 @@ The core must be usable without React and must not import React types.
   ESM/CJS instances and physical package copies. Explicit equal namespaces and
   names are a shared-resource contract; incompatible CSS, nonce or precedence
   fails instead of overwriting an owner.
+- The target container also carries the versioned registry. This coordinates
+  same-origin runtimes from different JavaScript realms when they mount into
+  the same iframe document. Default namespaces include a realm identifier so
+  unrelated runtimes from different windows cannot collide accidentally.
 - Async loads use revisions so stale results cannot replace newer CSS.
 - Conflicting inline atoms with the same public name and different CSS are
   reported instead of silently overwriting each other.

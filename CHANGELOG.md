@@ -47,6 +47,10 @@ Semantic Versioning.
 - A separate single-worker browser benchmark for unique atoms, shared owners
   and repeated toggling.
 - Source-map guidance and a troubleshooting reference.
+- Cross-realm ownership for a shared same-origin iframe document and
+  realm-unique automatic namespaces.
+- Real-browser validation that representative compiler output remains valid CSS
+  in Chromium, Firefox and WebKit.
 
 ### Changed
 

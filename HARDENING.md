@@ -14,6 +14,8 @@ application. Items are ordered by production risk, not presentation value.
   targets, Shadow DOM, portals, SSR hydration and CSP metadata.
 - [x] Exercise repeated lifecycle cycles, target migration, in-place
   replacement, 1,000 shared owners and 1,000 unique atoms without residue.
+- [x] Coordinate ownership across same-origin JavaScript realms that mount into
+  the same iframe document; keep default namespaces realm-unique.
 - [x] Exercise React 18 and React 19 locally and in CI.
 - [x] Document the security boundary: style values are trusted CSS, not a
   sanitizer for untrusted input.
@@ -29,6 +31,8 @@ application. Items are ordered by production risk, not presentation value.
 - [x] Keep correctness E2E and single-worker benchmarks separate so performance
   load cannot make the release matrix flaky.
 - [x] Measure inline compiler work separately from unique and shared DOM atoms.
+- [x] Apply representative compiled selectors, fallback declarations, at-rules
+  and keyframes as real CSS in Chromium, Firefox and WebKit.
 
 ## P1 — adoption and documentation
 

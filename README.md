@@ -492,8 +492,9 @@ an explicit target.
 ### Microfrontends
 
 Give shared contracts a shared namespace and private styles distinct
-namespaces. The global registry coordinates physical package copies in the same
-JavaScript realm:
+namespaces. The registry coordinates physical package copies in one JavaScript
+realm and, for a shared same-origin target, runtimes executing in different
+realms such as a host window and its iframe:
 
 ```ts
 const host = createStyledAtomStore({ namespace: "workspace", loader });
@@ -502,6 +503,9 @@ const plugin = createStyledAtomStore({ namespace: "plugin:charts", loader });
 
 Using the same namespace and atom name declares that the CSS is the same shared
 resource. Different CSS under that identity is an explicit conflict.
+
+Cross-origin iframe DOM is not accessible to the host by browser design. Run
+the iframe's style runtime inside that iframe and treat it as a separate target.
 
 ### Content Security Policy
 
@@ -554,6 +558,25 @@ ordinary extracted bundles, reuse atom names and style objects, and choose an
 atom granularity that follows real UI ownership. Use `store.inspect()` and the
 browser Elements panel to measure the result. Avoid generating a new atom name
 on every render.
+
+## Tradeoffs and limits
+
+- **Inline objects compile at runtime.** Identity caching keeps repeat work
+  small, but static CSS still costs less when extracted during the build. The
+  planned transform keeps runtime compilation only as the dynamic fallback.
+- **Every unique active head atom owns one style element.** Shared consumers do
+  not multiply elements, but thousands of unique atoms do. Keep stable bulk CSS
+  in extracted files and use lifecycle atoms at meaningful UI boundaries.
+- **The object compiler is intentionally smaller than a CSS parser.** Its
+  supported selectors, at-rules and fallback values are tested in real browsers;
+  ordinary CSS files remain the escape hatch for syntax outside that contract.
+- **Cascade order is explicit.** Use `order` or `precedence`; do not rely on
+  component mount timing or the order of a `files` prop.
+- **True source maps come from the transforming tool.** styled-atom preserves
+  map annotations but cannot reconstruct Sass or TypeScript positions at
+  runtime.
+- **Dynamic style insertion must satisfy the application's CSP.** Supply the
+  request nonce or keep those styles in an allowed external stylesheet.
 
 ## When not to use it
 
