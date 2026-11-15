@@ -87,6 +87,7 @@ export type StyledAtomStore<TFile extends string = string> = {
   preload: StyleRuntime<TFile>["preload"];
   reload: StyleRuntime<TFile>["reload"];
   retry: StyleRuntime<TFile>["retry"];
+  inspect: StyleRuntime<TFile>["inspect"];
   replace: (styles: readonly StyleAtomCssReplacement<TFile>[]) => void;
   dispose: () => void;
 };
@@ -203,12 +204,33 @@ const scopeSelector = (
   return `${id}${attributes}${classes}` || null;
 };
 
-const styleCache = new WeakMap<object, Map<string, string>>();
+type CachedStyle = {
+  css: string;
+  fingerprint?: string;
+};
+
+const styleCache = new WeakMap<object, Map<string, CachedStyle>>();
+
+const styleFingerprint = (styles?: StyledAtomStyles) => {
+  if (!styles) return undefined;
+  const environment = (
+    globalThis as { process?: { env?: { NODE_ENV?: string } } }
+  ).process?.env?.NODE_ENV;
+  if (environment !== "development" && environment !== "test") {
+    return undefined;
+  }
+  try {
+    return JSON.stringify(styles);
+  } catch {
+    return "[unserializable-style-object]";
+  }
+};
 
 const compileCached = (
   name: string,
   styles: StyledAtomStyles,
   selector?: string | null,
+  fingerprint?: string,
 ) => {
   let variants = styleCache.get(styles);
   if (!variants) {
@@ -217,9 +239,14 @@ const compileCached = (
   }
   const key = `${name}\u0000${selector ?? ""}`;
   const cached = variants.get(key);
-  if (cached !== undefined) return cached;
+  if (cached && cached.fingerprint === fingerprint) return cached.css;
+  if (cached && fingerprint !== undefined) {
+    console.warn(
+      `[styled-atom] The style object for "${name}" was mutated after compilation. Style objects should be immutable; the CSS was recompiled for development.`,
+    );
+  }
   const css = compileStyleAtomStyles(name, styles, selector);
-  variants.set(key, css);
+  variants.set(key, { css, fingerprint });
   return css;
 };
 
@@ -331,12 +358,13 @@ const createComponent = <TFile extends string>(
     const normalizedScope = normalizeScope(scope);
     const inlineName = name?.trim();
     const selector = scopeSelector(normalizedScope, fileNames, inlineName);
+    const fingerprint = styleFingerprint(styles);
     const css = React.useMemo(
       () =>
         styles && inlineName
-          ? compileCached(inlineName, styles, selector)
+          ? compileCached(inlineName, styles, selector, fingerprint)
           : undefined,
-      [inlineName, selector, styles],
+      [fingerprint, inlineName, selector, styles],
     );
     const atomOptions = React.useMemo<StyleAtomOptions<TFile>>(
       () => ({
@@ -361,7 +389,9 @@ const createComponent = <TFile extends string>(
       runtime.collect(collector, snapshot, nonce);
     }
 
-    const previousStatus = React.useRef(snapshot.status);
+    const previousStatus = React.useRef<typeof snapshot.status | undefined>(
+      undefined,
+    );
     React.useEffect(() => {
       if (previousStatus.current !== snapshot.status) {
         onStatusChange?.(state);
@@ -452,6 +482,7 @@ export const createStyledAtomStore = <TFile extends string = string>(
     preload: runtime.preload.bind(runtime),
     reload: runtime.reload.bind(runtime),
     retry: runtime.retry.bind(runtime),
+    inspect: runtime.inspect.bind(runtime),
     replace: runtime.replace.bind(runtime),
     dispose: runtime.dispose.bind(runtime),
   };
@@ -466,5 +497,7 @@ export type {
   StyledAtomStyles,
   StylePlacement,
   StyleRuntimeOptions,
+  StyleRuntimeEntryInspection,
+  StyleRuntimeInspection,
   StyleTargetValue,
 } from "./types";

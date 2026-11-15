@@ -12,6 +12,7 @@ import {
 
 const styles = {
   display: "grid",
+  color: ["#0969da", "oklch(55% 0.2 250)"],
   gap: 12,
   ".title": { fontWeight: 700 },
   "@media (width < 40rem)": { gap: 8 },

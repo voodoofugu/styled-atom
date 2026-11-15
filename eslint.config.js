@@ -6,7 +6,14 @@ import tseslint from "typescript-eslint";
 
 export default [
   {
-    ignores: ["publish/**", "node_modules/**", "dist/**", "site/dist/**"],
+    ignores: [
+      "publish/**",
+      "node_modules/**",
+      "dist/**",
+      "site/dist/**",
+      "test-results/**",
+      "playwright-report/**",
+    ],
   },
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,

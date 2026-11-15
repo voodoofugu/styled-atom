@@ -12,9 +12,16 @@ import type {
   StyleLoadError,
   StylePlacement,
   StyleRuntimeOptions,
+  StyleRuntimeInspection,
+  StyleRuntimeEntryInspection,
   StyleTarget,
   StyleTargetValue,
 } from "./types";
+import {
+  mountRegistryEntry,
+  nextRuntimeNamespace,
+  releaseRegistryEntry,
+} from "./registry";
 
 type EntryKind = "file" | "inline";
 type EntryStatus = "idle" | "loading" | "ready" | "failed";
@@ -44,6 +51,7 @@ type StyleEntry = {
   css?: string;
   error?: StyleLoadError;
   element?: HTMLStyleElement;
+  registryOwner: object;
 };
 
 type AtomState = {
@@ -56,8 +64,6 @@ type AtomState = {
   snapshotKey: string;
   issue?: StyleLoadError;
 };
-
-let runtimeCounter = 0;
 
 const emptySnapshot = (id: string): StyleAtomSnapshot => ({
   id,
@@ -86,12 +92,6 @@ const resolveTarget = (value?: StyleTargetValue) => {
   } catch (error) {
     return { target: undefined, error };
   }
-};
-
-const targetContainer = (target?: StyleTarget): ParentNode | undefined => {
-  if (!target) return undefined;
-  if (target.nodeType === 9) return (target as Document).head ?? undefined;
-  return target;
 };
 
 const defaultTarget = (): StyleTarget | undefined =>
@@ -190,8 +190,7 @@ export class StyleRuntime<TFile extends string = string> {
 
   constructor(options: StyleRuntimeOptions<TFile> | ImportStyle<TFile> = {}) {
     const normalized = typeof options === "function" ? { loader: options } : options;
-    runtimeCounter += 1;
-    this.namespace = normalized.namespace?.trim() || `runtime-${runtimeCounter}`;
+    this.namespace = normalized.namespace?.trim() || nextRuntimeNamespace();
     this.loader = normalized.loader;
     this.runtimeTarget = normalized.target;
     this.defaultPlacement = normalized.placement ?? "head";
@@ -221,6 +220,31 @@ export class StyleRuntime<TFile extends string = string> {
 
   resolveNonce(nonce?: string) {
     return nonce ?? this.defaultNonce;
+  }
+
+  inspect(): StyleRuntimeInspection {
+    return {
+      namespace: this.namespace,
+      atoms: this.atoms.size,
+      entries: Array.from(this.entries.values())
+        .map((entry) => ({
+          key: entry.publicKey,
+          name: entry.name,
+          kind: entry.kind,
+          status: entry.status === "idle" ? "loading" : entry.status,
+          placement: entry.placement,
+          target: this.describeTarget(entry),
+          precedence: entry.precedence,
+          owners: entry.refs.size,
+          cssLength: entry.css?.length ?? 0,
+          error: entry.error,
+        }))
+        .sort(
+          (first, second) =>
+            first.precedence - second.precedence ||
+            first.key.localeCompare(second.key),
+        ),
+    };
   }
 
   getServerSnapshot(id: string, options: StyleAtomOptions<TFile>) {
@@ -340,16 +364,13 @@ export class StyleRuntime<TFile extends string = string> {
       if (css === undefined) return;
       entry.revision += 1;
       entry.css = css;
-      entry.status = "ready";
       entry.error = undefined;
-      this.writeEntry(entry);
-      this.refreshAtoms(entry);
+      this.commitEntry(entry);
     });
   }
 
   dispose() {
     Array.from(this.atoms.keys()).forEach((id) => this.unregisterAtom(id));
-    this.entries.forEach((entry) => entry.element?.remove());
     this.entries.clear();
     this.inlineDefinitions.clear();
   }
@@ -475,6 +496,7 @@ export class StyleRuntime<TFile extends string = string> {
         status: "idle",
         revision: 0,
         css,
+        registryOwner: {},
       };
       this.entries.set(key, entry);
     }
@@ -484,18 +506,14 @@ export class StyleRuntime<TFile extends string = string> {
   private ensureLoaded(entry: StyleEntry) {
     if (entry.status === "loading" || entry.status === "ready") return;
     if (entry.kind === "inline") {
-      entry.status = "ready";
-      this.writeEntry(entry);
-      this.refreshAtoms(entry);
+      this.commitEntry(entry);
       return;
     }
 
     const initial = this.initialStyles.get(entry.name);
     if (entry.revision === 0 && initial !== undefined) {
       entry.css = initial;
-      entry.status = "ready";
-      this.writeEntry(entry);
-      this.refreshAtoms(entry);
+      this.commitEntry(entry);
       return;
     }
     if (!this.loader) {
@@ -518,9 +536,7 @@ export class StyleRuntime<TFile extends string = string> {
       .then((result) => {
         if (entry.revision !== revision || !this.entries.has(entry.key)) return;
         entry.css = normalizeLoaderResult(result);
-        entry.status = "ready";
-        this.writeEntry(entry);
-        this.refreshAtoms(entry);
+        this.commitEntry(entry);
       })
       .catch((error: unknown) => {
         if (entry.revision !== revision || !this.entries.has(entry.key)) return;
@@ -530,42 +546,29 @@ export class StyleRuntime<TFile extends string = string> {
       });
   }
 
-  private writeEntry(entry: StyleEntry) {
-    if (entry.placement !== "head") return;
-    const container = targetContainer(entry.target);
-    if (!container || typeof document === "undefined") return;
-    let element = entry.element;
-    if (!element) {
-      const candidates = container.querySelectorAll?.("style[data-styled-atom-namespace]");
-      element = Array.from(candidates ?? []).find(
-        (candidate) =>
-          candidate.getAttribute("data-styled-atom-namespace") === this.namespace &&
-          candidate.getAttribute("data-styled-atom-key") === entry.publicKey,
-      ) as HTMLStyleElement | undefined;
-    }
-    if (!element) {
-      const owner =
-        entry.target?.nodeType === 9
-          ? (entry.target as Document)
-          : entry.target?.ownerDocument ?? document;
-      element = owner.createElement("style");
-      element.setAttribute("data-styled-atom-namespace", this.namespace);
-      element.setAttribute("data-styled-atom-key", entry.publicKey);
-      element.setAttribute("data-styled-atom-precedence", String(entry.precedence));
-      const siblings = Array.from(
-        container.querySelectorAll?.("style[data-styled-atom-precedence]") ?? [],
-      ) as HTMLStyleElement[];
-      const before = siblings.find((sibling) => {
-        const precedence = Number(sibling.getAttribute("data-styled-atom-precedence"));
-        const key = sibling.getAttribute("data-styled-atom-key") ?? "";
-        return precedence > entry.precedence || (precedence === entry.precedence && key > entry.publicKey);
+  private commitEntry(entry: StyleEntry) {
+    entry.status = "ready";
+    entry.error = undefined;
+    if (entry.placement === "head") {
+      const result = mountRegistryEntry({
+        namespace: this.namespace,
+        publicKey: entry.publicKey,
+        kind: entry.kind,
+        name: entry.name,
+        precedence: entry.precedence,
+        css: devSourceUrl(entry.css ?? "", entry.kind, entry.name),
+        nonce: entry.nonce,
+        target: entry.target,
+        owner: entry.registryOwner,
       });
-      container.insertBefore(element, before ?? null);
+      if (result.error) {
+        entry.status = "failed";
+        entry.error = this.reportError(result.error);
+      } else {
+        entry.element = result.element;
+      }
     }
-    if (entry.nonce) element.nonce = entry.nonce;
-    const css = devSourceUrl(entry.css ?? "", entry.kind, entry.name);
-    if (element.textContent !== css) element.textContent = css;
-    entry.element = element;
+    this.refreshAtoms(entry);
   }
 
   private refreshAtoms(entry: StyleEntry) {
@@ -654,7 +657,14 @@ export class StyleRuntime<TFile extends string = string> {
     entry.refs.delete(id);
     if (entry.refs.size === 0) {
       entry.revision += 1;
-      entry.element?.remove();
+      if (entry.placement === "head") {
+        releaseRegistryEntry({
+          namespace: this.namespace,
+          publicKey: entry.publicKey,
+          target: entry.target,
+          owner: entry.registryOwner,
+        });
+      }
       this.entries.delete(key);
     }
   }
@@ -696,6 +706,14 @@ export class StyleRuntime<TFile extends string = string> {
       this.targetIds.set(value, id);
     }
     return String(id);
+  }
+
+  private describeTarget(entry: StyleEntry): StyleRuntimeEntryInspection["target"] {
+    if (entry.placement === "inline") return "inline";
+    if (!entry.target) return "server";
+    if (entry.target.nodeType === 9) return "document";
+    if (entry.target.nodeType === 11) return "shadow-root";
+    return "element";
   }
 
   private reportError(error: StyleLoadError) {

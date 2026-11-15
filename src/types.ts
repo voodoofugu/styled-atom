@@ -27,9 +27,24 @@ export type StyleAtomFiles<TFile extends string = string> =
   | TFile
   | readonly TFile[];
 
-export type StyleAtomCssValue = string | number | null | undefined;
+export type StyleAtomCssScalar = string | number;
 
-export type StyledAtomStyles = CSS.Properties<string | number> & {
+export type StyleAtomCssValue =
+  | StyleAtomCssScalar
+  | readonly StyleAtomCssScalar[]
+  | null
+  | undefined;
+
+type CssPropertiesWithFallbacks = {
+  [TProperty in keyof CSS.Properties<StyleAtomCssScalar>]?:
+    | CSS.Properties<StyleAtomCssScalar>[TProperty]
+    | readonly Exclude<
+        CSS.Properties<StyleAtomCssScalar>[TProperty],
+        undefined
+      >[];
+};
+
+export type StyledAtomStyles = CssPropertiesWithFallbacks & {
   [selectorOrProperty: string]:
     | StyleAtomCssValue
     | StyledAtomStyles
@@ -65,6 +80,25 @@ export type StyleAtomSnapshot = {
   files: readonly string[];
   errors: readonly StyleLoadError[];
   styles: readonly MountedStyle[];
+};
+
+export type StyleRuntimeEntryInspection = {
+  key: string;
+  name: string;
+  kind: "file" | "inline";
+  status: StyleStatus;
+  placement: StylePlacement;
+  target: "document" | "shadow-root" | "element" | "inline" | "server";
+  precedence: number;
+  owners: number;
+  cssLength: number;
+  error?: StyleLoadError;
+};
+
+export type StyleRuntimeInspection = {
+  namespace: string;
+  atoms: number;
+  entries: readonly StyleRuntimeEntryInspection[];
 };
 
 export type StyleAtomOptions<TFile extends string = string> = {

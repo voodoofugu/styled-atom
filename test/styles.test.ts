@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { compileStyleAtomStyles } from "../src/styles";
+import type { StyledAtomStyles } from "../src/types";
 
 describe("compileStyleAtomStyles", () => {
   it("scopes every selector in nested selector lists", () => {
@@ -58,6 +59,23 @@ describe("compileStyleAtomStyles", () => {
     expect(css).toContain("@font-face");
   });
 
+  it("wraps supports, container and layer rules and compiles page descriptors", () => {
+    const css = compileStyleAtomStyles("card", {
+      "@supports (display: grid)": {
+        "@container card (width > 30rem)": {
+          "@layer components": { display: "grid" },
+        },
+      },
+      "@page :first": { margin: 12 },
+    });
+
+    expect(css).toContain("@supports (display: grid)");
+    expect(css).toContain("@container card (width > 30rem)");
+    expect(css).toContain("@layer components");
+    expect(css).toContain(".card {\n        display: grid;");
+    expect(css).toContain("@page :first {\n  margin: 12px;");
+  });
+
   it("formats numbers, custom properties, content and vendor prefixes", () => {
     const css = compileStyleAtomStyles("demo", {
       width: 12,
@@ -76,6 +94,40 @@ describe("compileStyleAtomStyles", () => {
     expect(css).toContain('content: "×";');
   });
 
+  it("emits fallback values as repeated declarations", () => {
+    const css = compileStyleAtomStyles("demo", {
+      display: ["-webkit-box", "flex"],
+      color: ["#0969da", "oklch(55% 0.2 250)"],
+      "--surface": ["#fff", "color(display-p3 1 1 1)"],
+    });
+
+    expect(css).toContain(
+      "display: -webkit-box;\n  display: flex;",
+    );
+    expect(css).toContain(
+      "color: #0969da;\n  color: oklch(55% 0.2 250);",
+    );
+    expect(css).toContain(
+      "--surface: #fff;\n  --surface: color(display-p3 1 1 1);",
+    );
+  });
+
+  it("handles modern selectors without splitting functional commas", () => {
+    const css = compileStyleAtomStyles("demo", {
+      "&:has(> .item:is(.active, .selected))": { color: "green" },
+      "&:where([data-state='open'], [aria-expanded='true'])": {
+        opacity: 1,
+      },
+    });
+
+    expect(css).toContain(
+      ".demo:has(> .item:is(.active, .selected))",
+    );
+    expect(css).toContain(
+      ".demo:where([data-state='open'], [aria-expanded='true'])",
+    );
+  });
+
   it("uses an explicit scope selector", () => {
     expect(
       compileStyleAtomStyles(
@@ -86,5 +138,14 @@ describe("compileStyleAtomStyles", () => {
     ).toBe(
       `#preview.scope {\n  color: red;\n}\n\n#preview.scope[data-active] {\n  color: blue;\n}`,
     );
+  });
+
+  it("rejects circular style objects with a useful error", () => {
+    const styles: Record<string, unknown> = { color: "red" };
+    styles[".child"] = styles;
+
+    expect(() =>
+      compileStyleAtomStyles("demo", styles as StyledAtomStyles),
+    ).toThrow("A circular reference was found in a style object");
   });
 });

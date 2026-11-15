@@ -23,6 +23,8 @@ export type {
   StyleLoadError,
   StylePlacement,
   StyleRuntimeOptions,
+  StyleRuntimeEntryInspection,
+  StyleRuntimeInspection,
   StyleStatus,
   StyleTarget,
   StyleTargetValue,

@@ -67,6 +67,25 @@ describe("StyledAtom", () => {
     expect(document.head.textContent).toContain(".preview");
   });
 
+  it("reports an initially ready atom after mount", async () => {
+    const onReady = vi.fn();
+    const onStatusChange = vi.fn();
+    render(
+      <StyledAtom
+        name="ready-card"
+        onReady={onReady}
+        onStatusChange={onStatusChange}
+        styles={{ color: "red" }}
+      >
+        ready
+      </StyledAtom>,
+    );
+
+    await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
+    expect(onStatusChange).toHaveBeenCalledOnce();
+    expect(onReady.mock.calls[0][0].status).toBe("ready");
+  });
+
   it("renders inline style tags inside the wrapper", () => {
     const { container } = render(
       <StyledAtom
@@ -134,6 +153,29 @@ describe("StyledAtom", () => {
 
     expect(document.head.textContent).toContain("color: blue");
     expect(document.head.textContent).not.toContain("color: red");
+  });
+
+  it("recompiles a mutated cached style object with a development warning", () => {
+    const styles: StyledAtomStyles = { color: "red" };
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const view = render(
+      <StyledAtom name="mutable-card" styles={styles}>
+        card
+      </StyledAtom>,
+    );
+
+    styles.color = "blue";
+    view.rerender(
+      <StyledAtom name="mutable-card" styles={styles}>
+        card
+      </StyledAtom>,
+    );
+
+    expect(document.head.textContent).toContain("color: blue");
+    expect(document.head.textContent).not.toContain("color: red");
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining("was mutated after compilation"),
+    );
   });
 
   it("does not leak styles under StrictMode", () => {
