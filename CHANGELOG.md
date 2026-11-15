@@ -42,6 +42,11 @@ Semantic Versioning.
   cleanup.
 - Framework recipes for Vite, Next.js, SSR, iframe previews, Shadow DOM,
   portals, microfrontends and CSP.
+- Chromium, Firefox and WebKit lifecycle coverage, including target migration,
+  in-place replacement, repeated cleanup and 1,000 shared owners.
+- A separate single-worker browser benchmark for unique atoms, shared owners
+  and repeated toggling.
+- Source-map guidance and a troubleshooting reference.
 
 ### Changed
 
@@ -89,6 +94,8 @@ For Vite loaders:
 
 Use `render="ready"` when children must stay hidden until every requested style
 is ready. Use `errorFallback` or `onError` to handle failed files explicitly.
+If v3 relied on insertion order, declare the cascade through the store's
+`order`; equal default precedence is sorted by stable identity in v4.
 
 ## [3.0.3] - 2026-07-02
 

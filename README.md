@@ -107,6 +107,11 @@ objects at module scope when possible and treat them as immutable. Development
 builds detect a mutated cached object, recompile it and report a warning;
 production keeps the faster identity-only cache.
 
+Inline objects are compiled at runtime in v4. A build-time transform is being
+designed for statically analyzable objects, with runtime compilation kept as the
+fallback for dynamic values. It must preserve the existing JSX syntax and ship
+from this package rather than require a separate styling API.
+
 ## CSS files
 
 Create one store for a shell, workspace or isolated UI surface:
@@ -260,6 +265,29 @@ const report = styles.inspect();
 // { namespace, atoms, entries: [{ name, status, owners, target, ... }] }
 console.table(report.entries);
 ```
+
+## Source maps
+
+In development, styled-atom adds a stable `sourceURL` to CSS that does not
+already have one. This gives each injected stylesheet a readable virtual file
+such as `styled-atom/file/card.css` in browser developer tools.
+
+A `sourceURL` names generated CSS; it is not a map back to Sass, TypeScript or
+another source language. True source maps must be produced by the tool that
+performed that transformation. styled-atom preserves existing
+`sourceMappingURL` and `sourceURL` comments in loader results. For dynamically
+injected CSS, an inline data URL with `sourcesContent` is the most portable
+form because it does not depend on a separately served `.map` file:
+
+```css
+/*# sourceMappingURL=data:application/json;base64,... */
+/*# sourceURL=app/styles/card.css */
+```
+
+Vite's `?inline` output gives the runtime compiled CSS text, but a production
+build does not currently carry Sass source maps inside those strings. The
+planned build-time transform must generate and preserve its own maps rather
+than asking the runtime to reconstruct source positions.
 
 ## Server rendering
 
@@ -487,6 +515,46 @@ const styles = createStyledAtomStore({ nonce: requestNonce, loader });
 Style objects and loader results are trusted CSS. `styled-atom` is not a CSS
 sanitizer: never compile or mount untrusted user input without validation.
 
+## Troubleshooting
+
+### The atom stays in `loading`
+
+Check that the loader promise settles and that it returns CSS text. Use
+`store.inspect()` to find the active entry and call `retry()` after a temporary
+loader failure has been fixed.
+
+### The atom is `failed` with a target error
+
+An iframe document or ShadowRoot may not exist on the first render. Resolve the
+target lazily and call `retry()` from the iframe load event. styled-atom never
+falls back to the host document when an explicit target is unavailable.
+
+### The atom is `failed` with a conflict
+
+The same namespace, atom kind and name identify one shared CSS resource. Every
+owner must agree on CSS, nonce and precedence. Give private styles a different
+namespace or make the shared contract identical.
+
+### CSS order changes unexpectedly
+
+Declare `order` on the store or an explicit `precedence` on the atom. DOM mount
+timing should not be used to express cascade order.
+
+### Developer tools show generated CSS instead of Sass
+
+`sourceURL` provides the virtual CSS filename. Mapping declarations back to
+Sass requires a `sourceMappingURL` produced by the Sass/build pipeline and
+preserved in the CSS string.
+
+### The document has too many style elements
+
+One unique active head atom owns one `<style>` element; many components sharing
+the same atom still share a single element. Keep stable application CSS in
+ordinary extracted bundles, reuse atom names and style objects, and choose an
+atom granularity that follows real UI ownership. Use `store.inspect()` and the
+browser Elements panel to measure the result. Avoid generating a new atom name
+on every render.
+
 ## When not to use it
 
 Do not route all static application CSS through a runtime only for colocated
@@ -502,6 +570,18 @@ clearer.
 v4 changes package entry points, replaces `encap` with `scope`, adds explicit
 failure states and makes eager content the default. See [CHANGELOG.md](./CHANGELOG.md)
 for the migration examples.
+
+If v3 code relied on the order of the `files` array or component mount timing,
+move that contract to the store's `order`. Equal default precedence is sorted
+by stable public identity in v4, not insertion time:
+
+```diff
+- const styles = createStyledAtomStore(loader);
++ const styles = createStyledAtomStore({
++   loader,
++   order: ["reset", "button", "page"],
++ });
+```
 
 ## License
 

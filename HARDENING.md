@@ -10,8 +10,10 @@ application. Items are ordered by production risk, not presentation value.
 - [x] Detect cross-runtime CSS, nonce and precedence conflicts without
   overwriting another owner.
 - [x] Test ref-counting across stores, namespaces, documents and ShadowRoots.
-- [x] Add real-browser coverage for cascade order, iframe targets, Shadow DOM,
-  portals, SSR hydration and CSP metadata.
+- [x] Add Chromium, Firefox and WebKit coverage for cascade order, iframe
+  targets, Shadow DOM, portals, SSR hydration and CSP metadata.
+- [x] Exercise repeated lifecycle cycles, target migration, in-place
+  replacement, 1,000 shared owners and 1,000 unique atoms without residue.
 - [x] Exercise React 18 and React 19 locally and in CI.
 - [x] Document the security boundary: style values are trusted CSS, not a
   sanitizer for untrusted input.
@@ -24,6 +26,9 @@ application. Items are ordered by production risk, not presentation value.
 - [x] Add runtime inspection and useful development warnings.
 - [x] Add a real-browser 1,000-atom mount/release performance smoke test and a
   repeatable benchmark command.
+- [x] Keep correctness E2E and single-worker benchmarks separate so performance
+  load cannot make the release matrix flaky.
+- [x] Measure inline compiler work separately from unique and shared DOM atoms.
 
 ## P1 — adoption and documentation
 
@@ -33,13 +38,15 @@ application. Items are ordered by production risk, not presentation value.
 - [x] Reuse the documentation shell and visual grammar of morphing-scroll,
   keeping styled-atom's own accent color and interactive demonstrations.
 - [x] Add ownership and multi-runtime demonstrations to the site.
+- [x] Validate the v4 tarball in the real `resume-page` Vite/Sass host on
+  Chromium, Firefox and WebKit, preserving route-level cascade order.
 
 ## Later — build-time optimization
 
 - [ ] Reconsider native CSS nesting only after the specification stabilizes,
   the supported browser matrix is verified and output-size measurements show a
   meaningful benefit. Flattened CSS remains the only v4 contract.
-- [ ] Explore a Vite transform that precompiles static style objects without
+- [ ] Prototype the build-time design in `BUILD_TIME_COMPILATION.md` without
   changing the runtime JSX API.
 - [ ] Keep runtime compilation for genuinely dynamic atoms.
 

@@ -80,6 +80,9 @@ The core must be usable without React and must not import React types.
 ### Quality bar
 
 - Runtime, React, SSR, type-level and browser-relevant behavior need tests.
+- Browser behavior is checked in Chromium, Firefox and WebKit. Performance
+  benchmarks run separately with one worker so they do not make correctness CI
+  flaky or distort measurements through contention.
 - Release checks include lint, typecheck, tests, site build, package build,
   tarball inspection and package-resolution smoke tests.
 - The documentation site explains when to use the library, when not to use it,
@@ -94,3 +97,16 @@ v4 is intentionally breaking. The migration guide must cover:
 - eager children as the default loading behavior;
 - explicit error states and retry;
 - Vite CSS text imports using `?inline` rather than ordinary CSS imports.
+- cascade order moving from insertion timing to explicit `order`/`precedence`.
+
+### Source maps and build-time compilation
+
+- Development `sourceURL` gives injected CSS a stable virtual filename but is
+  not a map to Sass or TypeScript.
+- Loader CSS remains transparent: existing `sourceMappingURL` and `sourceURL`
+  comments are preserved. The tool that transforms Sass or TypeScript must
+  produce the real map.
+- Static inline objects may later be compiled by an optional build transform
+  shipped from this package. Source JSX remains unchanged and dynamic values
+  keep the runtime compiler fallback. The design and acceptance criteria live
+  in `BUILD_TIME_COMPILATION.md`.
