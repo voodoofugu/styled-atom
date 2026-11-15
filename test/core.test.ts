@@ -38,6 +38,35 @@ describe("StyleRuntime", () => {
     expect(document.head.querySelectorAll("style")).toHaveLength(0);
   });
 
+  it("preserves loader source maps and adds a stable development source URL", () => {
+    const sourceMap =
+      "data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImNhcmQuc2NzcyJdLCJtYXBwaW5ncyI6IkFBQUEifQ==";
+    const atom = createStyleRuntime({
+      namespace: "mapped",
+      initialStyles: {
+        card: `.card{color:red}\n/*# sourceMappingURL=${sourceMap} */`,
+      },
+    }).registerAtom({ files: "card" });
+    const css = document.head.querySelector("style")?.textContent ?? "";
+
+    expect(atom.getSnapshot().status).toBe("ready");
+    expect(css).toContain(`/*# sourceMappingURL=${sourceMap} */`);
+    expect(css).toContain("/*# sourceURL=styled-atom/file/card.css */");
+  });
+
+  it("keeps an explicit source URL instead of appending another one", () => {
+    createStyleRuntime({
+      namespace: "explicit-source",
+      initialStyles: {
+        card: ".card{color:red}\n/*# sourceURL=app/styles/card.css */",
+      },
+    }).registerAtom({ files: "card" });
+    const css = document.head.querySelector("style")?.textContent ?? "";
+
+    expect(css.match(/sourceURL=/g)).toHaveLength(1);
+    expect(css).toContain("sourceURL=app/styles/card.css");
+  });
+
   it("shares ownership across runtimes with the same namespace", () => {
     const firstRuntime = createStyleRuntime({
       namespace: "workspace",
@@ -149,6 +178,25 @@ describe("StyleRuntime", () => {
     expect(keys).toEqual(["file:reset:0", "file:theme:1"]);
     theme.dispose();
     reset.dispose();
+  });
+
+  it("uses public identity as the deterministic fallback for equal precedence", () => {
+    const runtime = createStyleRuntime({
+      namespace: "fallback-order",
+      initialStyles: {
+        zebra: ".zebra{color:black}",
+        alpha: ".alpha{color:white}",
+      },
+    });
+    const zebra = runtime.registerAtom({ files: "zebra" });
+    const alpha = runtime.registerAtom({ files: "alpha" });
+    const keys = Array.from(document.head.querySelectorAll("style")).map((node) =>
+      node.getAttribute("data-styled-atom-key"),
+    );
+
+    expect(keys).toEqual(["file:alpha:10000", "file:zebra:10000"]);
+    zebra.dispose();
+    alpha.dispose();
   });
 
   it("inspects active atoms in deterministic cascade order", () => {

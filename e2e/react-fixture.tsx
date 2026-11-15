@@ -13,6 +13,7 @@ import {
 declare global {
   interface Window {
     styledAtomFixtureReady?: boolean;
+    styledAtomFixtureError?: string;
   }
 }
 
@@ -66,4 +67,7 @@ const start = async () => {
   window.styledAtomFixtureReady = true;
 };
 
-void start();
+void start().catch((error: unknown) => {
+  window.styledAtomFixtureError =
+    error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+});

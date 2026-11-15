@@ -211,13 +211,232 @@ test("mounts and releases one thousand atoms without residue", async ({ page }) 
   expect(result.releaseDuration).toBeLessThan(10_000);
 });
 
+test("shares one style between one thousand owners", async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { createStyleRuntime } = await import("/dist/esm/index.js?shared-scale");
+    const runtime = createStyleRuntime({
+      namespace: "shared-scale-browser",
+      initialStyles: { shared: ".shared{color:rgb(7, 8, 9)}" },
+    });
+    const atoms = Array.from({ length: 1_000 }, () =>
+      runtime.registerAtom({ files: "shared" }),
+    );
+    const mounted = {
+      atoms: runtime.inspect().atoms,
+      entries: runtime.inspect().entries.length,
+      localOwners: runtime.inspect().entries[0]?.owners,
+      elements: document.head.querySelectorAll(
+        'style[data-styled-atom-namespace="shared-scale-browser"]',
+      ).length,
+    };
+    atoms.slice(0, -1).forEach((atom) => atom.dispose());
+    const beforeLastRelease = document.head.querySelectorAll(
+      'style[data-styled-atom-namespace="shared-scale-browser"]',
+    ).length;
+    atoms.at(-1)?.dispose();
+    return {
+      mounted,
+      beforeLastRelease,
+      afterLastRelease: document.head.querySelectorAll(
+        'style[data-styled-atom-namespace="shared-scale-browser"]',
+      ).length,
+      remainingEntries: runtime.inspect().entries.length,
+    };
+  });
+
+  expect(result).toEqual({
+    mounted: {
+      atoms: 1_000,
+      entries: 1,
+      localOwners: 1_000,
+      elements: 1,
+    },
+    beforeLastRelease: 1,
+    afterLastRelease: 0,
+    remainingEntries: 0,
+  });
+});
+
+test("survives repeated mount and release cycles without registry residue", async ({
+  page,
+}) => {
+  const result = await page.evaluate(async () => {
+    const { createStyleRuntime } = await import("/dist/esm/index.js?cycles");
+    const runtime = createStyleRuntime({
+      namespace: "cycle-browser",
+      initialStyles: { card: ".cycle{color:rgb(20, 30, 40)}" },
+    });
+    let maximumElements = 0;
+    for (let cycle = 0; cycle < 250; cycle += 1) {
+      const first = runtime.registerAtom({ files: "card" });
+      const second = runtime.registerAtom({ files: "card" });
+      maximumElements = Math.max(
+        maximumElements,
+        document.head.querySelectorAll(
+          'style[data-styled-atom-namespace="cycle-browser"]',
+        ).length,
+      );
+      first.dispose();
+      second.dispose();
+    }
+    const final = runtime.inspect();
+    return {
+      maximumElements,
+      atoms: final.atoms,
+      entries: final.entries.length,
+      elements: document.head.querySelectorAll(
+        'style[data-styled-atom-namespace="cycle-browser"]',
+      ).length,
+    };
+  });
+
+  expect(result).toEqual({
+    maximumElements: 1,
+    atoms: 0,
+    entries: 0,
+    elements: 0,
+  });
+});
+
+test("replaces CSS in place and keeps computed styles current", async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { createStyleRuntime } = await import("/dist/esm/index.js?replace");
+    const probe = document.createElement("div");
+    probe.className = "replace-probe";
+    document.body.append(probe);
+    const runtime = createStyleRuntime({
+      namespace: "replace-browser",
+      initialStyles: { card: ".replace-probe{color:rgb(1, 2, 3)}" },
+    });
+    const atom = runtime.registerAtom({ files: "card" });
+    const beforeElement = document.head.querySelector(
+      'style[data-styled-atom-namespace="replace-browser"]',
+    );
+    const beforeColor = getComputedStyle(probe).color;
+    runtime.replace([
+      { file: "card", css: ".replace-probe{color:rgb(4, 5, 6)}" },
+    ]);
+    const afterElement = document.head.querySelector(
+      'style[data-styled-atom-namespace="replace-browser"]',
+    );
+    const value = {
+      beforeColor,
+      afterColor: getComputedStyle(probe).color,
+      sameElement: beforeElement === afterElement,
+      elements: document.head.querySelectorAll(
+        'style[data-styled-atom-namespace="replace-browser"]',
+      ).length,
+    };
+    atom.dispose();
+    return value;
+  });
+
+  expect(result).toEqual({
+    beforeColor: "rgb(1, 2, 3)",
+    afterColor: "rgb(4, 5, 6)",
+    sameElement: true,
+    elements: 1,
+  });
+});
+
+test("exposes loader source maps to Chromium developer tools", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "The CSS domain is a Chromium CDP API.");
+  const session = await page.context().newCDPSession(page);
+  const headers: Array<{ sourceURL: string; sourceMapURL?: string }> = [];
+  session.on("CSS.styleSheetAdded", ({ header }) => headers.push(header));
+  await session.send("DOM.enable");
+  await session.send("CSS.enable");
+  const sourceMap =
+    "data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImNhcmQuc2NzcyJdLCJzb3VyY2VzQ29udGVudCI6WyIuY2FyZCB7IGNvbG9yOiByZWQ7IH0iXSwibWFwcGluZ3MiOiJBQUFBIiwibmFtZXMiOltdfQ==";
+
+  await page.evaluate(async (map) => {
+    const { createStyleRuntime } = await import("/dist/esm/index.js?source-map");
+    createStyleRuntime({
+      namespace: "source-map-browser",
+      initialStyles: {
+        card: `.card{color:red}\n/*# sourceMappingURL=${map} */`,
+      },
+    }).registerAtom({ files: "card" });
+  }, sourceMap);
+
+  await expect
+    .poll(() =>
+      headers.find((header) => header.sourceURL.includes("styled-atom/file/card.css")),
+    )
+    .toBeTruthy();
+  const header = headers.find((item) =>
+    item.sourceURL.includes("styled-atom/file/card.css"),
+  );
+  expect(header?.sourceMapURL).toBe(sourceMap);
+});
+
+test("moves an atom between documents without leaving the old target behind", async ({
+  page,
+}) => {
+  const result = await page.evaluate(async () => {
+    const { createStyleRuntime } = await import("/dist/esm/index.js?target-move");
+    const frame = document.createElement("iframe");
+    const loaded = new Promise<void>((resolve) => {
+      frame.addEventListener("load", () => resolve(), { once: true });
+    });
+    frame.srcdoc = '<div class="moving">frame</div>';
+    document.body.append(frame);
+    await loaded;
+    const frameDocument = frame.contentDocument!;
+    const runtime = createStyleRuntime({
+      namespace: "moving-browser",
+      initialStyles: { card: ".moving{color:rgb(31, 41, 51)}" },
+    });
+    const atom = runtime.registerAtom({ files: "card" });
+    const hostBefore = document.head.querySelectorAll(
+      'style[data-styled-atom-namespace="moving-browser"]',
+    ).length;
+    atom.update({ files: "card", target: frameDocument });
+    const value = {
+      hostBefore,
+      hostAfter: document.head.querySelectorAll(
+        'style[data-styled-atom-namespace="moving-browser"]',
+      ).length,
+      frameAfter: frameDocument.head.querySelectorAll(
+        'style[data-styled-atom-namespace="moving-browser"]',
+      ).length,
+      frameColor: frame.contentWindow!.getComputedStyle(
+        frameDocument.querySelector(".moving")!,
+      ).color,
+    };
+    atom.dispose();
+    return {
+      ...value,
+      frameAfterDispose: frameDocument.head.querySelectorAll(
+        'style[data-styled-atom-namespace="moving-browser"]',
+      ).length,
+    };
+  });
+
+  expect(result).toEqual({
+    hostBefore: 1,
+    hostAfter: 0,
+    frameAfter: 1,
+    frameColor: "rgb(31, 41, 51)",
+    frameAfterDispose: 0,
+  });
+});
+
 test("hydrates collected CSS and follows a portal into an iframe", async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   await page.goto("/e2e/react.html");
-  await page.waitForFunction(() => window.styledAtomFixtureReady === true);
+  await page.waitForFunction(
+    () =>
+      window.styledAtomFixtureReady === true ||
+      window.styledAtomFixtureError !== undefined,
+  );
+  expect(await page.evaluate(() => window.styledAtomFixtureError)).toBeUndefined();
 
   const result = await page.evaluate(() => {
     const frame = document.querySelector("iframe")!;
