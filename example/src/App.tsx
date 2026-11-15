@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyledAtom, type StyledAtomStyles } from "styled-atom";
+import { StyledAtom, type StyledAtomStyles } from "styled-atom/react";
 
 import { styleAtomsStore, StyledAtomImport } from "./styledAtomStore";
 
@@ -68,7 +68,7 @@ function InlineAtomExample() {
         <p>
           This card imports <code>StyledAtom</code> directly and passes
           <code> name</code> plus <code>styles</code>. The explicit
-          <code> encap</code> prop wraps this card and scopes root declarations.
+          <code> scope</code> prop wraps this card and scopes root declarations.
         </p>
 
         <button
@@ -81,7 +81,7 @@ function InlineAtomExample() {
         </button>
       </div>
 
-      <StyledAtom name="inline-loader" encap styles={inlineLoaderStyles}>
+      <StyledAtom name="inline-loader" scope styles={inlineLoaderStyles}>
         <div className="loader" />
         <div className="label">Inline styles are mounted</div>
       </StyledAtom>
@@ -114,7 +114,7 @@ function ImportedFilesExample() {
         <h2>Imported CSS files</h2>
         <p>
           This card uses <code>createStyledAtomStore</code>, loads raw CSS files
-          with Vite and wraps children with <code>encap</code> so the imported
+          with Vite and wraps children with <code>scope</code> so the imported
           selectors target this preview.
         </p>
         <div className="button-row">
@@ -127,7 +127,7 @@ function ImportedFilesExample() {
         </div>
       </div>
 
-      <StyledAtomImport files={["tokens", "import-card"]} encap>
+      <StyledAtomImport files={["tokens", "import-card"]} scope>
         <article className="import-card">
           <span className="badge">files: tokens + import-card</span>
           <h3 className="title">Shared runtime style cache</h3>
@@ -149,14 +149,14 @@ function EncapExample() {
         <p className="eyebrow">Encap</p>
         <h2>Explicit wrapper props</h2>
         <p>
-          <code>encap</code> only controls wrapper props. The CSS still remains
+          <code>scope</code> controls wrapper props. Imported CSS still remains
           plain CSS and can target classes, ids or attributes you choose.
         </p>
       </div>
 
       <StyledAtomImport
         files="attribute-card"
-        encap={{
+        scope={{
           className: "attribute-card",
           attribute: { "data-preview-scope": "attribute-card" },
         }}

@@ -27,12 +27,20 @@ const unitlessCssProperties = new Set([
   "grid-column-span",
   "grid-column-start",
   "font-weight",
+  "fill-opacity",
+  "flood-opacity",
   "line-clamp",
   "line-height",
   "opacity",
   "order",
   "orphans",
   "scale",
+  "stop-opacity",
+  "stroke-dasharray",
+  "stroke-dashoffset",
+  "stroke-miterlimit",
+  "stroke-opacity",
+  "stroke-width",
   "tab-size",
   "widows",
   "z-index",
@@ -79,8 +87,8 @@ const indent = (value: string) =>
 
 const toKebabCase = (property: string) => {
   if (property.startsWith("--")) return property;
-
-  return property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+  const prefixed = /^ms[A-Z]/.test(property) ? `-${property}` : property;
+  return prefixed.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 };
 
 const splitSelectorList = (selector: string) => {
@@ -357,3 +365,5 @@ export const compileStyleAtomStyles = (
 
   return compileRule(styles, baseSelector, []).join("\n\n");
 };
+
+export const compileStyles = compileStyleAtomStyles;

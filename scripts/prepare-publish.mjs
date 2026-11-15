@@ -4,19 +4,10 @@ import path from "node:path";
 const root = process.cwd();
 const publishDir = path.join(root, "publish");
 const publishDist = path.join(publishDir, "dist");
-const publishTypes = path.join(publishDist, "types");
 
 const rootPackage = JSON.parse(
   await readFile(path.join(root, "package.json"), "utf8"),
 );
-
-const publishExports = {
-  ...rootPackage.exports,
-  ".": {
-    ...rootPackage.exports["."],
-    types: "./dist/types/index.d.ts",
-  },
-};
 
 const publishPackage = {
   name: rootPackage.name,
@@ -27,13 +18,19 @@ const publishPackage = {
   type: rootPackage.type,
   main: rootPackage.main,
   module: rootPackage.module,
-  types: "dist/types/index.d.ts",
-  exports: publishExports,
+  types: "./dist/esm/index.d.ts",
+  typesVersions: rootPackage.typesVersions,
+  exports: rootPackage.exports,
   repository: rootPackage.repository,
   homepage: rootPackage.homepage,
+  bugs: rootPackage.bugs,
+  engines: rootPackage.engines,
   keywords: rootPackage.keywords,
+  dependencies: rootPackage.dependencies,
+  peerDependencies: rootPackage.peerDependencies,
+  peerDependenciesMeta: rootPackage.peerDependenciesMeta,
   sideEffects: false,
-  files: ["dist", "README.md", "LICENSE"],
+  files: ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
 };
 
 await rm(publishDir, { recursive: true, force: true });
@@ -41,19 +38,11 @@ await mkdir(publishDir, { recursive: true });
 
 await cp(path.join(root, "dist"), publishDist, { recursive: true });
 
-await rm(path.join(publishDist, "cjs", "types"), {
-  recursive: true,
-  force: true,
-});
-await rm(path.join(publishDist, "esm", "types"), {
-  recursive: true,
-  force: true,
-});
-await cp(path.join(root, "dist", "types"), publishTypes, {
-  recursive: true,
-});
-
 await cp(path.join(root, "README.md"), path.join(publishDir, "README.md"));
+await cp(
+  path.join(root, "CHANGELOG.md"),
+  path.join(publishDir, "CHANGELOG.md"),
+);
 await cp(path.join(root, "LICENSE"), path.join(publishDir, "LICENSE"));
 
 await writeFile(
