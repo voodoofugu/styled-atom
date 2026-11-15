@@ -34,6 +34,10 @@ The core must be usable without React and must not import React types.
 
 - CSS entries are reference-counted and shared when their identity, content and
   mount destination are compatible.
+- A realm-shared registry coordinates DOM ownership across independent stores,
+  ESM/CJS instances and physical package copies. Explicit equal namespaces and
+  names are a shared-resource contract; incompatible CSS, nonce or precedence
+  fails instead of overwriting an owner.
 - Async loads use revisions so stale results cannot replace newer CSS.
 - Conflicting inline atoms with the same public name and different CSS are
   reported instead of silently overwriting each other.
@@ -51,6 +55,8 @@ The core must be usable without React and must not import React types.
   CSS must never silently fall back into the host document.
 - The runtime owns a deterministic precedence order independent of mount order.
 - Injected style elements support CSP nonces.
+- Default namespaces are unique across package copies; SSR and intentionally
+  shared resources use an explicit stable namespace.
 
 ### React behavior
 

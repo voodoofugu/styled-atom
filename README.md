@@ -2,12 +2,12 @@
 
 # styled-atom
 
-Atomic style ownership for dynamic UI surfaces.
+CSS that appears and disappears with your UI.
 
-`styled-atom` lets a component declare a focused CSS atom next to the UI that
-owns it. Its compiler turns a typed style object into real CSS. Its runtime
-mounts that CSS, shares it between consumers, reports its state, reloads it and
-removes it when the last owner disappears.
+`styled-atom` loads a regular stylesheet or compiles one focused inline style
+exactly when a UI surface needs it. The runtime mounts that CSS, shares it
+between consumers, reports its state, reloads it and removes it when the last
+owner disappears.
 
 Here, **atomic** means a small unit of style ownership. It does not mean
 one-property utility classes or the Atomic CSS methodology.
@@ -15,6 +15,18 @@ one-property utility classes or the Atomic CSS methodology.
 The library is designed for component workbenches, previews, visual editors,
 route-owned styles, plugin interfaces and microfrontends. For ordinary static
 application CSS, prefer CSS Modules or your bundler's extracted CSS.
+
+## CSS stays CSS
+
+`styled-atom` is additive. It does not require moving application CSS into
+JavaScript or replacing the project's existing styling tools.
+
+- `.css` files remain ordinary CSS and are never rewritten;
+- selectors, cascade, media queries and keyframes keep browser semantics;
+- CSS Modules, global styles and extracted bundles can remain the default;
+- the runtime can be introduced only where CSS ownership follows dynamic UI;
+- the inline object compiler is an optional, typed way to express focused CSS,
+  not a separate styling language.
 
 ## Install
 
@@ -74,10 +86,26 @@ The compiler supports:
 - selector lists;
 - media, supports, container and layer at-rules;
 - keyframes, `@font-face` and `@page`;
+- repeated fallback declarations through arrays;
 - CSS `content` values.
 
+The object syntax may be nested for authoring convenience, but v4 deliberately
+compiles it to flat CSS rules. Native CSS Nesting is not part of the current
+output contract: it can be reconsidered after the specification stabilizes, the
+supported browser matrix is verified and measurements show that it meaningfully
+reduces generated CSS.
+
+```ts
+const modernColor = {
+  display: ["-webkit-box", "flex"],
+  color: ["#0969da", "oklch(55% 0.2 250)"],
+} satisfies StyledAtomStyles;
+```
+
 Compilation is cached by style-object identity and scope. Keep reusable style
-objects at module scope when possible.
+objects at module scope when possible and treat them as immutable. Development
+builds detect a mutated cached object, recompile it and report a warning;
+production keeps the faster identity-only cache.
 
 ## CSS files
 
@@ -154,6 +182,11 @@ Use `onStatusChange`, `onReady` and `onError` for external reporting.
 The default placement is the target document's `head`. Shared head styles are
 reference-counted and deduplicated.
 
+Ownership is shared through a document-level registry. Independent stores and
+physical copies of `styled-atom` can safely use the same namespace and style
+identity: identical CSS shares one element and ref-count, while incompatible
+CSS or CSP nonces produce a `failed` conflict instead of overwriting an owner.
+
 ```tsx
 const styles = createStyledAtomStore({
   target: iframeDocument,
@@ -217,6 +250,15 @@ const shellStyles = styles.preload(["reset", "tokens"]);
 
 // Later
 shellStyles.dispose();
+```
+
+Inspect a runtime without reading private state:
+
+```ts
+const report = styles.inspect();
+
+// { namespace, atoms, entries: [{ name, status, owners, target, ... }] }
+console.table(report.entries);
 ```
 
 ## Server rendering
@@ -288,6 +330,162 @@ unsubscribe();
 ```
 
 The core entry does not import React.
+
+## Framework recipes
+
+### React and Vite
+
+Let Vite return CSS text instead of injecting it itself:
+
+```ts
+const modules = import.meta.glob("./styles/*.css", {
+  query: "?inline",
+  import: "default",
+});
+
+export const styles = createStyledAtomStore({
+  namespace: "workspace",
+  loader(name) {
+    const load = modules[`./styles/${name}.css`];
+    if (!load) throw new Error(`Unknown style atom: ${name}`);
+    return load() as Promise<string>;
+  },
+});
+```
+
+### Vite SSR
+
+Create the collector and store for each request. Insert the serialized styles
+before returning the HTML:
+
+```tsx
+const collector = createStyleCollector();
+const styles = createStyledAtomStore({
+  namespace: "app",
+  initialStyles: cssManifest,
+  loader,
+});
+
+const appHtml = renderToString(
+  <StyleCollectorProvider collector={collector}>
+    <App styles={styles} />
+  </StyleCollectorProvider>,
+);
+
+const html = template
+  .replace("<!--app-->", appHtml)
+  .replace("<!--styles-->", collector.getStyleTags());
+```
+
+For streaming, flush collected styles through the framework's server-style
+insertion hook. Do not share a collector between requests.
+
+### Next.js App Router
+
+The App Router requires a Client Component registry and
+`useServerInsertedHTML`. The registry can flush collected atoms into the head
+during server rendering:
+
+```tsx
+"use client";
+
+import { useState, type ReactNode } from "react";
+import { useServerInsertedHTML } from "next/navigation";
+import { createStyleCollector } from "styled-atom";
+import { StyleCollectorProvider } from "styled-atom/react";
+
+export function StyledAtomRegistry({ children }: { children: ReactNode }) {
+  const [collector] = useState(createStyleCollector);
+
+  useServerInsertedHTML(() => {
+    const styles = collector.getStyles();
+    collector.clear();
+    return styles.map((style) => (
+      <style
+        data-styled-atom-key={style.key}
+        data-styled-atom-namespace={style.namespace}
+        data-styled-atom-precedence={style.precedence}
+        key={`${style.namespace}:${style.key}`}
+        nonce={style.nonce}
+      >
+        {style.css}
+      </style>
+    ));
+  });
+
+  return (
+    <StyleCollectorProvider collector={collector}>
+      {children}
+    </StyleCollectorProvider>
+  );
+}
+```
+
+Wrap the application in the root layout. Keep store namespaces and initial CSS
+manifests stable between server and client. Components using `StyledAtom` are
+Client Components; Server Components can remain outside that boundary.
+
+### Iframe preview
+
+Resolve the target lazily because `contentDocument` may not exist on the first
+render:
+
+```tsx
+const previewStyles = createStyledAtomStore({
+  namespace: "preview",
+  target: () => iframeRef.current?.contentDocument,
+  loader,
+});
+
+// A missing target is `failed`, never a fallback into the host document.
+// Retry after the iframe load event.
+iframe.addEventListener("load", () => previewStyles.retry());
+```
+
+### Shadow DOM
+
+Create one store for the root. Equal style identities in other roots remain
+isolated because the registry is scoped by mount destination:
+
+```ts
+const shadowStyles = createStyledAtomStore({
+  namespace: "user-card",
+  target: shadowRoot,
+  loader,
+});
+```
+
+### React portals
+
+Use `placement="inline"` when the style tag must travel through the portal with
+its content. Prefer head placement when the portal document can be supplied as
+an explicit target.
+
+### Microfrontends
+
+Give shared contracts a shared namespace and private styles distinct
+namespaces. The global registry coordinates physical package copies in the same
+JavaScript realm:
+
+```ts
+const host = createStyledAtomStore({ namespace: "workspace", loader });
+const plugin = createStyledAtomStore({ namespace: "plugin:charts", loader });
+```
+
+Using the same namespace and atom name declares that the CSS is the same shared
+resource. Different CSS under that identity is an explicit conflict.
+
+### Content Security Policy
+
+Pass the request's style nonce to the runtime and collector. All style elements
+owned by that runtime receive it:
+
+```ts
+const styles = createStyledAtomStore({ nonce: requestNonce, loader });
+```
+
+Style objects and loader results are trusted CSS. `styled-atom` is not a CSS
+sanitizer: never compile or mount untrusted user input without validation.
 
 ## When not to use it
 

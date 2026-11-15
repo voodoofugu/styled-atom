@@ -29,6 +29,19 @@ Semantic Versioning.
 - Conflict reporting for simultaneously mounted inline atoms that reuse a name
   with different CSS.
 - Runtime, React, SSR and compiler test suites.
+- A realm-shared ownership registry that coordinates independent stores and
+  physical package copies without premature removal or silent overwrites.
+- Cross-runtime conflict reporting for CSS, CSP nonce and cascade precedence.
+- Globally unique default runtime namespaces across physical bundle copies.
+- `runtime.inspect()` / `store.inspect()` diagnostics for active atoms,
+  ownership, targets, status, precedence and CSS size.
+- Fallback declaration arrays in the inline compiler.
+- Development detection and recompilation of mutated cached style objects.
+- Chromium coverage for computed cascade, iframe and ShadowRoot targets,
+  portals, hydration, CSP enforcement, physical bundle copies and 1,000-atom
+  cleanup.
+- Framework recipes for Vite, Next.js, SSR, iframe previews, Shadow DOM,
+  portals, microfrontends and CSP.
 
 ### Changed
 
@@ -38,8 +51,13 @@ Semantic Versioning.
   `fallback` requests blocking behavior.
 - `scope` replaces `encap`.
 - Inline style compilation is cached by style-object identity and scope.
+- Initially ready atoms now call `onReady` and `onStatusChange` after mount.
 - Reconfiguring a runtime now updates existing atoms, including loader retries,
   target migration and precedence changes.
+- Server style adoption validates CSS and nonce compatibility before taking
+  ownership.
+- The documentation site now renders README content as its source of truth and
+  uses the same documentation shell grammar as morphing-scroll.
 - Vite examples load CSS text through `?inline`; ordinary CSS imports remain
   owned by Vite.
 - The root package is private and releases are prepared in `./publish`.

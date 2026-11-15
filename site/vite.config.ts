@@ -3,11 +3,13 @@ import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+import readmePlugin from "./plugins/readme.ts";
+
 const fromSite = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
   root: fromSite("."),
-  plugins: [react()],
+  plugins: [readmePlugin(), react()],
   resolve: {
     alias: [
       {
