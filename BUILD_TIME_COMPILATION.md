@@ -14,7 +14,7 @@ const styles = {
   "&:hover": { color: "tomato" },
 } satisfies StyledAtomStyles;
 
-<StyledAtom name="card" scope styles={styles} />
+<StyledAtom name="card" scope style={styles} />
 ```
 
 Dynamic objects must continue to work through the existing runtime compiler.

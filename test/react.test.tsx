@@ -31,7 +31,7 @@ describe("StyledAtom", () => {
       ".title": { fontWeight: 700 },
     } satisfies StyledAtomStyles;
     const view = render(
-      <StyledAtom name="card" styles={styles}>
+      <StyledAtom name="card" style={styles}>
         <article className="card">Card</article>
       </StyledAtom>,
     );
@@ -53,7 +53,7 @@ describe("StyledAtom", () => {
           "data-surface": "docs",
           "aria-label": "preview",
         }}
-        styles={{ color: "red" }}
+        style={{ color: "red" }}
       >
         content
       </StyledAtom>,
@@ -75,7 +75,7 @@ describe("StyledAtom", () => {
         name="ready-card"
         onReady={onReady}
         onStatusChange={onStatusChange}
-        styles={{ color: "red" }}
+        style={{ color: "red" }}
       >
         ready
       </StyledAtom>,
@@ -92,7 +92,7 @@ describe("StyledAtom", () => {
         name="inline-card"
         placement="inline"
         scope
-        styles={{ color: "red" }}
+        style={{ color: "red" }}
       >
         <span>inline</span>
       </StyledAtom>,
@@ -111,7 +111,7 @@ describe("StyledAtom", () => {
 
     render(
       createPortal(
-        <StyledAtom name="portal-card" placement="inline" styles={styles}>
+        <StyledAtom name="portal-card" placement="inline" style={styles}>
           <span>portal</span>
         </StyledAtom>,
         portalRoot,
@@ -124,7 +124,7 @@ describe("StyledAtom", () => {
 
   it("renders numeric and empty-string children", () => {
     const first = render(
-      <StyledAtom name="zero" styles={{ opacity: 1 }}>
+      <StyledAtom name="zero" style={{ opacity: 1 }}>
         {0}
       </StyledAtom>,
     );
@@ -132,7 +132,7 @@ describe("StyledAtom", () => {
     first.unmount();
 
     const second = render(
-      <StyledAtom name="empty" styles={{ opacity: 1 }}>
+      <StyledAtom name="empty" style={{ opacity: 1 }}>
         {""}
       </StyledAtom>,
     );
@@ -141,12 +141,12 @@ describe("StyledAtom", () => {
 
   it("updates inline CSS owned by one atom", () => {
     const { rerender } = render(
-      <StyledAtom name="card" styles={{ color: "red" }}>
+      <StyledAtom name="card" style={{ color: "red" }}>
         card
       </StyledAtom>,
     );
     rerender(
-      <StyledAtom name="card" styles={{ color: "blue" }}>
+      <StyledAtom name="card" style={{ color: "blue" }}>
         card
       </StyledAtom>,
     );
@@ -159,14 +159,14 @@ describe("StyledAtom", () => {
     const styles: StyledAtomStyles = { color: "red" };
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const view = render(
-      <StyledAtom name="mutable-card" styles={styles}>
+      <StyledAtom name="mutable-card" style={styles}>
         card
       </StyledAtom>,
     );
 
     styles.color = "blue";
     view.rerender(
-      <StyledAtom name="mutable-card" styles={styles}>
+      <StyledAtom name="mutable-card" style={styles}>
         card
       </StyledAtom>,
     );
@@ -181,7 +181,7 @@ describe("StyledAtom", () => {
   it("does not leak styles under StrictMode", () => {
     const view = render(
       <StrictMode>
-        <StyledAtom name="strict" styles={{ color: "red" }}>
+        <StyledAtom name="strict" style={{ color: "red" }}>
           strict
         </StyledAtom>
       </StrictMode>,

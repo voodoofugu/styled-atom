@@ -16,6 +16,7 @@ const deferred = <T,>() => {
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   document.head.replaceChildren();
   document.body.replaceChildren();
   resetStyleRegistryForTests();
@@ -57,6 +58,7 @@ describe("StyleRuntime", () => {
   it("keeps an explicit source URL instead of appending another one", () => {
     createStyleRuntime({
       namespace: "explicit-source",
+      sourceURL: false,
       initialStyles: {
         card: ".card{color:red}\n/*# sourceURL=app/styles/card.css */",
       },
@@ -65,6 +67,48 @@ describe("StyleRuntime", () => {
 
     expect(css.match(/sourceURL=/g)).toHaveLength(1);
     expect(css).toContain("sourceURL=app/styles/card.css");
+  });
+
+  it("omits generated source URLs in production unless explicitly enabled", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    createStyleRuntime({
+      namespace: "production-source",
+      initialStyles: { card: ".card{color:red}" },
+    }).registerAtom({ files: "card" });
+    createStyleRuntime({
+      namespace: "forced-source",
+      sourceURL: true,
+      initialStyles: { button: ".button{color:blue}" },
+    }).registerAtom({ files: "button" });
+
+    const productionCss = document.head.querySelector(
+      'style[data-styled-atom-namespace="production-source"]',
+    )?.textContent;
+    const forcedCss = document.head.querySelector(
+      'style[data-styled-atom-namespace="forced-source"]',
+    )?.textContent;
+
+    expect(productionCss).not.toContain("sourceURL=");
+    expect(forcedCss).toContain("sourceURL=styled-atom/file/button.css");
+  });
+
+  it("reconfigures generated source URLs without reloading CSS", async () => {
+    const loader = vi.fn(() => ".card{color:red}");
+    const runtime = createStyleRuntime({
+      loader,
+      namespace: "source-toggle",
+      sourceURL: false,
+    });
+    runtime.registerAtom({ files: "card" });
+    await flush();
+    expect(document.head.textContent).not.toContain("sourceURL=");
+
+    runtime.configure({ sourceURL: true });
+
+    expect(document.head.textContent).toContain(
+      "sourceURL=styled-atom/file/card.css",
+    );
+    expect(loader).toHaveBeenCalledOnce();
   });
 
   it("shares ownership across runtimes with the same namespace", () => {

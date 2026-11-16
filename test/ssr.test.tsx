@@ -16,7 +16,7 @@ afterEach(() => {
 describe("server rendering", () => {
   it("keeps inline atom content in server HTML", () => {
     const html = renderToString(
-      <StyledAtom name="card" styles={{ color: "red" }}>
+      <StyledAtom name="card" style={{ color: "red" }}>
         <article>server content</article>
       </StyledAtom>,
     );
@@ -29,7 +29,7 @@ describe("server rendering", () => {
     const store = createStyledAtomStore({ namespace: "ssr-app" });
     const html = renderToString(
       <StyleCollectorProvider collector={collector}>
-        <store.StyledAtom name="card" styles={{ color: "red" }} scope>
+        <store.StyledAtom name="card" style={{ color: "red" }} scope>
           <article>card</article>
         </store.StyledAtom>
       </StyleCollectorProvider>,
@@ -48,7 +48,7 @@ describe("server rendering", () => {
       <StyledAtom
         name="inline-card"
         placement="inline"
-        styles={{ color: "red" }}
+        style={{ color: "red" }}
       >
         <article>card</article>
       </StyledAtom>,

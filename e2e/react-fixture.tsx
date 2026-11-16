@@ -35,7 +35,7 @@ const start = async () => {
       <StyledAtom
         name="portal-probe"
         placement="inline"
-        styles={portalStyles}
+        style={portalStyles}
       >
         <span className="portal-probe" data-portal-probe="">
           portal
@@ -52,7 +52,7 @@ const start = async () => {
       <store.StyledAtom
         name="hydration-probe"
         scope
-        styles={hydrationStyles}
+        style={hydrationStyles}
       >
         <span data-hydration-probe="">hydrated</span>
       </store.StyledAtom>

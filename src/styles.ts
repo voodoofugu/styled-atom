@@ -184,12 +184,12 @@ const formatContentValue = (value: string | number) => {
   return JSON.stringify(trimmed);
 };
 
-// проверка на то является ли свойство подходящим для форматирования
+// Properties that need formatting beyond ordinary CSS string conversion.
 const specialPropertyFormatters: Record<
   string,
   (value: string | number) => string
 > = {
-  // пока только content что бы избежать '""'
+  // `content` avoids turning an already quoted value into nested quotes.
   content: formatContentValue,
 };
 
@@ -384,6 +384,12 @@ const compileRule = (
   }
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***compileStyleAtomStyles***:
+ * compiles a typed stylesheet tree into flat CSS rules. The atom name becomes
+ * the default root class when no scope selector is supplied.
+ */
 export const compileStyleAtomStyles = (
   name: string,
   styles: StyleAtomStyles,
@@ -394,4 +400,9 @@ export const compileStyleAtomStyles = (
   return compileRule(styles, baseSelector, []).join("\n\n");
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***compileStyles***:
+ * short alias for `compileStyleAtomStyles`.
+ */
 export const compileStyles = compileStyleAtomStyles;

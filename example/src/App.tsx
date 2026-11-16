@@ -67,7 +67,7 @@ function InlineAtomExample() {
         <h2>Inline object styles</h2>
         <p>
           This card imports <code>StyledAtom</code> directly and passes
-          <code> name</code> plus <code>styles</code>. The explicit
+          <code> name</code> plus <code>style</code>. The explicit
           <code> scope</code> prop wraps this card and scopes root declarations.
         </p>
 
@@ -81,7 +81,7 @@ function InlineAtomExample() {
         </button>
       </div>
 
-      <StyledAtom name="inline-loader" scope styles={inlineLoaderStyles}>
+      <StyledAtom name="inline-loader" scope style={inlineLoaderStyles}>
         <div className="loader" />
         <div className="label">Inline styles are mounted</div>
       </StyledAtom>

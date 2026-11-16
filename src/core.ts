@@ -22,6 +22,7 @@ import {
   nextRuntimeNamespace,
   releaseRegistryEntry,
 } from "./registry";
+import { isDevelopmentEnvironment } from "./environment";
 
 type EntryKind = "file" | "inline";
 type EntryStatus = "idle" | "loading" | "ready" | "failed";
@@ -117,10 +118,15 @@ const normalizeLoaderResult = (value: unknown): string => {
   return "";
 };
 
-const devSourceUrl = (css: string, kind: EntryKind, name: string) => {
-  const env = (globalThis as { process?: { env?: { NODE_ENV?: string } } })
-    .process?.env?.NODE_ENV;
-  if (env === "production" || /\/\*#\s*sourceURL=/.test(css)) return css;
+const defaultSourceUrl = isDevelopmentEnvironment;
+
+const withSourceUrl = (
+  enabled: boolean,
+  css: string,
+  kind: EntryKind,
+  name: string,
+) => {
+  if (!enabled || /\/\*#\s*sourceURL=/.test(css)) return css;
   const safeName = name.trim().replace(/[^a-zA-Z0-9._/-]+/g, "-") || "style";
   const separator = css && !css.endsWith("\n") ? "\n" : "";
   return `${css}${separator}/*# sourceURL=styled-atom/${kind}/${safeName}.css */`;
@@ -131,6 +137,11 @@ const escapeAttribute = (value: string) =>
 
 const escapeStyleText = (value: string) => value.replace(/<\/style/gi, "<\\/style");
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***createStyleCollector***:
+ * creates an isolated style collector for one server-rendered request.
+ */
 export const createStyleCollector = (): StyleCollector => {
   const styles = new Map<string, CollectedStyle>();
 
@@ -171,12 +182,20 @@ export const createStyleCollector = (): StyleCollector => {
   };
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleRuntime***:
+ * framework-agnostic owner of file and inline CSS atoms. One runtime shares,
+ * orders and releases CSS across every atom registered through it.
+ */
 export class StyleRuntime<TFile extends string = string> {
+  /** Namespace used to coordinate ownership in the target document. */
   readonly namespace: string;
 
   private loader?: ImportStyle<TFile>;
   private runtimeTarget?: StyleTargetValue;
   private defaultPlacement: StylePlacement;
+  private sourceURL: boolean;
   private defaultNonce?: string;
   private onError?: (error: StyleLoadError) => void;
   private initialStyles = new Map<string, string>();
@@ -188,22 +207,30 @@ export class StyleRuntime<TFile extends string = string> {
   private targetCounter = 0;
   private idCounter = 0;
 
+  /** Creates a runtime with shared defaults for its atoms. */
   constructor(options: StyleRuntimeOptions<TFile> = {}) {
     this.namespace = options.namespace?.trim() || nextRuntimeNamespace();
     this.loader = options.loader;
     this.runtimeTarget = options.target;
     this.defaultPlacement = options.placement ?? "head";
+    this.sourceURL = options.sourceURL ?? defaultSourceUrl();
     this.defaultNonce = options.nonce;
     this.onError = options.onError;
     this.setOrder(options.order);
     this.setInitialStyles(options.initialStyles);
   }
 
+  /** Updates runtime defaults and reconciles every registered atom. */
   configure(options: Partial<StyleRuntimeOptions<TFile>>) {
+    const sourceURLChanged =
+      "sourceURL" in options &&
+      this.sourceURL !== (options.sourceURL ?? defaultSourceUrl());
     if ("loader" in options) this.loader = options.loader;
     if ("target" in options) this.runtimeTarget = options.target;
     if ("placement" in options && options.placement)
       this.defaultPlacement = options.placement;
+    if ("sourceURL" in options)
+      this.sourceURL = options.sourceURL ?? defaultSourceUrl();
     if ("nonce" in options) this.defaultNonce = options.nonce;
     if ("onError" in options) this.onError = options.onError;
     if (options.order) this.setOrder(options.order);
@@ -211,16 +238,26 @@ export class StyleRuntime<TFile extends string = string> {
     this.atoms.forEach((atom) => {
       this.updateAtom(atom.id, atom.sourceOptions as StyleAtomOptions<TFile>);
     });
+    if (sourceURLChanged) {
+      this.entries.forEach((entry) => {
+        if (entry.status === "ready" && entry.css !== undefined) {
+          this.commitEntry(entry);
+        }
+      });
+    }
   }
 
+  /** Resolves an atom placement against the runtime default. */
   resolvePlacement(placement?: StylePlacement) {
     return placement ?? this.defaultPlacement;
   }
 
+  /** Resolves an atom CSP nonce against the runtime default. */
   resolveNonce(nonce?: string) {
     return nonce ?? this.defaultNonce;
   }
 
+  /** Returns a read-only diagnostic report without exposing mutable state. */
   inspect(): StyleRuntimeInspection {
     return {
       namespace: this.namespace,
@@ -246,6 +283,7 @@ export class StyleRuntime<TFile extends string = string> {
     };
   }
 
+  /** Builds the synchronous snapshot used by SSR and React hydration. */
   getServerSnapshot(id: string, options: StyleAtomOptions<TFile>) {
     const normalized = this.normalize(options);
     const styles: MountedStyle[] = [];
@@ -263,7 +301,7 @@ export class StyleRuntime<TFile extends string = string> {
           ),
           kind: "file",
           name,
-          css: devSourceUrl(css, "file", name),
+          css: withSourceUrl(this.sourceURL, css, "file", name),
           precedence: this.precedenceFor(name, normalized.precedence),
         });
       }
@@ -279,7 +317,7 @@ export class StyleRuntime<TFile extends string = string> {
         ),
         kind: "inline",
         name,
-        css: devSourceUrl(css, "inline", name),
+        css: withSourceUrl(this.sourceURL, css, "inline", name),
         precedence: this.precedenceFor(name, normalized.precedence),
       });
     }
@@ -293,6 +331,7 @@ export class StyleRuntime<TFile extends string = string> {
     } satisfies StyleAtomSnapshot;
   }
 
+  /** Adds ready head styles from a snapshot to an SSR collector. */
   collect(collector: StyleCollector, snapshot: StyleAtomSnapshot, nonce?: string) {
     snapshot.styles.forEach((style) => {
       collector.collect({
@@ -303,6 +342,7 @@ export class StyleRuntime<TFile extends string = string> {
     });
   }
 
+  /** Registers one style owner and returns its imperative controller. */
   registerAtom(options: StyleAtomOptions<TFile> & { id?: string }): StyleAtomController<TFile> {
     const id = options.id ?? this.createId();
     if (!this.atoms.has(id)) {
@@ -320,10 +360,12 @@ export class StyleRuntime<TFile extends string = string> {
     return this.createController(id);
   }
 
+  /** Keeps named file atoms mounted until the returned controller is disposed. */
   preload(files: StyleAtomFiles<TFile>, options: Omit<StyleAtomOptions<TFile>, "files"> = {}) {
     return this.registerAtom({ ...options, files, id: this.createId("preload") });
   }
 
+  /** Reloads selected mounted file atoms, or every mounted file when omitted. */
   reload(files?: StyleAtomFiles<TFile>) {
     const requested = new Set(compactList(files));
     this.entries.forEach((entry) => {
@@ -335,6 +377,7 @@ export class StyleRuntime<TFile extends string = string> {
     });
   }
 
+  /** Retries failed entries for one atom, or every failed entry when omitted. */
   retry(id?: string) {
     const atom = id ? this.atoms.get(id) : undefined;
     const keys = atom?.styleKeys;
@@ -351,6 +394,7 @@ export class StyleRuntime<TFile extends string = string> {
     }
   }
 
+  /** Replaces mounted file CSS without calling the configured loader. */
   replace(styles: readonly StyleAtomCssReplacement<TFile>[]) {
     const replacements = new Map(
       styles
@@ -368,6 +412,7 @@ export class StyleRuntime<TFile extends string = string> {
     });
   }
 
+  /** Releases every atom and DOM ownership reference held by this runtime. */
   dispose() {
     Array.from(this.atoms.keys()).forEach((id) => this.unregisterAtom(id));
     this.entries.clear();
@@ -555,7 +600,12 @@ export class StyleRuntime<TFile extends string = string> {
         kind: entry.kind,
         name: entry.name,
         precedence: entry.precedence,
-        css: devSourceUrl(entry.css ?? "", entry.kind, entry.name),
+        css: withSourceUrl(
+          this.sourceURL,
+          entry.css ?? "",
+          entry.kind,
+          entry.name,
+        ),
         nonce: entry.nonce,
         target: entry.target,
         owner: entry.registryOwner,
@@ -596,7 +646,12 @@ export class StyleRuntime<TFile extends string = string> {
             key: entry.publicKey,
             kind: entry.kind,
             name: entry.name,
-            css: devSourceUrl(entry.css, entry.kind, entry.name),
+            css: withSourceUrl(
+              this.sourceURL,
+              entry.css,
+              entry.kind,
+              entry.name,
+            ),
             precedence: entry.precedence,
           }]
         : [],
@@ -726,6 +781,11 @@ export class StyleRuntime<TFile extends string = string> {
   }
 }
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***createStyleRuntime***:
+ * creates a framework-agnostic style runtime.
+ */
 export const createStyleRuntime = <TFile extends string = string>(
   options: StyleRuntimeOptions<TFile> = {},
 ) => new StyleRuntime(options);

@@ -5,7 +5,7 @@ Semantic Versioning.
 
 ## [Unreleased]
 
-## [4.0.0] - 2026-11-15
+## [4.0.0] - 2026-11-16
 
 ### Added
 
@@ -51,6 +51,8 @@ Semantic Versioning.
   realm-unique automatic namespaces.
 - Real-browser validation that representative compiler output remains valid CSS
   in Chromium, Firefox and WebKit.
+- Vue, Svelte and Solid lifecycle recipes built on the framework-agnostic core.
+- Public API declarations documented with practical JSDoc.
 
 ### Changed
 
@@ -59,10 +61,13 @@ Semantic Versioning.
 - React children render eagerly while CSS loads unless `render="ready"` or a
   `fallback` requests blocking behavior.
 - `scope` replaces `encap`.
+- The inline compiler prop is now `style` instead of `styles`.
 - Scope wrapper element and attributes now live in the `scope` prop instead of
   separate `as` and `wrapperProps` props.
 - Runtime and store creation now use one object configuration form; the loader
   function shorthand was removed.
+- Generated `sourceURL` comments now default to development and test builds;
+  `sourceURL` can force them on or off per runtime.
 - Inline style compilation is cached by style-object identity and scope.
 - Initially ready atoms now call `onReady` and `onStatusChange` after mount.
 - Reconfiguring a runtime now updates existing atoms, including loader retries,
@@ -70,7 +75,8 @@ Semantic Versioning.
 - Server style adoption validates CSS and nonce compatibility before taking
   ownership.
 - The documentation site now renders README content as its source of truth and
-  uses the same documentation shell grammar as morphing-scroll.
+  uses `morphing-scroll` for its navigation and article scrolling, with the same
+  scrollbar and documentation shell grammar.
 - Vite examples load CSS text through `?inline`; ordinary CSS imports remain
   owned by Vite.
 - The root package is private and releases are prepared in `./publish`.
@@ -92,7 +98,7 @@ Semantic Versioning.
 
 ```diff
 - <StyledAtom name="card" encap styles={styles}>
-+ <StyledAtom name="card" scope styles={styles}>
++ <StyledAtom name="card" scope style={styles}>
 ```
 
 For Vite loaders:

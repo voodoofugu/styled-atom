@@ -1,6 +1,7 @@
 import React from "react";
 
 import { StyleRuntime } from "./core";
+import { isDevelopmentEnvironment } from "./environment";
 import { compileStyleAtomStyles } from "./styles";
 import type {
   StyleAtomController,
@@ -15,76 +16,155 @@ import type {
   StyleTargetValue,
 } from "./types";
 
-type StyleScopeOptions = React.HTMLAttributes<HTMLElement> &
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleScopeOptions***:
+ * DOM wrapper configuration used by the object form of `scope`.
+ */
+export type StyleScopeOptions = Omit<
+  React.HTMLAttributes<HTMLElement>,
+  "className"
+> &
   Record<string, unknown> & {
+    /** Wrapper element or component. @default "div" */
     element?: React.ElementType;
+    /** Wrapper class and selector root. Atom names are used when omitted. */
+    className?: string;
   };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleScope***:
+ * optional selector boundary and DOM wrapper for a React style atom. `true`
+ * uses the file and inline atom names; a string supplies the wrapper class.
+ */
 export type StyleScope =
   | boolean
   | string
   | StyleScopeOptions;
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomRenderState***:
+ * atom snapshot exposed to React children and callbacks, with retry support.
+ */
 export type StyledAtomRenderState = StyleAtomSnapshot & {
+  /** Retries the current atom after a loader, target or ownership failure. */
   retry: () => void;
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomChildren***:
+ * static children or a render function that receives the current atom state.
+ */
 export type StyledAtomChildren =
   | React.ReactNode
   | ((state: StyledAtomRenderState) => React.ReactNode);
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomFallback***:
+ * static fallback content or a function that receives the current atom state.
+ */
 export type StyledAtomFallback =
   | React.ReactNode
   | ((state: StyledAtomRenderState) => React.ReactNode);
 
 type StyledAtomSharedProps = {
+  /** Creates a selector wrapper for the atom. No wrapper is rendered by default. */
   scope?: StyleScope;
+  /** Style element placement. Uses the runtime default when omitted. */
   placement?: StylePlacement;
+  /** DOM destination for this atom. Overrides the runtime target. */
   target?: StyleTargetValue;
+  /** CSP nonce for this atom. Overrides the runtime nonce. */
   nonce?: string;
+  /** Cascade position for this atom. Overrides the configured file order. */
   precedence?: number;
+  /** Whether children render while CSS loads. @default "eager" */
   render?: "eager" | "ready";
+  /** Content shown while CSS loads. Passing it enables blocking rendering. */
   fallback?: StyledAtomFallback;
+  /** Content shown after a loader, target or ownership failure. */
   errorFallback?: StyledAtomFallback;
+  /** Protected UI content or a render function receiving lifecycle state. */
   children?: StyledAtomChildren;
+  /** Called after the atom changes between loading, ready and failed. */
   onStatusChange?: (state: StyledAtomRenderState) => void;
+  /** Called when every requested style is ready. */
   onReady?: (state: StyledAtomRenderState) => void;
+  /** Called when the atom enters the failed state. */
   onError?: (state: StyledAtomRenderState) => void;
 };
 
 type StyledAtomSource<TFile extends string> =
   | {
+      /** Named CSS files requested from the store loader. */
       files: StyleAtomFiles<TFile>;
       name?: never;
-      styles?: never;
+      style?: never;
     }
   | {
+      /** Optional file atoms mounted with the inline style atom. */
       files?: StyleAtomFiles<TFile>;
+      /** Stable public identity and default selector class of the inline atom. */
       name: string;
-      styles: StyledAtomStyles;
+      /** Typed stylesheet tree with declarations, selectors and at-rules. */
+      style: StyledAtomStyles;
     };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomProps***:
+ * props accepted by a store-bound React style atom.
+ */
 export type StyledAtomProps<TFile extends string = string> =
   StyledAtomSharedProps & StyledAtomSource<TFile>;
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***InlineStyledAtomProps***:
+ * props accepted by the standalone inline `StyledAtom`.
+ */
 export type InlineStyledAtomProps = StyledAtomSharedProps & {
   files?: never;
+  /** Stable public identity and default selector class of the inline atom. */
   name: string;
-  styles: StyledAtomStyles;
+  /** Typed stylesheet tree with declarations, selectors and at-rules. */
+  style: StyledAtomStyles;
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomComponent***:
+ * a React component bound to a typed set of file atom names.
+ */
 export type StyledAtomComponent<TFile extends string = string> = React.FC<
   StyledAtomProps<TFile>
 >;
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtomStore***:
+ * React component and runtime commands returned by `createStyledAtomStore`.
+ */
 export type StyledAtomStore<TFile extends string = string> = {
+  /** React component bound to this store and its loader. */
   StyledAtom: StyledAtomComponent<TFile>;
+  /** Updates runtime defaults and reconciles mounted atoms. */
   configure: StyleRuntime<TFile>["configure"];
+  /** Keeps file atoms mounted without a React owner. */
   preload: StyleRuntime<TFile>["preload"];
+  /** Calls the loader again for mounted file atoms. */
   reload: StyleRuntime<TFile>["reload"];
+  /** Retries failed atoms, or one atom when an id is supplied. */
   retry: StyleRuntime<TFile>["retry"];
+  /** Returns a read-only diagnostic report. */
   inspect: StyleRuntime<TFile>["inspect"];
+  /** Replaces mounted file CSS without calling the loader. */
   replace: (styles: readonly StyleAtomCssReplacement<TFile>[]) => void;
+  /** Releases every atom owned by this store. */
   dispose: () => void;
 };
 
@@ -100,13 +180,27 @@ const CollectorContext = React.createContext<StyleCollector | null>(null);
 
 let reactAtomCounter = 0;
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleCollectorProviderProps***:
+ * props for `StyleCollectorProvider`.
+ */
+export type StyleCollectorProviderProps = {
+  /** Per-request collector that receives ready head styles. */
+  collector: StyleCollector;
+  /** Server-rendered React subtree that owns the collected styles. */
+  children?: React.ReactNode;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleCollectorProvider***:
+ * makes an SSR style collector available to descendant `StyledAtom` nodes.
+ */
 export const StyleCollectorProvider = ({
   collector,
   children,
-}: {
-  collector: StyleCollector;
-  children?: React.ReactNode;
-}) => (
+}: StyleCollectorProviderProps) => (
   <CollectorContext.Provider value={collector}>
     {children}
   </CollectorContext.Provider>
@@ -186,10 +280,7 @@ const styleCache = new WeakMap<object, Map<string, CachedStyle>>();
 
 const styleFingerprint = (styles?: StyledAtomStyles) => {
   if (!styles) return undefined;
-  const environment = (
-    globalThis as { process?: { env?: { NODE_ENV?: string } } }
-  ).process?.env?.NODE_ENV;
-  if (environment !== "development" && environment !== "test") {
+  if (!isDevelopmentEnvironment()) {
     return undefined;
   }
   try {
@@ -292,7 +383,7 @@ const createComponent = <TFile extends string>(
     const {
       files,
       name,
-      styles,
+      style,
       scope,
       placement,
       target,
@@ -309,15 +400,15 @@ const createComponent = <TFile extends string>(
 
     if (!allowFiles && files !== undefined) {
       throw new Error(
-        "[styled-atom] The standalone StyledAtom accepts inline name/styles only. Use createStyledAtomStore() for CSS files.",
+        "[styled-atom] The standalone StyledAtom accepts inline name/style only. Use createStyledAtomStore() for CSS files.",
       );
     }
-    const hasStyles = styles !== undefined;
-    if (hasStyles && (!name || !name.trim())) {
-      throw new Error("[styled-atom] Inline styles require a non-empty name.");
+    const hasStyle = style !== undefined;
+    if (hasStyle && (!name || !name.trim())) {
+      throw new Error("[styled-atom] Inline style requires a non-empty name.");
     }
-    if (hasStyles && (typeof styles !== "object" || Array.isArray(styles))) {
-      throw new Error("[styled-atom] styles must be an object.");
+    if (hasStyle && (typeof style !== "object" || Array.isArray(style))) {
+      throw new Error("[styled-atom] style must be an object.");
     }
 
     const [id] = React.useState(() => {
@@ -328,13 +419,13 @@ const createComponent = <TFile extends string>(
     const normalizedScope = normalizeScope(scope);
     const inlineName = name?.trim();
     const selector = scopeSelector(normalizedScope, fileNames, inlineName);
-    const fingerprint = styleFingerprint(styles);
+    const fingerprint = styleFingerprint(style);
     const css = React.useMemo(
       () =>
-        styles && inlineName
-          ? compileCached(inlineName, styles, selector, fingerprint)
+        style && inlineName
+          ? compileCached(inlineName, style, selector, fingerprint)
           : undefined,
-      [fingerprint, inlineName, selector, styles],
+      [fingerprint, inlineName, selector, style],
     );
     const atomOptions = React.useMemo<StyleAtomOptions<TFile>>(
       () => ({
@@ -428,11 +519,22 @@ const createComponent = <TFile extends string>(
 
 const inlineRuntime = new StyleRuntime({ namespace: "inline" });
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyledAtom***:
+ * standalone React component for one inline style atom. Use a store-bound
+ * component when the atom also loads named CSS files.
+ */
 export const StyledAtom = createComponent(
   inlineRuntime,
   false,
 ) as React.FC<InlineStyledAtomProps>;
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***createStyledAtomStore***:
+ * creates a React component and commands bound to one style runtime.
+ */
 export const createStyledAtomStore = <TFile extends string = string>(
   options: StyleRuntimeOptions<TFile> = {},
 ): StyledAtomStore<TFile> => {

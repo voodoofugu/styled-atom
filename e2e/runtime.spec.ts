@@ -507,6 +507,7 @@ test("exposes loader source maps to Chromium developer tools", async ({
     const { createStyleRuntime } = await import("/dist/esm/index.js?source-map");
     createStyleRuntime({
       namespace: "source-map-browser",
+      sourceURL: true,
       initialStyles: {
         card: `.card{color:red}\n/*# sourceMappingURL=${map} */`,
       },
@@ -522,6 +523,39 @@ test("exposes loader source maps to Chromium developer tools", async ({
     item.sourceURL.includes("styled-atom/file/card.css"),
   );
   expect(header?.sourceMapURL).toBe(sourceMap);
+});
+
+test("enables generated source URLs in a development bundler", async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { createStyleRuntime } = await import("/dist/esm/index.js?dev-source-url");
+    const automatic = createStyleRuntime({
+      namespace: "source-url-automatic",
+      initialStyles: { card: ".automatic-source-url{color:red}" },
+    }).registerAtom({ files: "card" });
+    const disabled = createStyleRuntime({
+      namespace: "source-url-disabled",
+      sourceURL: false,
+      initialStyles: { card: ".disabled-source-url{color:blue}" },
+    }).registerAtom({ files: "card" });
+
+    const automaticCss = document.head.querySelector(
+      'style[data-styled-atom-namespace="source-url-automatic"]',
+    )?.textContent;
+    const disabledCss = document.head.querySelector(
+      'style[data-styled-atom-namespace="source-url-disabled"]',
+    )?.textContent;
+
+    automatic.dispose();
+    disabled.dispose();
+    return {
+      automatic: automaticCss?.includes(
+        "sourceURL=styled-atom/file/card.css",
+      ),
+      disabled: disabledCss?.includes("sourceURL="),
+    };
+  });
+
+  expect(result).toEqual({ automatic: true, disabled: false });
 });
 
 test("moves an atom between documents without leaving the old target behind", async ({

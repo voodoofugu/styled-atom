@@ -6,6 +6,8 @@ import "prismjs/components/prism-jsx";
 import "prismjs/components/prism-tsx";
 import "prismjs/components/prism-typescript";
 
+import type { MorphScrollHandle } from "morphing-scroll";
+
 import logo from "../../src/assets/styled-atom-logo.png";
 import {
   createStyledAtomStore,
@@ -14,6 +16,8 @@ import {
   type StyledAtomStyles,
 } from "styled-atom/react";
 import readme, { type ReadmeSection } from "virtual:styled-atom-readme";
+
+import ChromeScroll from "./ChromeScroll";
 
 type Theme = "system" | "light" | "dark";
 
@@ -24,7 +28,7 @@ const lifecycle = createStyledAtomStore<"remote-card">({
   loader: async () => {
     await new Promise((resolve) => setTimeout(resolve, 650));
     if (nextLoadFails) throw new Error("The preview server is offline");
-    return ".lifecycle-card{border-color:#0969da;background:#e8f2ff}";
+    return ".lifecycle-card{border-color:var(--accent);background:var(--accent-soft)}";
   },
 });
 
@@ -32,7 +36,7 @@ const ownership = createStyledAtomStore<"shared-card">({
   namespace: "docs-ownership",
   initialStyles: {
     "shared-card":
-      ".ownership-card{border-color:#0969da;background:color-mix(in srgb,#0969da 8%,var(--card))}",
+      ".ownership-card{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--card))}",
   },
 });
 
@@ -97,7 +101,7 @@ function Body({ html }: { html: string }) {
 }
 
 function CompilerLab() {
-  const [accent, setAccent] = React.useState("#0969da");
+  const [accent, setAccent] = React.useState("#007f9e");
   const [radius, setRadius] = React.useState(18);
   const [placement, setPlacement] = React.useState<StylePlacement>("head");
   const styles = React.useMemo(
@@ -179,7 +183,7 @@ function CompilerLab() {
           name="compiler-lab-card"
           placement={placement}
           scope
-          styles={styles}
+          style={styles}
         >
           {({ status }) => (
             <>
@@ -298,22 +302,18 @@ function OwnershipLab() {
 }
 
 const demoFor = (id: string) => {
-  if (id === "inline-style-atoms") return <CompilerLab />;
-  if (id === "lifecycle-state") return <LifecycleLab />;
+  if (id === "inline-styles") return <CompilerLab />;
+  if (id === "lifecycle") return <LifecycleLab />;
   if (id === "css-files" || id === "placement-and-targets") return <OwnershipLab />;
   return null;
 };
 
 function Overview() {
   return (
-    <article className="doc-page overview">
-      <span className="eyebrow">component-owned CSS</span>
-      <h1>CSS that appears and disappears with your UI.</h1>
-      <div className="overview-intro"><Body html={readme.intro} /></div>
-      <div className="hero-actions">
-        <a className="primary" href="#/inline-style-atoms">Try the compiler</a>
-        <code>npm install styled-atom</code>
-      </div>
+    <article className="doc-page">
+      <h1 className="doc-title">styled-atom</h1>
+      <p className="doc-lead">CSS that appears and disappears with your UI.</p>
+      <Body html={readme.intro} />
       <div className="doc-cards">
         {readme.sections
           .filter((section) => section.id !== "license")
@@ -347,7 +347,7 @@ function App() {
   const route = useRoute();
   const [theme, setTheme] = useTheme();
   const [query, setQuery] = React.useState("");
-  const main = React.useRef<HTMLElement>(null);
+  const page = React.useRef<MorphScrollHandle>(null);
   const id = route.startsWith("#/") ? route.slice(2) : "";
   const current = readme.sections.find((section) => section.id === id);
   const normalizedQuery = query.trim().toLowerCase();
@@ -358,14 +358,31 @@ function App() {
     : readme.sections;
 
   React.useEffect(() => {
-    main.current?.scrollTo({ top: 0 });
+    page.current?.scrollTo(0, { duration: 0 });
   }, [route]);
+
+  const navigationLink = (section: ReadmeSection) => {
+    const currentSection = section.id === id;
+    return (
+      <span
+        className={`docs-tree-link${currentSection ? " is-current" : ""}`}
+        key={section.id}
+      >
+        <a
+          aria-current={currentSection ? "page" : undefined}
+          href={`#/${section.id}`}
+        >
+          {section.title}
+        </a>
+      </span>
+    );
+  };
 
   return (
     <div className="app-shell">
       <header className="top-bar">
         <a className="brand" href="#/">
-          <img alt="" src={logo} /><span>styled-atom</span><small>v4</small>
+          <img alt="styled-atom" src={logo} /><small>v4</small>
         </a>
         <nav aria-label="Primary">
           <a aria-current={!id ? "page" : undefined} href="#/">docs</a>
@@ -386,25 +403,32 @@ function App() {
             type="search"
             value={query}
           />
-          <nav aria-label="Documentation" className="docs-tree">
-            <a aria-current={!id ? "page" : undefined} href="#/">Overview</a>
-            {visibleSections.map((section) => (
-              <a
-                aria-current={section.id === id ? "page" : undefined}
-                href={`#/${section.id}`}
-                key={section.id}
-              >
-                {section.title}
-              </a>
-            ))}
-            {visibleSections.length === 0 && <span className="docs-none">No matches</span>}
-          </nav>
+          <div className="docs-nav-scroll">
+            <ChromeScroll
+              controls={{ keys: true, bar: { trackGap: -4 } }}
+              wrapper={{ margin: [1, 14, 0, 1] }}
+            >
+              <nav aria-label="Documentation" className="docs-tree">
+                <span className={`docs-tree-link${!id ? " is-current" : ""}`}>
+                  <a aria-current={!id ? "page" : undefined} href="#/">Overview</a>
+                </span>
+                {visibleSections.map(navigationLink)}
+                {visibleSections.length === 0 && <span className="docs-none">No matches</span>}
+              </nav>
+            </ChromeScroll>
+          </div>
         </aside>
 
-        <main className="docs-main" ref={main}>
-          {!id ? <Overview /> : current ? <DocumentationPage section={current} /> : (
-            <article className="doc-page"><h1>Not found</h1><p>This documentation section does not exist.</p></article>
-          )}
+        <main className="docs-main">
+          <ChromeScroll
+            controls={{ keys: true }}
+            ref={page}
+            wrapper={{ margin: [24, 18, 96, 0] }}
+          >
+            {!id ? <Overview /> : current ? <DocumentationPage section={current} /> : (
+              <article className="doc-page"><h1>Not found</h1><p>This documentation section does not exist.</p></article>
+            )}
+          </ChromeScroll>
         </main>
       </div>
     </div>

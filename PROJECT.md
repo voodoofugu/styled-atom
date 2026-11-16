@@ -1,6 +1,6 @@
 # styled-atom — project context and decision log
 
-_Last updated: 2026-11-15 · target version: 4.0.0_
+_Last updated: 2026-11-16 · target version: 4.0.0_
 
 ## What it is
 
@@ -15,9 +15,9 @@ replace CSS Modules or a build-time CSS extractor for ordinary static styles.
 Here, "atomic" means a small unit of style ownership, not one-property utility
 classes or the Atomic CSS methodology.
 
-The inline style-object compiler is a first-class feature. It allows a component
-to define a small typed CSS atom directly in JSX while still supporting nested
-selectors, at-rules, keyframes and optional scoping.
+The inline style-object compiler is a first-class feature. Its `style` prop lets
+a component define a small typed CSS atom directly in JSX while still
+supporting nested selectors, at-rules, keyframes and optional scoping.
 
 ## v4 decisions
 
@@ -90,8 +90,11 @@ The core must be usable without React and must not import React types.
   flaky or distort measurements through contention.
 - Release checks include lint, typecheck, tests, site build, package build,
   tarball inspection and package-resolution smoke tests.
-- The documentation site explains when to use the library, when not to use it,
-  the compiler, lifecycle, targets, ordering, failures, SSR and migration from v3.
+- Every public export and its practical properties are documented with JSDoc in
+  the same visual format as morphing-scroll.
+- The README-driven documentation site uses morphing-scroll for its own
+  navigation and article scrolling. It stays concise; advanced reference and
+  troubleshooting content is collapsible, while migration lives in CHANGELOG.
 
 ## Compatibility and migration
 
@@ -106,8 +109,8 @@ v4 is intentionally breaking. The migration guide must cover:
 
 ### Source maps and build-time compilation
 
-- Development `sourceURL` gives injected CSS a stable virtual filename but is
-  not a map to Sass or TypeScript.
+- Generated `sourceURL` comments default to development and test environments,
+  can be forced on or off per runtime, and are not maps to Sass or TypeScript.
 - Loader CSS remains transparent: existing `sourceMappingURL` and `sourceURL`
   comments are preserved. The tool that transforms Sass or TypeScript must
   produce the real map.
