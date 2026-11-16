@@ -76,7 +76,9 @@ Semantic Versioning.
   ownership.
 - The documentation site now renders README content as its source of truth and
   uses `morphing-scroll` for its navigation and article scrolling, with the same
-  scrollbar and documentation shell grammar.
+  scrollbar and documentation shell grammar. The README keeps the established
+  main-branch layout with its banner, contents, section dividers and nested API
+  disclosure blocks.
 - Vite examples load CSS text through `?inline`; ordinary CSS imports remain
   owned by Vite.
 - The root package is private and releases are prepared in `./publish`.

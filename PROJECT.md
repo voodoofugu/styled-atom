@@ -93,8 +93,9 @@ The core must be usable without React and must not import React types.
 - Every public export and its practical properties are documented with JSDoc in
   the same visual format as morphing-scroll.
 - The README-driven documentation site uses morphing-scroll for its own
-  navigation and article scrolling. It stays concise; advanced reference and
-  troubleshooting content is collapsible, while migration lives in CHANGELOG.
+  navigation and article scrolling. The README structure follows the established
+  main-branch format: banner, contents, `<h2>` dividers, a small set of `###`
+  sections and nested API disclosures. Migration lives in CHANGELOG.
 
 ## Compatibility and migration
 

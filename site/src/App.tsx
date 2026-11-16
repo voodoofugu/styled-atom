@@ -302,9 +302,15 @@ function OwnershipLab() {
 }
 
 const demoFor = (id: string) => {
-  if (id === "inline-styles") return <CompilerLab />;
-  if (id === "lifecycle") return <LifecycleLab />;
-  if (id === "css-files" || id === "placement-and-targets") return <OwnershipLab />;
+  if (id === "patterns") return <CompilerLab />;
+  if (id === "api") {
+    return (
+      <>
+        <LifecycleLab />
+        <OwnershipLab />
+      </>
+    );
+  }
   return null;
 };
 

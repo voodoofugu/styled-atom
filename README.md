@@ -1,27 +1,86 @@
-![styled-atom](https://raw.githubusercontent.com/voodoofugu/styled-atom/main/src/assets/banner-logo.png)
+![logo](https://raw.githubusercontent.com/voodoofugu/styled-atom/refs/heads/main/src/assets/banner-logo.png)
 
-# styled-atom
+<h2></h2>
 
-CSS that appears and disappears with your UI.
+### Table of contents
 
-`styled-atom` mounts regular CSS files or compiles a focused inline style when
-a UI surface needs it. Styles are shared between consumers and removed after
-the last owner disappears.
+- [About](#about)
+- [Installation](#installation)
+- [API](#api)
+- [Patterns](#patterns)
+- [Framework recipes](#framework-recipes)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
-Here, **atomic** means a small unit of style ownership, not utility classes.
-Use the library alongside CSS Modules, global styles or extracted bundles and
-introduce it only where CSS ownership follows dynamic UI.
+<h2></h2>
 
-## Install
+### About
+
+`styled-atom` is a small TypeScript runtime for mounting CSS only while a component, preview or tool surface needs it.
+
+It loads ordinary CSS files by name or compiles focused inline style objects, shares mounted styles between consumers, exposes their lifecycle and removes them after the last owner disappears.
+
+The library is useful in component workbenches, visual editors, previews, route-owned interfaces, portals, iframes and microfrontends. It works alongside CSS Modules, global styles and extracted bundles: traditional CSS can remain in the application shell while `styled-atom` owns dynamic UI surfaces.
+
+Here, **atomic** means a small unit of style ownership. It does not mean one-property utility classes or the Atomic CSS methodology.
+
+<h2></h2>
+
+### Installation
 
 ```bash
 npm install styled-atom
 ```
 
-React is optional. React APIs live in `styled-atom/react`; the root entry
-contains the framework-agnostic runtime and compiler.
+```tsx
+import { createStyleRuntime } from "styled-atom";
+import { StyledAtom, createStyledAtomStore } from "styled-atom/react";
+```
 
-## Inline styles
+> **✦ Note:**
+>
+> - Supports both **ESM** (`import`) and **CommonJS** (`require`) builds.
+> - Written in TypeScript and ships declaration files with JSDoc.
+> - React is an optional peer dependency.
+> - The root entry is framework-agnostic; React APIs live in `styled-atom/react`.
+> - The package does not ship runtime CSS. Your project keeps ownership of CSS files and loader functions.
+
+<h2></h2>
+
+### API
+
+<ul><div>
+
+<details><summary><b><code>StyledAtom</code></b>: <em>mount inline styles or imported CSS files</em></summary><br /><ul><div>
+
+There are two React entry points:
+
+- `StyledAtom` from `styled-atom/react` mounts one standalone inline style atom.
+- `store.StyledAtom` is bound to the loader and configuration of `createStyledAtomStore`.
+
+<h2></h2>
+
+<details><summary><b>Inline usage</b>: <em>compile one focused style object</em></summary><br />
+
+<b>Description:</b><em><br />
+Compiles a typed stylesheet object into an owned <code>&lt;style&gt;</code> element and releases it on unmount. It does not render a wrapper unless <code>scope</code> is provided.
+</em><br />
+
+<b>Props:</b><br />
+
+- `name: string` - stable atom name, default root selector and development `sourceURL`.
+- `style: StyledAtomStyles` - declarations, nested selectors and at-rules.
+- `scope?: boolean | string | StyleScopeOptions` - optional wrapper and selector boundary.
+- `placement?: "head" | "inline"` - style element destination relative to the component.
+- `target?: Document | ShadowRoot | HTMLElement | (() => target)` - optional mount target.
+- `render?: "eager" | "ready"` - whether children wait for CSS.
+- `fallback`, `errorFallback` - loading and failed content.
+- `onStatusChange`, `onReady`, `onError` - lifecycle callbacks.
+- `children` - content or a render function receiving status, errors and `retry()`.
+
+<br />
+
+<b>Example:</b><br />
 
 ```tsx
 import { StyledAtom, type StyledAtomStyles } from "styled-atom/react";
@@ -34,9 +93,18 @@ const style = {
   background: "#111827",
   color: "white",
 
-  ".title": { margin: 0, fontSize: 20 },
-  "&:hover": { background: "#172033" },
-  "@media (width < 40rem)": { padding: 14 },
+  ".title": {
+    margin: 0,
+    fontSize: 20,
+  },
+
+  "&:hover": {
+    background: "#172033",
+  },
+
+  "@media (width < 40rem)": {
+    padding: 14,
+  },
 } satisfies StyledAtomStyles;
 
 export function PreviewCard() {
@@ -48,14 +116,11 @@ export function PreviewCard() {
 }
 ```
 
-`style` accepts declarations, nested selectors and at-rules. `scope` adds a
-wrapper, uses its class as the root selector and exposes lifecycle state through
-`data-styled-atom-status`.
+<b>Style object:</b><br />
 
-<details>
-<summary><b>Scope wrapper</b></summary>
+The compiler supports camelCase declarations, CSS custom properties, numeric `px` conversion, selector lists, `&`, media/supports/container/layer rules, keyframes, `@font-face`, `@page` and fallback declaration arrays.
 
-Use a string for a custom class or an object for the element and its attributes:
+Without `scope`, root declarations compile against `.${name}` and that class belongs on your markup. `scope={true}` creates a wrapper with the atom name. A string supplies another class. The object form keeps the element and its attributes in the same prop:
 
 ```tsx
 <StyledAtom
@@ -71,39 +136,48 @@ Use a string for a custom class or an object for the element and its attributes:
 </StyledAtom>
 ```
 
-Without `scope`, the root selector is `.preview-card`; add that class to your
-own markup when root declarations should apply.
+The wrapper exposes `loading`, `ready` or `failed` through `data-styled-atom-status`.
 
 </details>
 
-<details>
-<summary><b>Compiler contract</b></summary>
+<h2></h2>
 
-The compiler supports camelCase declarations, custom properties, numeric `px`
-conversion, selector lists, `&`, media/supports/container/layer rules,
-keyframes, `@font-face`, `@page` and fallback declaration arrays.
+<details><summary><b>Store-bound usage</b>: <em>load and share CSS files</em></summary><br />
 
-```ts
-const color = {
-  display: ["-webkit-box", "flex"],
-  color: ["#0969da", "oklch(55% 0.2 250)"],
-} satisfies StyledAtomStyles;
+<b>Description:</b><em><br />
+Registers requested CSS files in a shared runtime. Equal file identities share one head style element and one reference count.
+</em><br />
+
+<b>Example:</b><br />
+
+```tsx
+<styles.StyledAtom
+  files={["tokens", "preview-card"]}
+  scope="preview-surface"
+  fallback={<span>Loading…</span>}
+  errorFallback={({ retry }) => (
+    <button type="button" onClick={retry}>Retry styles</button>
+  )}
+>
+  {({ status }) => <PreviewCard status={status} />}
+</styles.StyledAtom>
 ```
 
-Output is flat CSS. Native CSS Nesting is not part of the v4 contract.
-Compilation is cached by style-object identity and scope, so reusable objects
-should stay immutable. Development detects mutations and recompiles; production
-keeps the faster identity cache.
-
-Inline objects compile at runtime. A future build transform may precompile
-static objects while preserving this JSX syntax and keeping dynamic values as
-the runtime fallback.
+Imported CSS is not rewritten. It must contain any selector used by its scope wrapper.
 
 </details>
 
-## CSS files
+</div></ul></details>
 
-Create one store for a shell, workspace or isolated UI surface:
+<h2></h2>
+
+<details><summary><b><code>createStyledAtomStore</code></b>: <em>bind the runtime to React</em></summary><br /><ul><div>
+
+<b>Description:</b><em><br />
+Creates one React-bound runtime and a typed <code>StyledAtom</code> component. Use one store for a shell, workspace or isolated UI surface.
+</em><br />
+
+<b>Example:</b><br />
 
 ```tsx
 import { createStyledAtomStore } from "styled-atom/react";
@@ -126,122 +200,69 @@ export const styles = createStyledAtomStore<StyleFile>({
 });
 ```
 
-```tsx
-<styles.StyledAtom files={["tokens", "preview-card"]} scope>
-  <PreviewCard />
-</styles.StyledAtom>
+Vite's ordinary `.css` import injects CSS itself. Use `?inline` when the store should receive and own the CSS text.
+
+<b>Return:</b><br />
+
+- `StyledAtom` - component bound to this store.
+- `configure(options)` - update loader, target, placement, nonce, order or `sourceURL` defaults.
+- `preload(files)` - keep shared styles mounted without a component.
+- `reload(files?)` - call the loader again for mounted files.
+- `replace(styles)` - update mounted CSS without calling the loader.
+- `retry(id?)` - retry failed atoms.
+- `inspect()` - read lifecycle, ownership, target, precedence and CSS-size diagnostics.
+- `dispose()` - release every atom owned by the store.
+
+</div></ul></details>
+
+<h2></h2>
+
+<details><summary><b><code>createStyleRuntime</code></b>: <em>use the lifecycle without React</em></summary><br /><ul><div>
+
+```ts
+import { createStyleRuntime } from "styled-atom";
+
+const runtime = createStyleRuntime({
+  loader: (name) => fetch(`/styles/${name}.css`).then((response) => {
+    if (!response.ok) throw new Error(`CSS request failed: ${response.status}`);
+    return response.text();
+  }),
+});
+
+const atom = runtime.registerAtom({ files: ["tokens", "screen"] });
+const unsubscribe = atom.subscribe(() => {
+  console.log(atom.getSnapshot().status);
+});
+
+atom.dispose();
+unsubscribe();
 ```
 
-Use Vite's `?inline` query so `styled-atom`, rather than Vite, owns injection.
-Imported CSS is not rewritten. A file must contain any selector used by its
-scope wrapper.
+The core entry does not import React. Framework adapters only need to register after mount and dispose on unmount.
 
-## Lifecycle
+</div></ul></details>
 
-Every atom is `loading`, `ready` or `failed`:
+<h2></h2>
 
-```tsx
-<styles.StyledAtom
-  files="preview-card"
-  scope="preview-surface"
-  fallback={<Spinner />}
-  errorFallback={({ errors, retry }) => (
-    <button type="button" onClick={retry}>
-      Retry {errors[0].source}
-    </button>
-  )}
->
-  {({ status }) => <Preview status={status} />}
-</styles.StyledAtom>
-```
+<details><summary><b><code>compileStyleAtomStyles</code></b>: <em>compile a stylesheet object without mounting it</em></summary><br /><ul><div>
 
-Children render while files load. Passing `fallback`, or `render="ready"`,
-waits for CSS. Use `onStatusChange`, `onReady` and `onError` for reporting.
+```ts
+import { compileStyleAtomStyles } from "styled-atom";
 
-## Placement and targets
-
-Head placement is the default. Equal style identities share one `<style>` and
-one reference count, including across stores and physical package copies.
-Identity conflicts become `failed` instead of overwriting another owner.
-
-```tsx
-const styles = createStyledAtomStore({
-  namespace: "preview",
-  target: () => iframeRef.current?.contentDocument,
-  nonce: requestNonce,
-  loader,
+const css = compileStyleAtomStyles("preview-card", {
+  display: "grid",
+  gap: 12,
+  ".title": { fontWeight: 700 },
 });
 ```
 
-`target` accepts a `Document`, `ShadowRoot`, element or lazy callback. A missing
-explicit target fails safely; call `retry()` when an iframe or portal target is
-ready.
+The first argument is the root class name. `compileStyles` is an alias for the same compiler.
 
-<details>
-<summary><b>Inline placement and portals</b></summary>
+</div></ul></details>
 
-Use inline placement when a style tag should travel through a portal with its
-content:
+<h2></h2>
 
-```tsx
-createPortal(
-  <StyledAtom name="portal-card" placement="inline" style={portalStyle}>
-    <PortalCard />
-  </StyledAtom>,
-  portalRoot,
-);
-```
-
-Inline styles are local but not DOM-deduplicated. Prefer head placement unless
-locality is required.
-
-</details>
-
-<details>
-<summary><b>Ordering and microfrontends</b></summary>
-
-Use `order` on the store or `precedence` on one atom. Mount timing and the order
-of a `files` array do not define the cascade.
-
-Use a shared namespace for shared CSS contracts and distinct namespaces for
-private microfrontend styles. Same-origin iframe runtimes can coordinate through
-the target document; cross-origin iframes need their own runtime.
-
-</details>
-
-## Runtime commands
-
-```ts
-styles.reload("preview-card");
-styles.replace([{ file: "preview-card", css: nextCss }]);
-
-const shell = styles.preload(["reset", "tokens"]);
-const report = styles.inspect();
-
-shell.dispose();
-```
-
-- `reload()` calls the loader again;
-- `replace()` updates mounted CSS without a loader round trip;
-- `preload()` keeps shared styles mounted without a component;
-- `inspect()` returns public lifecycle and ownership diagnostics;
-- `retry()` retries failed atoms.
-
-Stale async responses cannot replace a newer revision.
-
-## Source maps
-
-Development and test builds add a stable `sourceURL` when CSS does not already
-have one. Production omits generated URLs. Set `sourceURL: true` or `false` to
-override that default.
-
-`sourceURL` gives injected CSS a readable virtual filename. A real map back to
-Sass or another source must come from that transformer. Existing `sourceURL`
-and `sourceMappingURL` comments are preserved.
-
-## Server rendering
-
-Create the collector and store per request. Initial CSS must be synchronous:
+<details><summary><b><code>createStyleCollector</code></b>: <em>collect head styles during SSR</em></summary><br /><ul><div>
 
 ```tsx
 const collector = createStyleCollector();
@@ -260,106 +281,120 @@ const app = renderToString(
 const styleTags = collector.getStyleTags();
 ```
 
-Keep the namespace and manifest stable on the client so it adopts server style
-elements instead of inserting duplicates.
+Create the collector and store per request. Keep the namespace and initial manifest stable on the client so matching server style elements are adopted instead of duplicated.
 
-<details>
-<summary><b>Next.js App Router</b></summary>
+</div></ul></details>
 
-Use a Client Component registry with `useServerInsertedHTML`. Keep one collector
-per request, call `getStyles()`, render the returned entries as `<style>` nodes,
-then call `clear()`. Wrap client components using `StyledAtom` in the matching
-`StyleCollectorProvider`.
+</div></ul>
+
+<h2></h2>
+
+### Patterns
+
+<details><summary><b>Typed inline styles</b>: <em>keep style data outside render markup</em></summary><br />
+
+```tsx
+import { StyledAtom, type StyledAtomStyles } from "styled-atom/react";
+
+const splashStyle: StyledAtomStyles = {
+  display: "grid",
+  placeItems: "center",
+  minHeight: "100vh",
+  backgroundColor: "#fff",
+  ".logo": { width: 96 },
+};
+
+export function SplashScreen() {
+  return (
+    <StyledAtom name="splash-screen" scope style={splashStyle}>
+      <img className="logo" src="/logo.svg" alt="" />
+    </StyledAtom>
+  );
+}
+```
+
+Reusable style objects should remain immutable. Compilation is cached by object identity and scope.
 
 </details>
 
-## Core API
+<details><summary><b>Shared CSS atoms</b>: <em>keep shell styles mounted while they are needed</em></summary><br />
 
-The root entry has no React dependency:
+```tsx
+export function HostStyledShell({ children }) {
+  return (
+    <styles.StyledAtom files={["reset", "theme"]}>
+      {children}
+    </styles.StyledAtom>
+  );
+}
+```
 
-```ts
-import { createStyleRuntime } from "styled-atom";
+Many consumers of the same identity still produce one head `<style>`. Many unique active identities produce many elements, so stable application CSS can stay in ordinary extracted bundles.
 
-const runtime = createStyleRuntime({ loader });
-const atom = runtime.registerAtom({ files: ["tokens", "screen"] });
+</details>
 
-const unsubscribe = atom.subscribe(() => {
-  console.log(atom.getSnapshot().status);
+<details><summary><b>Lifecycle and recovery</b>: <em>make loading and failures explicit</em></summary><br />
+
+Every atom is `loading`, `ready` or `failed`. Children render eagerly by default. Passing `fallback`, or setting `render="ready"`, waits for CSS. Loader, target and ownership failures remain retryable.
+
+Use `onStatusChange`, `onReady` and `onError` for external reporting. Scoped wrappers expose the same state as `data-styled-atom-status`.
+
+</details>
+
+<details><summary><b>Portals, iframes and Shadow DOM</b>: <em>mount CSS into the correct document</em></summary><br />
+
+```tsx
+const previewStyles = createStyledAtomStore({
+  namespace: "preview",
+  target: () => iframeRef.current?.contentDocument,
+  loader,
 });
 
-atom.dispose();
-unsubscribe();
+iframe.addEventListener("load", () => previewStyles.retry());
 ```
 
-## Troubleshooting
+`target` accepts a `Document`, `ShadowRoot`, element or lazy callback. A missing explicit target fails safely instead of leaking CSS into the host document.
 
-<details>
-<summary><b>The atom stays in <code>loading</code></b></summary>
-
-Check that the loader settles and returns CSS text. Use `inspect()` to find the
-active entry.
+Use `placement="inline"` when the style tag must travel through a React portal with its content. Prefer head placement when the destination document can be supplied as a target.
 
 </details>
 
-<details>
-<summary><b>The atom fails with a target error</b></summary>
+<details><summary><b>Cascade and microfrontends</b>: <em>keep ordering and ownership deterministic</em></summary><br />
 
-Resolve iframe and Shadow DOM targets lazily, then call `retry()` when the target
-exists. An explicit missing target never falls back to the host document.
+Use `order` on the store or `precedence` on one atom. Component mount timing and the order of a `files` array do not define the cascade.
 
-</details>
-
-<details>
-<summary><b>The atom fails with a conflict</b></summary>
-
-Every owner of the same namespace, kind and name must agree on CSS, nonce and
-precedence. Change the namespace or make the shared contract identical.
+Equal namespaces and names declare one shared CSS resource across stores and physical package copies. Incompatible CSS, nonce or precedence becomes a `failed` conflict instead of overwriting another owner. Use separate namespaces for private microfrontend styles.
 
 </details>
 
-<details>
-<summary><b>The document has many style elements</b></summary>
-
-Many consumers of one atom still produce one head `<style>`. Many unique active
-atoms produce many elements. Reuse stable names and style objects, and keep bulk
-application CSS in ordinary bundles.
-
-</details>
-
-## Tradeoffs
-
-- inline objects compile at runtime, with identity caching for repeat work;
-- each unique active head atom owns one style element;
-- the object compiler covers focused styling, while CSS files remain the escape
-  hatch for syntax outside its contract;
-- cascade order is explicit through `order` and `precedence`;
-- dynamic insertion must satisfy the application's CSP through a nonce or an
-  allowed stylesheet policy.
-
-These costs stay local: stable application CSS can remain in traditional
-bundles while `styled-atom` manages only dynamic surfaces.
-
-## Framework recipes
-
-Every framework uses the same core lifecycle: register after mount, subscribe
-when UI needs state, and dispose on unmount.
+<details><summary><b>Development reload</b>: <em>update CSS without remounting previews</em></summary><br />
 
 ```ts
-import { createStyleRuntime } from "styled-atom";
-
-export const runtime = createStyleRuntime({ loader });
+styles.replace([{ file: changedFileName, css: nextCssText }]);
+styles.reload(["main", "card"]);
 ```
 
-<details>
-<summary><b>React and Vite</b></summary>
+`replace()` updates CSS directly. `reload()` asks the loader for fresh CSS. Stale async responses cannot overwrite a newer revision.
 
-Use `createStyledAtomStore` and load CSS as text with `?inline`. The returned
-`StyledAtom` component owns registration and cleanup.
+Development and test builds also add a readable `sourceURL`. Production omits generated URLs. Set `sourceURL: true` or `false` to override the environment default. Existing `sourceURL` and `sourceMappingURL` comments are preserved.
 
 </details>
 
-<details>
-<summary><b>Vue</b></summary>
+<details><summary><b>Content Security Policy</b>: <em>apply a nonce to dynamic style elements</em></summary><br />
+
+```ts
+const styles = createStyledAtomStore({ nonce: requestNonce, loader });
+```
+
+Style objects and loader results are trusted CSS. Validate untrusted input before compiling or mounting it.
+
+</details>
+
+<h2></h2>
+
+### Framework recipes
+
+<details><summary><b>Vue</b>: <em>bind the core runtime to component lifecycle</em></summary><br />
 
 ```ts
 import { onMounted, onUnmounted } from "vue";
@@ -377,8 +412,7 @@ onUnmounted(() => atom?.dispose());
 
 </details>
 
-<details>
-<summary><b>Svelte</b></summary>
+<details><summary><b>Svelte</b>: <em>return cleanup from <code>onMount</code></em></summary><br />
 
 ```svelte
 <script lang="ts">
@@ -394,8 +428,7 @@ onUnmounted(() => atom?.dispose());
 
 </details>
 
-<details>
-<summary><b>Solid</b></summary>
+<details><summary><b>Solid</b>: <em>release the atom from the cleanup scope</em></summary><br />
 
 ```tsx
 import { onCleanup, onMount } from "solid-js";
@@ -413,6 +446,36 @@ onCleanup(() => atom?.dispose());
 
 </details>
 
-## License
+<h2></h2>
 
-MIT
+### Troubleshooting
+
+<details><summary><b>The atom stays in <code>loading</code></b></summary><br />
+
+Check that the loader settles and returns CSS text. Use `inspect()` to find the active entry.
+
+</details>
+
+<details><summary><b>The atom fails with a target error</b></summary><br />
+
+Resolve iframe and Shadow DOM targets lazily, then call `retry()` when the target exists. An explicit missing target never falls back to the host document.
+
+</details>
+
+<details><summary><b>The atom fails with a conflict</b></summary><br />
+
+Every owner of the same namespace, kind and name must agree on CSS, nonce and precedence. Change the namespace or make the shared contract identical.
+
+</details>
+
+<details><summary><b>Developer tools show generated CSS instead of Sass</b></summary><br />
+
+`sourceURL` names generated CSS. Mapping declarations back to Sass requires a `sourceMappingURL` produced by the Sass or build pipeline and preserved in the CSS string.
+
+</details>
+
+<h2></h2>
+
+### License
+
+- [MIT](./LICENSE)

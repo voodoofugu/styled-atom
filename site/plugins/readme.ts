@@ -30,10 +30,15 @@ const plain = (html: string) =>
     .trim();
 
 const siteLinks = (markdown: string) =>
-  markdown.replace(
-    /\(\.\/CHANGELOG\.md\)/g,
-    "(https://github.com/voodoofugu/styled-atom/blob/main/CHANGELOG.md)",
-  );
+  markdown
+    .replace(
+      /\(\.\/CHANGELOG\.md\)/g,
+      "(https://github.com/voodoofugu/styled-atom/blob/main/CHANGELOG.md)",
+    )
+    .replace(
+      /\(\.\/LICENSE\)/g,
+      "(https://github.com/voodoofugu/styled-atom/blob/main/LICENSE)",
+    );
 
 const render = (markdown: string) =>
   marked.parse(siteLinks(markdown), { async: false }) as string;
@@ -41,19 +46,22 @@ const render = (markdown: string) =>
 const parseReadme = (source: string) => {
   const cleaned = source
     .replace(/^!\[[^\]]*\]\([^\n]+\)\s*/m, "")
-    .replace(/^# styled-atom\s*/m, "")
     .trim();
-  const headings = [...cleaned.matchAll(/^## (.+)$/gm)];
-  const introMarkdown = cleaned.slice(0, headings[0]?.index ?? cleaned.length).trim();
-  const sections = headings.map((heading, index) => {
+  const headings = [...cleaned.matchAll(/^### (.+)$/gm)];
+  const parsed = headings.map((heading, index) => {
     const title = heading[1].trim();
     const start = heading.index! + heading[0].length;
     const end = headings[index + 1]?.index ?? cleaned.length;
-    const markdown = cleaned.slice(start, end).trim();
+    const markdown = cleaned
+      .slice(start, end)
+      .replace(/(?:\s*<h2><\/h2>\s*)+$/, "")
+      .trim();
     const html = render(markdown);
     return { id: slug(title), title, html, text: plain(html) };
   });
-  return { intro: render(introMarkdown), sections };
+  const sections = parsed.filter((section) => section.id !== "table-of-contents");
+  const about = sections.find((section) => section.id === "about");
+  return { intro: about?.html ?? "", sections };
 };
 
 export default function readmePlugin(): Plugin {
