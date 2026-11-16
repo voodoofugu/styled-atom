@@ -8,7 +8,6 @@ import "prismjs/components/prism-typescript";
 
 import type { MorphScrollHandle } from "morphing-scroll";
 
-import logo from "../../src/assets/styled-atom-logo.png";
 import {
   createStyledAtomStore,
   StyledAtom,
@@ -89,7 +88,61 @@ function ThemeControl({
 function Body({ html }: { html: string }) {
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
-    if (ref.current) Prism.highlightAllUnder(ref.current);
+    const root = ref.current;
+    if (!root) return;
+
+    Prism.highlightAllUnder(root);
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    );
+    const cleanups = Array.from(root.querySelectorAll("details")).map(
+      (details) => {
+        const summary = details.querySelector(":scope > summary");
+        if (!summary) return () => undefined;
+
+        let animation: Animation | undefined;
+        const toggle = (event: Event) => {
+          event.preventDefault();
+          animation?.cancel();
+
+          const opening = !details.open;
+          if (reducedMotion.matches) {
+            details.open = opening;
+            return;
+          }
+
+          const start = details.getBoundingClientRect().height;
+          if (opening) details.open = true;
+          const end = opening
+            ? details.scrollHeight
+            : summary.getBoundingClientRect().height;
+
+          details.style.height = `${start}px`;
+          details.style.overflow = "hidden";
+          animation = details.animate(
+            { height: [`${start}px`, `${end}px`] },
+            { duration: 180, easing: "ease-out" },
+          );
+          animation.addEventListener("finish", () => {
+            if (!opening) details.open = false;
+            details.style.removeProperty("height");
+            details.style.removeProperty("overflow");
+            animation = undefined;
+          });
+        };
+
+        summary.addEventListener("click", toggle);
+        return () => {
+          animation?.cancel();
+          summary.removeEventListener("click", toggle);
+          details.style.removeProperty("height");
+          details.style.removeProperty("overflow");
+        };
+      },
+    );
+
+    return () => cleanups.forEach((cleanup) => cleanup());
   }, [html]);
   return (
     <div
@@ -388,13 +441,16 @@ function App() {
     <div className="app-shell">
       <header className="top-bar">
         <a className="brand" href="#/">
-          <img alt="styled-atom" src={logo} /><small>v4</small>
+          <span
+            aria-hidden="true"
+            className="brand-logo"
+          />
+          <span>styled-atom</span>
+          <small>v4</small>
         </a>
         <nav aria-label="Primary">
-          <a aria-current={!id ? "page" : undefined} href="#/">docs</a>
-          <a href="https://www.npmjs.com/package/styled-atom">npm</a>
           <a href="https://github.com/voodoofugu/styled-atom">github</a>
-          <a href="https://github.com/voodoofugu/styled-atom/blob/main/CHANGELOG.md">changelog</a>
+          <a href="https://www.npmjs.com/package/styled-atom">npm</a>
         </nav>
         <ThemeControl setTheme={setTheme} theme={theme} />
       </header>

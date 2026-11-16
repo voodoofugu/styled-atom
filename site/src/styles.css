@@ -71,9 +71,18 @@ code { font-family: var(--mono); }
   text-decoration: none;
 }
 
-.brand img {
-  width: auto;
+.brand-logo {
+  width: 24px;
   height: 24px;
+  background: var(--accent);
+  -webkit-mask-image: url("../../src/assets/styled-atom-logo.svg");
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-image: url("../../src/assets/styled-atom-logo.svg");
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
 }
 
 .brand small {
@@ -108,12 +117,6 @@ code { font-family: var(--mono); }
 }
 
 .top-bar nav a:hover { background: var(--card); color: var(--ink); }
-.top-bar nav a[aria-current] {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-  box-shadow: inset 0 0 0 1px var(--accent-ink);
-}
-
 .theme-control {
   display: flex;
   justify-self: end;
@@ -413,7 +416,6 @@ code { font-family: var(--mono); }
   font-size: 12.5px;
   line-height: 1.65;
   padding: 17px 19px;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.18);
 }
 
 .doc-body pre code { font-family: var(--mono); }
@@ -425,6 +427,7 @@ code { font-family: var(--mono); }
 }
 
 .doc-body details {
+  overflow: clip;
   margin: 10px 0;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -439,6 +442,7 @@ code { font-family: var(--mono); }
   font-size: 13px;
   font-weight: 750;
   list-style: none;
+  border-radius: 9px;
   padding: 11px 38px 11px 14px;
 }
 
@@ -454,6 +458,7 @@ code { font-family: var(--mono); }
   transform: translateY(-50%);
 }
 .doc-body details[open] > summary {
+  border-radius: 9px 9px 0 0;
   border-bottom: 1px solid var(--line);
   background: var(--accent-soft);
   color: var(--accent-ink);
@@ -493,6 +498,8 @@ code { font-family: var(--mono); }
   gap: 12px;
 }
 .lab-controls {
+  position: relative;
+  z-index: 1;
   display: grid;
   align-content: start;
   gap: 16px;
