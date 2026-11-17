@@ -199,6 +199,7 @@ code { font-family: var(--mono); }
 .docs-found {
   --docs-arrow-corner: 0.75rem;
   padding-block: 4px 18px;
+  padding-right: 4px;
 }
 
 .docs-tree ul,
@@ -318,6 +319,17 @@ code { font-family: var(--mono); }
 .docs-tree-row.is-current {
   transform: translateY(-1px);
   filter: drop-shadow(2px 2px 0 var(--accent-ink));
+}
+
+.docs-tree-row.is-ancestor {
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--accent-soft) 68%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent-ink);
+}
+
+.docs-tree-row.is-ancestor > .docs-tree-link > a,
+.docs-tree-row.is-ancestor .docs-tree-toggle {
+  color: var(--accent-ink);
 }
 
 .docs-tree-row.is-current::before,
@@ -471,8 +483,17 @@ code { font-family: var(--mono); }
   align-items: center;
 }
 
-.site-footer a { color: var(--ink-soft); text-decoration: none; }
-.site-footer a:hover { color: var(--accent-ink); }
+.site-footer a {
+  background: linear-gradient(currentColor, currentColor) left bottom / 0 1px no-repeat;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 160ms ease, background-size 180ms ease;
+}
+.site-footer a:hover,
+.site-footer a:focus-visible {
+  background-size: 100% 1px;
+  color: var(--accent-ink);
+}
 .site-footer a::after { content: "↗" / ""; margin-left: 4px; }
 
 .doc-crumbs {
