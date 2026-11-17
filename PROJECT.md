@@ -93,6 +93,8 @@ The core must be usable without React and must not import React types.
 - Browser behavior is checked in Chromium, Firefox and WebKit. Performance
   benchmarks run separately with one worker so they do not make correctness CI
   flaky or distort measurements through contention.
+- A production Next.js App Router fixture verifies the packaged React client
+  boundary, server pre-render, hydration reuse and a client-side style update.
 - Release checks include lint, typecheck, tests, site build, package build,
   tarball inspection and package-resolution smoke tests.
 - Every public export and its practical properties are documented with JSDoc in

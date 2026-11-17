@@ -10,6 +10,7 @@ export default [
       "publish/**",
       "node_modules/**",
       "dist/**",
+      "**/.next/**",
       "site/dist/**",
       "test-results/**",
       "playwright-report/**",

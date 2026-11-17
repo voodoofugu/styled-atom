@@ -6,3 +6,4 @@ dist
 example/dist
 test-results
 playwright-report
+.next

@@ -29,6 +29,8 @@ Semantic Versioning.
   without running the compiler again in the browser.
 - A `"use client"` boundary on the React entry for React Server Component
   bundlers.
+- A production Next.js App Router fixture covering a Server Component import,
+  SSR inline CSS reuse, hydration and a dynamic client update.
 - Scope wrapper configuration and render-function children.
 - Conflict reporting for simultaneously mounted inline atoms that reuse a name
   with different CSS.

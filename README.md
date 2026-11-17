@@ -405,6 +405,26 @@ Style objects and loader results are trusted CSS. Validate untrusted input befor
 
 ### Framework recipes
 
+<details><summary><b>Next.js App Router</b>: <em>render from a Server Component boundary</em></summary><br />
+
+```tsx
+import { StyledAtom } from "styled-atom/react";
+
+const style = { color: "rebeccapurple" };
+
+export default function Page() {
+  return (
+    <StyledAtom inlinePlacement name="server-card" scope style={style}>
+      <article>Server-rendered content</article>
+    </StyledAtom>
+  );
+}
+```
+
+The React entry declares its own `"use client"` boundary, so a Server Component can import it directly. Plain style data is serializable; create stores, callbacks and DOM targets inside a client module. `inlinePlacement` keeps CSS in the pre-rendered subtree, and matching input reuses it during hydration without compiling again.
+
+</details>
+
 <details><summary><b>Vue</b>: <em>bind the core runtime to component lifecycle</em></summary><br />
 
 ```ts
