@@ -43,6 +43,90 @@ const siteLinks = (markdown: string) =>
 const render = (markdown: string) =>
   marked.parse(siteLinks(markdown), { async: false }) as string;
 
+type ParsedSection = {
+  id: string;
+  title: string;
+  lead: string;
+  html: string;
+  text: string;
+  children: ParsedSection[];
+};
+
+type DetailBlock = {
+  start: number;
+  end: number;
+  source: string;
+};
+
+const topLevelDetails = (markdown: string) => {
+  const blocks: DetailBlock[] = [];
+  const tags = markdown.matchAll(/<\/?details\b[^>]*>/gi);
+  let depth = 0;
+  let start = -1;
+
+  for (const tag of tags) {
+    const closing = tag[0].startsWith("</");
+    if (!closing) {
+      if (depth === 0) start = tag.index!;
+      depth += 1;
+      continue;
+    }
+
+    depth -= 1;
+    if (depth === 0 && start >= 0) {
+      const end = tag.index! + tag[0].length;
+      blocks.push({ start, end, source: markdown.slice(start, end) });
+      start = -1;
+    }
+  }
+
+  return blocks;
+};
+
+const withoutBlocks = (markdown: string, blocks: DetailBlock[]) => {
+  let result = markdown;
+  [...blocks].reverse().forEach(({ start, end }) => {
+    result = `${result.slice(0, start)}${result.slice(end)}`;
+  });
+  return result;
+};
+
+const cleanDetailBody = (markdown: string) =>
+  markdown
+    .replace(/(?:\s*<h2><\/h2>\s*)+/g, "\n")
+    .replace(/^\s*<br\s*\/?>(?:\s*<ul><div>)?\s*/i, "")
+    .replace(/\s*<\/div><\/ul>\s*$/i, "")
+    .trim();
+
+const parseDetails = (markdown: string, parentId: string): ParsedSection[] =>
+  topLevelDetails(markdown).map((block) => {
+    const inner = block.source
+      .replace(/^<details\b[^>]*>/i, "")
+      .replace(/<\/details>\s*$/i, "")
+      .trim();
+    const summaryMatch = inner.match(/^\s*<summary>([\s\S]*?)<\/summary>/i);
+    const summaryHtml = summaryMatch?.[1] ?? "Untitled";
+    const summaryText = plain(summaryHtml);
+    const separator = summaryText.indexOf(":");
+    const title = (separator === -1 ? summaryText : summaryText.slice(0, separator)).trim();
+    const lead = separator === -1 ? "" : summaryText.slice(separator + 1).trim();
+    const id = `${parentId}/${slug(title)}`;
+    const content = inner.slice(summaryMatch?.[0].length ?? 0).trim();
+    const childBlocks = topLevelDetails(content);
+    const body = cleanDetailBody(withoutBlocks(content, childBlocks));
+    const html = body ? render(body) : "";
+    const children = parseDetails(content, id);
+
+    return {
+      id,
+      title,
+      lead,
+      html,
+      text: plain(`${lead} ${html} ${children.map((child) => child.text).join(" ")}`),
+      children,
+    };
+  });
+
 const parseReadme = (source: string) => {
   const cleaned = source
     .replace(/^!\[[^\]]*\]\([^\n]+\)\s*/m, "")
@@ -56,8 +140,19 @@ const parseReadme = (source: string) => {
       .slice(start, end)
       .replace(/(?:\s*<h2><\/h2>\s*)+$/, "")
       .trim();
-    const html = render(markdown);
-    return { id: slug(title), title, html, text: plain(html) };
+    const id = slug(title);
+    const detailBlocks = topLevelDetails(markdown);
+    const body = cleanDetailBody(withoutBlocks(markdown, detailBlocks));
+    const html = body ? render(body) : "";
+    const children = parseDetails(markdown, id);
+    return {
+      id,
+      title,
+      lead: "",
+      html,
+      text: plain(`${html} ${children.map((child) => child.text).join(" ")}`),
+      children,
+    };
   });
   const sections = parsed.filter((section) => section.id !== "table-of-contents");
   const about = sections.find((section) => section.id === "about");
