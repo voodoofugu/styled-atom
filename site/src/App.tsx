@@ -15,7 +15,6 @@ import {
   type StyledAtomStyles,
 } from "styled-atom/react";
 import readme, { type ReadmeSection } from "virtual:styled-atom-readme";
-import packageInfo from "../../package.json";
 
 import ChromeScroll from "./ChromeScroll";
 
@@ -466,8 +465,10 @@ function Tree({
 
         return (
           <li key={section.id}>
-            <div className="docs-tree-row">
-              <span className={`docs-tree-link${isCurrent ? " is-current" : ""}`}>
+            <div
+              className={`docs-tree-row${hasChildren ? " has-children" : ""}${isCurrent ? " is-current" : ""}`}
+            >
+              <span className="docs-tree-link">
                 <a
                   aria-current={isCurrent ? "page" : inside || undefined}
                   href={`#/${section.id}`}
@@ -482,9 +483,7 @@ function Tree({
                   className="docs-tree-toggle"
                   onClick={() => onToggle(section.id, open)}
                   type="button"
-                >
-                  <span aria-hidden="true">›</span>
-                </button>
+                />
               )}
             </div>
             {hasChildren && (
@@ -519,14 +518,11 @@ function Footer() {
   return (
     <footer className="site-footer">
       <div>
-        <strong>styled-atom</strong>
-        <span>v{packageInfo.version}</span>
         <span>© {new Date().getFullYear()} voodoofugu</span>
       </div>
       <nav aria-label="Project links">
         <a href="https://www.npmjs.com/package/styled-atom">npm</a>
         <a href="https://github.com/voodoofugu/styled-atom">github</a>
-        <a href="https://github.com/voodoofugu/styled-atom/blob/main/CHANGELOG.md">changelog</a>
         <a href="https://resume.voodoofugu.com/?lang=ru">author</a>
       </nav>
     </footer>
@@ -578,7 +574,15 @@ function App() {
       </header>
 
       <div className="docs-shell">
-        <aside className="docs-nav">
+        <main className="docs-main">
+          <ChromeScroll
+            controls={{ keys: true }}
+            ref={page}
+            wrapper={{ margin: [24, 18, 24, 0] }}
+          >
+            <div className="docs-content">
+              <div className="docs-body">
+                <aside className="docs-nav">
           <input
             aria-label="Search documentation"
             className="docs-search"
@@ -606,9 +610,11 @@ function App() {
                 </ul>
               ) : (
                 <nav aria-label="Documentation" className="docs-tree">
-                  <span className={`docs-tree-link${!id ? " is-current" : ""}`}>
-                    <a aria-current={!id ? "page" : undefined} href="#/">Overview</a>
-                  </span>
+                  <div className={`docs-tree-row${!id ? " is-current" : ""}`}>
+                    <span className="docs-tree-link">
+                      <a aria-current={!id ? "page" : undefined} href="#/">Overview</a>
+                    </span>
+                  </div>
                   <Tree
                     current={id}
                     expanded={expanded}
@@ -619,18 +625,13 @@ function App() {
               )}
             </ChromeScroll>
           </div>
-        </aside>
-
-        <main className="docs-main">
-          <ChromeScroll
-            controls={{ keys: true }}
-            ref={page}
-            wrapper={{ margin: [24, 18, 24, 0] }}
-          >
-            <div className="docs-content">
-              {!id ? <Overview /> : current ? <DocumentationPage section={current} /> : (
-                <article className="doc-page"><h1>Not found</h1><p>This documentation section does not exist.</p></article>
-              )}
+                </aside>
+              <div className="docs-page-slot">
+                {!id ? <Overview /> : current ? <DocumentationPage section={current} /> : (
+                  <article className="doc-page"><h1>Not found</h1><p>This documentation section does not exist.</p></article>
+                )}
+              </div>
+              </div>
               <Footer />
             </div>
           </ChromeScroll>
