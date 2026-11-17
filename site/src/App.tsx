@@ -503,14 +503,16 @@ function Tree({
 function Footer() {
   return (
     <footer className="site-footer">
-      <div>
-        <span>© {new Date().getFullYear()} voodoofugu</span>
+      <div className="site-footer-inner">
+        <div>
+          <span>© {new Date().getFullYear()} voodoofugu</span>
+        </div>
+        <nav aria-label="Project links">
+          <a href="https://www.npmjs.com/package/styled-atom">npm</a>
+          <a href="https://github.com/voodoofugu/styled-atom">github</a>
+          <a href="https://resume.voodoofugu.com/?lang=ru">author</a>
+        </nav>
       </div>
-      <nav aria-label="Project links">
-        <a href="https://www.npmjs.com/package/styled-atom">npm</a>
-        <a href="https://github.com/voodoofugu/styled-atom">github</a>
-        <a href="https://resume.voodoofugu.com/?lang=ru">author</a>
-      </nav>
     </footer>
   );
 }
@@ -548,15 +550,17 @@ function App() {
   return (
     <div className="app-shell">
       <header className="top-bar">
-        <a className="brand" href="#/">
-          <span
-            aria-hidden="true"
-            className="brand-logo"
-          />
-          <span className="brand-name">styled-atom</span>
-          <small>v4</small>
-        </a>
-        <ThemeControl setTheme={setTheme} theme={theme} />
+        <div className="top-bar-inner">
+          <a className="brand" href="#/">
+            <span
+              aria-hidden="true"
+              className="brand-logo"
+            />
+            <span className="brand-name">styled-atom</span>
+            <small>v4</small>
+          </a>
+          <ThemeControl setTheme={setTheme} theme={theme} />
+        </div>
       </header>
 
       <div className="docs-shell">
@@ -564,7 +568,6 @@ function App() {
           <ChromeScroll
             controls={{ keys: true }}
             ref={page}
-            wrapper={{ margin: [24, 18, 24, 0] }}
           >
             <div className="docs-content">
               <div className="docs-body">
