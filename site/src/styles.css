@@ -351,11 +351,12 @@ code { font-family: var(--mono); }
 
 .docs-tree-branch > div {
   min-height: 0;
+  margin-right: -4px;
   overflow: hidden;
+  padding-right: 4px;
 }
 
 .docs-tree-branch > div > ul {
-  padding-right: 4px;
   padding-bottom: 3px;
 }
 
@@ -390,15 +391,15 @@ code { font-family: var(--mono); }
 
 .docs-tree-row.is-ancestor::after {
   z-index: 0;
-  inset: 1px;
-  border-radius: 0 5px 5px 0;
+  inset: 0;
+  border-radius: 0 6px 6px 0;
   background: color-mix(in srgb, var(--accent-soft) 68%, var(--bg));
   clip-path: polygon(
-    calc(var(--docs-arrow-corner) - 1px) 0,
+    var(--docs-arrow-corner) 0,
     100% 0,
     100% 100%,
-    calc(var(--docs-arrow-corner) - 1px) 100%,
-    0 50%
+    var(--docs-arrow-corner) 100%,
+    1px 50%
   );
 }
 
