@@ -1,25 +1,42 @@
-import globals from "globals";
 import pluginJs from "@eslint/js";
-import tseslint from "typescript-eslint";
 import pluginReact from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
 export default [
-  { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"] },
-  { languageOptions: { globals: globals.browser } },
+  {
+    ignores: [
+      "publish/**",
+      "node_modules/**",
+      "dist/**",
+      "site/dist/**",
+      "test-results/**",
+      "playwright-report/**",
+    ],
+  },
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
-  pluginReact.configs.flat.recommended,
   {
-    rules: {
-      // "@typescript-eslint/no-explicit-any": "off",
-      "react/react-in-jsx-scope": "off",
-    },
-  },
-  {
-    settings: {
-      react: {
-        version: "detect",
+    files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
       },
+    },
+    plugins: {
+      react: pluginReact,
+      "react-hooks": reactHooks,
+    },
+    settings: {
+      react: { version: "detect" },
+    },
+    rules: {
+      "react/prop-types": "off",
+      "react/react-in-jsx-scope": "off",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "off",
     },
   },
 ];

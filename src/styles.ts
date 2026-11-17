@@ -1,4 +1,8 @@
-import type { StyleAtomStyles } from "./types";
+import type {
+  StyleAtomCssScalar,
+  StyleAtomCssValue,
+  StyleAtomStyles,
+} from "./types";
 
 const unitlessCssProperties = new Set([
   "animation-iteration-count",
@@ -27,12 +31,20 @@ const unitlessCssProperties = new Set([
   "grid-column-span",
   "grid-column-start",
   "font-weight",
+  "fill-opacity",
+  "flood-opacity",
   "line-clamp",
   "line-height",
   "opacity",
   "order",
   "orphans",
   "scale",
+  "stop-opacity",
+  "stroke-dasharray",
+  "stroke-dashoffset",
+  "stroke-miterlimit",
+  "stroke-opacity",
+  "stroke-width",
   "tab-size",
   "widows",
   "z-index",
@@ -55,6 +67,12 @@ const contentKeywords = new Set([
 
 const isStyleObject = (value: unknown): value is StyleAtomStyles =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const isCssScalar = (value: unknown): value is StyleAtomCssScalar =>
+  typeof value === "string" || typeof value === "number";
+
+const declarationValues = (value: StyleAtomCssValue) =>
+  (Array.isArray(value) ? value : [value]).filter(isCssScalar);
 
 const cssEscape = (value: string) => {
   const cssApi = globalThis.CSS as
@@ -79,8 +97,8 @@ const indent = (value: string) =>
 
 const toKebabCase = (property: string) => {
   if (property.startsWith("--")) return property;
-
-  return property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+  const prefixed = /^ms[A-Z]/.test(property) ? `-${property}` : property;
+  return prefixed.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 };
 
 const splitSelectorList = (selector: string) => {
@@ -166,12 +184,12 @@ const formatContentValue = (value: string | number) => {
   return JSON.stringify(trimmed);
 };
 
-// проверка на то является ли свойство подходящим для форматирования
+// Properties that need formatting beyond ordinary CSS string conversion.
 const specialPropertyFormatters: Record<
   string,
   (value: string | number) => string
 > = {
-  // пока только content что бы избежать '""'
+  // `content` avoids turning an already quoted value into nested quotes.
   content: formatContentValue,
 };
 
@@ -236,16 +254,18 @@ const wrapAtRules = (css: string, atRules: readonly string[]) =>
 
 const compileDeclarations = (
   selector: string,
-  declarations: readonly [string, string | number][],
+  declarations: readonly [string, StyleAtomCssValue][],
   atRules: readonly string[],
 ) => {
   if (!selector || declarations.length === 0) return [];
 
   const body = declarations
-    .map(([property, value]) => {
+    .flatMap(([property, value]) => {
       const cssProperty = toKebabCase(property);
-
-      return `  ${cssProperty}: ${formatStyleValue(cssProperty, value)};`;
+      return declarationValues(value).map(
+        (candidate) =>
+          `  ${cssProperty}: ${formatStyleValue(cssProperty, candidate)};`,
+      );
     })
     .join("\n");
 
@@ -258,17 +278,19 @@ const compileDescriptorAtRule = (
   atRules: readonly string[],
 ) => {
   const declarations = Object.entries(styles).filter(
-    (entry): entry is [string, string | number] =>
+    (entry): entry is [string, StyleAtomCssValue] =>
       !isStyleObject(entry[1]) && entry[1] !== null && entry[1] !== undefined,
   );
 
   if (declarations.length === 0) return [];
 
   const body = declarations
-    .map(([property, value]) => {
+    .flatMap(([property, value]) => {
       const cssProperty = toKebabCase(property);
-
-      return `  ${cssProperty}: ${formatStyleValue(cssProperty, value)};`;
+      return declarationValues(value).map(
+        (candidate) =>
+          `  ${cssProperty}: ${formatStyleValue(cssProperty, candidate)};`,
+      );
     })
     .join("\n");
 
@@ -286,7 +308,7 @@ const compileKeyframes = (
     return compileDeclarations(
       frame,
       Object.entries(value).filter(
-        (entry): entry is [string, string | number] =>
+        (entry): entry is [string, StyleAtomCssValue] =>
           !isStyleObject(entry[1]) &&
           entry[1] !== null &&
           entry[1] !== undefined,
@@ -306,8 +328,15 @@ const compileRule = (
   styles: StyleAtomStyles,
   selector: string,
   atRules: readonly string[],
+  ancestors = new WeakSet<object>(),
 ): string[] => {
-  const declarations: [string, string | number][] = [];
+  if (ancestors.has(styles)) {
+    throw new Error(
+      "[styled-atom] A circular reference was found in a style object.",
+    );
+  }
+  ancestors.add(styles);
+  const declarations: [string, StyleAtomCssValue][] = [];
   const nestedRules: [string, StyleAtomStyles][] = [];
 
   Object.entries(styles).forEach(([propertyOrSelector, value]) => {
@@ -321,33 +350,46 @@ const compileRule = (
     }
   });
 
-  return [
-    ...compileDeclarations(selector, declarations, atRules),
-    ...nestedRules.flatMap(([nestedSelector, nestedStyles]) => {
-      if (nestedSelector.startsWith("@")) {
-        if (/^@(?:-[a-z]+-)?keyframes\b/.test(nestedSelector)) {
-          return compileKeyframes(nestedSelector, nestedStyles, atRules);
+  try {
+    return [
+      ...compileDeclarations(selector, declarations, atRules),
+      ...nestedRules.flatMap(([nestedSelector, nestedStyles]) => {
+        if (nestedSelector.startsWith("@")) {
+          if (/^@(?:-[a-z]+-)?keyframes\b/.test(nestedSelector)) {
+            return compileKeyframes(nestedSelector, nestedStyles, atRules);
+          }
+
+          if (/^@(font-face|page)\b/.test(nestedSelector)) {
+            return compileDescriptorAtRule(nestedSelector, nestedStyles, atRules);
+          }
+
+          return compileRule(
+            nestedStyles,
+            selector,
+            [...atRules, nestedSelector],
+            ancestors,
+          );
         }
 
-        if (/^@(font-face|page)\b/.test(nestedSelector)) {
-          return compileDescriptorAtRule(nestedSelector, nestedStyles, atRules);
-        }
-
-        return compileRule(nestedStyles, selector, [
-          ...atRules,
-          nestedSelector,
-        ]);
-      }
-
-      return compileRule(
-        nestedStyles,
-        resolveSelector(selector, nestedSelector),
-        atRules,
-      );
-    }),
-  ];
+        return compileRule(
+          nestedStyles,
+          resolveSelector(selector, nestedSelector),
+          atRules,
+          ancestors,
+        );
+      }),
+    ];
+  } finally {
+    ancestors.delete(styles);
+  }
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***compileStyleAtomStyles***:
+ * compiles a typed stylesheet tree into flat CSS rules. The atom name becomes
+ * the default root class when no scope selector is supplied.
+ */
 export const compileStyleAtomStyles = (
   name: string,
   styles: StyleAtomStyles,
@@ -357,3 +399,10 @@ export const compileStyleAtomStyles = (
 
   return compileRule(styles, baseSelector, []).join("\n\n");
 };
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***compileStyles***:
+ * short alias for `compileStyleAtomStyles`.
+ */
+export const compileStyles = compileStyleAtomStyles;

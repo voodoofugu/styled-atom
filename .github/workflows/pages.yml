@@ -1,12 +1,9 @@
 name: Pages
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      source_ref:
-        description: Branch or tag to deploy
-        required: true
-        default: codex/v4
 
 permissions:
   contents: read
@@ -23,8 +20,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.source_ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22

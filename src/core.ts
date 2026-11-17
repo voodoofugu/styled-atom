@@ -1,794 +1,573 @@
 import type {
+  CollectedStyle,
   ImportStyle,
+  InitialStyles,
+  MountedStyle,
   StyleAtomController,
   StyleAtomCssReplacement,
   StyleAtomFiles,
-  StyleAtomInlineStyle,
   StyleAtomOptions,
   StyleAtomSnapshot,
-  StyleEncap,
+  StyleCollector,
+  StyleLoadError,
+  StylePlacement,
+  StyleRuntimeOptions,
+  StyleRuntimeInspection,
+  StyleRuntimeEntryInspection,
+  StyleTarget,
+  StyleTargetValue,
 } from "./types";
+import {
+  mountRegistryEntry,
+  nextRuntimeNamespace,
+  releaseRegistryEntry,
+} from "./registry";
+import { isDevelopmentEnvironment } from "./environment";
 
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***NormalizedEncapT***:
- * normalized wrapper settings used internally by the core store and React component.
- * @description
- * The normalized shape removes shorthand forms from `StyleEncap`, splits class names and makes wrapper decisions explicit.
- */
-export type NormalizedEncapT = {
-  enabled: boolean;
-  classNames: string[];
-  id?: string;
-  attributes?: Record<string, string>;
-  defaultSelector: boolean;
-};
+type EntryKind = "file" | "inline";
+type EntryStatus = "idle" | "loading" | "ready" | "failed";
 
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***NormalizedStyleOptionsT***:
- * normalized style atom options.
- * @description
- * Used as the stable store representation for file names and wrapper options. Empty names are removed before the store creates cache keys.
- */
-export type NormalizedStyleOptionsT = {
+type NormalizedOptions = {
   files: string[];
-  inlineStyle?: StyleAtomInlineStyle;
-  encap: NormalizedEncapT;
+  inlineStyle?: { name: string; css: string };
+  placement: StylePlacement;
+  target?: StyleTarget;
+  nonce?: string;
+  precedence?: number;
+  targetError?: unknown;
 };
 
-type StyleEntryKindT = "file" | "inline";
-
-type StyleEntryStatusT = "idle" | "loading" | "loaded" | "error";
-
-type StyleEntryT = {
+type StyleEntry = {
   key: string;
-  kind: StyleEntryKindT;
+  publicKey: string;
+  kind: EntryKind;
   name: string;
+  placement: StylePlacement;
+  target?: StyleTarget;
+  nonce?: string;
+  precedence: number;
   refs: Set<string>;
-  status: StyleEntryStatusT;
+  status: EntryStatus;
   revision: number;
   css?: string;
+  error?: StyleLoadError;
   element?: HTMLStyleElement;
-  error?: unknown;
+  registryOwner: object;
 };
 
-type AtomStateT = {
+type AtomState = {
   id: string;
-  options: NormalizedStyleOptionsT;
+  sourceOptions: StyleAtomOptions<string>;
+  options: NormalizedOptions;
   styleKeys: Set<string>;
   listeners: Set<() => void>;
   snapshot: StyleAtomSnapshot;
   snapshotKey: string;
+  issue?: StyleLoadError;
 };
 
 const emptySnapshot = (id: string): StyleAtomSnapshot => ({
   id,
-  loaded: false,
-  loading: false,
+  status: "ready",
   files: [],
   errors: [],
+  styles: [],
 });
 
-const compactList = (values?: StyleAtomFiles) => {
+const compactList = <TFile extends string>(values?: StyleAtomFiles<TFile>) => {
   const list = Array.isArray(values) ? values : values ? [values] : [];
-
-  return list.filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
+  return Array.from(
+    new Set(
+      list.filter(
+        (value): value is TFile =>
+          typeof value === "string" && value.trim().length > 0,
+      ),
+    ),
   );
 };
 
-const splitClassNames = (value?: string | string[]) => {
-  const values = Array.isArray(value) ? value : value ? [value] : [];
-
-  return values.flatMap((item) => item.split(/\s+/).filter(Boolean));
-};
-
-const normalizeEncap = (encap?: StyleEncap): NormalizedEncapT => {
-  if (!encap) {
-    return {
-      enabled: false,
-      classNames: [],
-      defaultSelector: false,
-    };
+const resolveTarget = (value?: StyleTargetValue) => {
+  try {
+    const target = typeof value === "function" ? value() : value;
+    return { target: target ?? undefined };
+  } catch (error) {
+    return { target: undefined, error };
   }
-
-  if (encap === true) {
-    return {
-      enabled: true,
-      classNames: [],
-      defaultSelector: true,
-    };
-  }
-
-  if (typeof encap === "string") {
-    return {
-      enabled: true,
-      classNames: splitClassNames(encap),
-      defaultSelector: false,
-    };
-  }
-
-  const classNames = splitClassNames(encap.className);
-  const id = typeof encap.id === "string" ? encap.id.trim() : "";
-  const attributes =
-    typeof encap.attribute === "object" &&
-    encap.attribute &&
-    !Array.isArray(encap.attribute)
-      ? Object.fromEntries(
-          Object.entries(encap.attribute).filter(
-            (entry): entry is [string, string] =>
-              typeof entry[0] === "string" && typeof entry[1] === "string",
-          ),
-        )
-      : undefined;
-  const hasExplicitSelector =
-    classNames.length > 0 ||
-    Boolean(id) ||
-    Boolean(attributes && Object.keys(attributes).length > 0);
-
-  return {
-    enabled: true,
-    classNames,
-    id: id || undefined,
-    attributes:
-      attributes && Object.keys(attributes).length ? attributes : undefined,
-    defaultSelector: !hasExplicitSelector,
-  };
 };
 
-const normalizeInlineStyle = (
-  inlineStyle?: StyleAtomInlineStyle,
-): StyleAtomInlineStyle | undefined => {
-  const name =
-    typeof inlineStyle?.name === "string" ? inlineStyle.name.trim() : "";
+const defaultTarget = (): StyleTarget | undefined =>
+  typeof document === "undefined" ? undefined : document;
 
-  if (!name || typeof inlineStyle?.css !== "string") return undefined;
-
-  return {
-    name,
-    css: inlineStyle.css,
-  };
-};
-
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***normalizeStyleAtomOptions***:
- * normalize user-facing atom options.
- * @description
- * Converts shorthand `encap` values and removes empty file names.
- * @example
- * ```ts
- * const normalized = normalizeStyleAtomOptions({
- *   files: ["card", ""],
- *   encap: "customClass",
- * });
- * ```
- */
-export const normalizeStyleAtomOptions = (
-  options: StyleAtomOptions,
-): NormalizedStyleOptionsT => ({
-  files: compactList(options.files),
-  inlineStyle: normalizeInlineStyle(options.inlineStyle),
-  encap: normalizeEncap(options.encap),
-});
-
-const stableKey = (value: unknown) => JSON.stringify(value);
-
-const getEncapKey = (encap: NormalizedEncapT) => ({
-  enabled: encap.enabled,
-  classNames: encap.classNames,
-  id: encap.id ?? null,
-  attributes: encap.attributes ?? null,
-  defaultSelector: encap.defaultSelector,
-});
-
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***getStyleAtomKey***:
- * create a stable content key for atom options.
- * @description
- * React uses this key to avoid store updates when inline arrays or objects contain the same normalized values. Host tooling can use it for memoization around atom options.
- * @example
- * ```ts
- * const key = getStyleAtomKey({
- *   files: ["card", "theme"],
- * });
- * ```
- */
-export const getStyleAtomKey = (options: StyleAtomOptions) => {
-  const normalized = normalizeStyleAtomOptions(options);
-
-  return stableKey({
-    files: normalized.files,
-    inlineStyle: normalized.inlineStyle ?? null,
-    encap: getEncapKey(normalized.encap),
-  });
-};
-
-const cssEscape = (value: string) => {
-  const cssApi = globalThis.CSS as
-    | { escape?: (input: string) => string }
-    | undefined;
-
-  if (cssApi?.escape) {
-    return cssApi.escape(value);
-  }
-
-  return value.replace(/(^-?\d|[^a-zA-Z0-9_-])/g, (part) => {
-    const codePoint = part.codePointAt(0)?.toString(16) ?? "";
-    return `\\${codePoint} `;
-  });
-};
-
-const getFileStyleEntryKey = (file: string) =>
-  stableKey({ kind: "file", file });
-
-const getInlineStyleEntryKey = (name: string) =>
-  stableKey({ kind: "inline", name });
-
-const getContentClassNames = (options: NormalizedStyleOptionsT) => {
-  if (!options.encap.enabled) return [];
-
-  const classNames = options.encap.defaultSelector
-    ? [
-        ...options.encap.classNames,
-        ...options.files,
-        ...(options.inlineStyle ? [options.inlineStyle.name] : []),
-      ]
-    : [...options.encap.classNames];
-
-  return Array.from(new Set(classNames.filter(Boolean)));
-};
-
-const cssStringEscape = (value: string) =>
-  value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\a ");
-
-const getContentSelector = (options: NormalizedStyleOptionsT) => {
-  if (!options.encap.enabled) return null;
-
-  const idSelector = options.encap.id ? `#${cssEscape(options.encap.id)}` : "";
-  const attributeSelector = options.encap.attributes
-    ? Object.entries(options.encap.attributes)
-        .map(([name, value]) => {
-          const attributeName = cssEscape(name);
-
-          return value
-            ? `[${attributeName}="${cssStringEscape(value)}"]`
-            : `[${attributeName}]`;
-        })
-        .join("")
-    : "";
-  const classSelector = getContentClassNames(options)
-    .map((className) => `.${cssEscape(className)}`)
-    .join("");
-  const selector = `${idSelector}${attributeSelector}${classSelector}`;
-
-  return selector || null;
-};
-
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***getStyledAtomWrapperProps***:
- * derive wrapper props from atom options.
- * @param options atom options that may include `encap`.
- * @description
- * Returns the same wrapper props used by the React `StyledAtom` component. Returns `null` when the atom does not need a wrapper.
- * @example
- * ```ts
- * const props = getStyledAtomWrapperProps(
- *   { files: "screen", encap: "customClass" }
- * );
- * ```
- */
-export const getStyledAtomWrapperProps = (options: StyleAtomOptions) => {
-  const normalized = normalizeStyleAtomOptions(options);
-
-  if (!normalized.encap.enabled) return null;
-
-  const classNames = getContentClassNames(normalized);
-  const props: Record<string, string> = {};
-
-  // attribute
-  props["styled-atom-shell"] = "";
-
-  if (normalized.encap.attributes) {
-    for (const [name, value] of Object.entries(normalized.encap.attributes)) {
-      props[name] = value;
+const normalizeLoaderResult = (value: unknown): string => {
+  const stringify = (candidate: unknown) => {
+    if (typeof candidate === "string") return candidate;
+    if (!candidate || typeof candidate !== "object") return "";
+    const method = (candidate as { toString?: () => string }).toString;
+    if (typeof method !== "function" || method === Object.prototype.toString) {
+      return "";
     }
-  }
+    const text = method.call(candidate);
+    return /^\[object .+\]$/.test(text) || text === "undefined" ? "" : text;
+  };
 
-  // id
-  if (normalized.encap.id) {
-    props.id = normalized.encap.id;
-  }
-
-  // class
-  if (classNames.length > 0) {
-    props.className = classNames.join(" ");
-  }
-
-  return props;
-};
-
-export const getStyledAtomWrapperSelector = (options: StyleAtomOptions) =>
-  getContentSelector(normalizeStyleAtomOptions(options));
-
-const isUsefulCssText = (value: string) => {
-  const text = value.trim();
-
-  return (
-    text.length === 0 || (!/^\[object .+\]$/.test(text) && text !== "undefined")
-  );
-};
-
-const coerceCssText = (value: unknown) => {
-  if (typeof value === "string") return value;
-  if (!value || typeof value !== "object") return "";
-
-  const toString = (value as { toString?: () => string }).toString;
-  if (
-    typeof toString !== "function" ||
-    toString === Object.prototype.toString
-  ) {
-    return "";
-  }
-
-  const css = toString.call(value);
-
-  return isUsefulCssText(css) ? css : "";
-};
-
-const normalizeLoaderResult = (value: unknown) => {
-  const directCss = coerceCssText(value);
-  if (directCss) return directCss;
-
+  const direct = stringify(value);
+  if (direct) return direct;
   if (value && typeof value === "object" && "default" in value) {
-    return coerceCssText((value as { default?: unknown }).default);
+    return stringify((value as { default?: unknown }).default);
   }
-
   return "";
 };
 
-const isDevSourceUrlEnabled = () => {
-  const runtime = globalThis as {
-    process?: { env?: { NODE_ENV?: string } };
-  };
-  const nodeEnv = runtime.process?.env?.NODE_ENV;
+const defaultSourceUrl = isDevelopmentEnvironment;
 
-  return nodeEnv !== "production";
-};
-
-const toSourceUrlName = (value: string) =>
-  value.trim().replace(/[^a-zA-Z0-9._/-]+/g, "-") || "style";
-
-const withStyleSourceUrl = (
+const withSourceUrl = (
+  enabled: boolean,
   css: string,
-  kind: StyleEntryKindT,
+  kind: EntryKind,
   name: string,
 ) => {
-  if (!isDevSourceUrlEnabled() || /\/\*#\s*sourceURL=/.test(css)) {
-    return css;
-  }
-
-  const separator = css.length > 0 && !css.endsWith("\n") ? "\n" : "";
-
-  return `${css}${separator}/*# sourceURL=styled-atom/${kind}/${toSourceUrlName(
-    name,
-  )}.css */`;
+  if (!enabled || /\/\*#\s*sourceURL=/.test(css)) return css;
+  const safeName = name.trim().replace(/[^a-zA-Z0-9._/-]+/g, "-") || "style";
+  const separator = css && !css.endsWith("\n") ? "\n" : "";
+  return `${css}${separator}/*# sourceURL=styled-atom/${kind}/${safeName}.css */`;
 };
 
-const formatError = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+const escapeAttribute = (value: string) =>
+  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+const escapeStyleText = (value: string) => value.replace(/<\/style/gi, "<\\/style");
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyledAtomStore***:
- * internal DOM style store used by the React runtime.
- * @description
- * Owns DOM style tags, caches loaded CSS entries and notifies only the atoms affected by a changed style entry.
- * @example
- * ```ts
- * const store = new StyledAtomStore((name) => import(`./css/${name}.css`));
- *
- * const atom = store.preload(["reset", "theme"]);
- * atom.dispose();
- * ```
+ * ### ***createStyleCollector***:
+ * creates an isolated style collector for one server-rendered request.
  */
-export class StyledAtomStore {
-  private path?: ImportStyle;
-  private atoms = new Map<string, AtomStateT>();
-  private styles = new Map<string, StyleEntryT>();
+export const createStyleCollector = (): StyleCollector => {
+  const styles = new Map<string, CollectedStyle>();
+
+  const getStyles = () =>
+    Array.from(styles.values()).sort(
+      (a, b) => a.precedence - b.precedence || a.key.localeCompare(b.key),
+    );
+
+  return {
+    collect(style) {
+      const collectionKey = `${style.namespace}\u0000${style.key}`;
+      const existing = styles.get(collectionKey);
+      if (existing && existing.css !== style.css) {
+        throw new Error(
+          `[styled-atom] Collected style "${style.name}" has conflicting CSS.`,
+        );
+      }
+      styles.set(collectionKey, style);
+    },
+    getStyles,
+    getStyleTags() {
+      return getStyles()
+        .map((style) => {
+          const nonce = style.nonce
+            ? ` nonce="${escapeAttribute(style.nonce)}"`
+            : "";
+          return `<style data-styled-atom-namespace="${escapeAttribute(
+            style.namespace,
+          )}" data-styled-atom-key="${escapeAttribute(
+            style.key,
+          )}" data-styled-atom-precedence="${style.precedence}"${nonce}>${escapeStyleText(
+            style.css,
+          )}</style>`;
+        })
+        .join("");
+    },
+    clear: () => styles.clear(),
+  };
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleRuntime***:
+ * framework-agnostic owner of file and inline CSS atoms. One runtime shares,
+ * orders and releases CSS across every atom registered through it.
+ */
+export class StyleRuntime<TFile extends string = string> {
+  /** Namespace used to coordinate ownership in the target document. */
+  readonly namespace: string;
+
+  private loader?: ImportStyle<TFile>;
+  private runtimeTarget?: StyleTargetValue;
+  private defaultPlacement: StylePlacement;
+  private sourceURL: boolean;
+  private defaultNonce?: string;
+  private onError?: (error: StyleLoadError) => void;
+  private initialStyles = new Map<string, string>();
+  private order = new Map<string, number>();
+  private atoms = new Map<string, AtomState>();
+  private entries = new Map<string, StyleEntry>();
+  private targetIds = new WeakMap<object, number>();
+  private inlineDefinitions = new Map<string, { css: string; refs: Set<string> }>();
+  private targetCounter = 0;
   private idCounter = 0;
 
-  constructor(path?: ImportStyle) {
-    this.path = path;
+  /** Creates a runtime with shared defaults for its atoms. */
+  constructor(options: StyleRuntimeOptions<TFile> = {}) {
+    this.namespace = options.namespace?.trim() || nextRuntimeNamespace();
+    this.loader = options.loader;
+    this.runtimeTarget = options.target;
+    this.defaultPlacement = options.placement ?? "head";
+    this.sourceURL = options.sourceURL ?? defaultSourceUrl();
+    this.defaultNonce = options.nonce;
+    this.onError = options.onError;
+    this.setOrder(options.order);
+    this.setInitialStyles(options.initialStyles);
   }
 
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***configure***:
-   * update CSS loader after creation.
-   * @description
-   * Existing style entries are retried when a new loader is provided.
-   * @example
-   * ```ts
-   * store.configure((name) => import(`./css/${name}.css`));
-   * ```
-   */
-  configure(path?: ImportStyle) {
-    const previousPath = this.path;
-    this.path = path;
-
-    if (path && path !== previousPath) {
-      this.styles.forEach((entry) => {
-        if (entry.kind !== "file") return;
-
-        entry.status = "idle";
-        entry.error = undefined;
-        this.ensureStyleLoaded(entry);
-      });
-    } else {
-      this.styles.forEach((entry) => {
-        if (entry.kind === "file") this.ensureStyleLoaded(entry);
+  /** Updates runtime defaults and reconciles every registered atom. */
+  configure(options: Partial<StyleRuntimeOptions<TFile>>) {
+    const sourceURLChanged =
+      "sourceURL" in options &&
+      this.sourceURL !== (options.sourceURL ?? defaultSourceUrl());
+    if ("loader" in options) this.loader = options.loader;
+    if ("target" in options) this.runtimeTarget = options.target;
+    if ("placement" in options && options.placement)
+      this.defaultPlacement = options.placement;
+    if ("sourceURL" in options)
+      this.sourceURL = options.sourceURL ?? defaultSourceUrl();
+    if ("nonce" in options) this.defaultNonce = options.nonce;
+    if ("onError" in options) this.onError = options.onError;
+    if (options.order) this.setOrder(options.order);
+    if (options.initialStyles) this.setInitialStyles(options.initialStyles);
+    this.atoms.forEach((atom) => {
+      this.updateAtom(atom.id, atom.sourceOptions as StyleAtomOptions<TFile>);
+    });
+    if (sourceURLChanged) {
+      this.entries.forEach((entry) => {
+        if (entry.status === "ready" && entry.css !== undefined) {
+          this.commitEntry(entry);
+        }
       });
     }
   }
 
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***registerAtom***:
-   * register one style atom and start loading its CSS entries.
-   * @description
-   * Keep the returned controller while the styles should stay mounted. Releasing it removes this atom's references and cleans up style tags that are no longer shared.
-   * @returns controller for updating, subscribing, reloading and disposing the atom.
-   * @example
-   * ```ts
-   * const atom = store.registerAtom({
-   *   files: ["card", "theme"],
-   * });
-   * ```
-   */
-  registerAtom(
-    options: StyleAtomOptions & { id?: string },
-  ): StyleAtomController {
-    const id = options.id ?? this.createId();
+  /** Resolves an atom placement against the runtime default. */
+  resolvePlacement(placement?: StylePlacement) {
+    return placement ?? this.defaultPlacement;
+  }
 
+  /** Resolves an atom CSP nonce against the runtime default. */
+  resolveNonce(nonce?: string) {
+    return nonce ?? this.defaultNonce;
+  }
+
+  /** Returns a read-only diagnostic report without exposing mutable state. */
+  inspect(): StyleRuntimeInspection {
+    return {
+      namespace: this.namespace,
+      atoms: this.atoms.size,
+      entries: Array.from(this.entries.values())
+        .map((entry) => ({
+          key: entry.publicKey,
+          name: entry.name,
+          kind: entry.kind,
+          status: entry.status === "idle" ? "loading" : entry.status,
+          placement: entry.placement,
+          target: this.describeTarget(entry),
+          precedence: entry.precedence,
+          localOwners: entry.refs.size,
+          cssLength: entry.css?.length ?? 0,
+          error: entry.error,
+        }))
+        .sort(
+          (first, second) =>
+            first.precedence - second.precedence ||
+            first.key.localeCompare(second.key),
+        ),
+    };
+  }
+
+  /** Builds the synchronous snapshot used by SSR and React hydration. */
+  getServerSnapshot(id: string, options: StyleAtomOptions<TFile>) {
+    const normalized = this.normalize(options);
+    const styles: MountedStyle[] = [];
+    let missing = false;
+
+    normalized.files.forEach((name) => {
+      const css = this.initialStyles.get(name);
+      if (css === undefined) missing = true;
+      else {
+        styles.push({
+          key: this.publicKey(
+            "file",
+            name,
+            this.precedenceFor(name, normalized.precedence),
+          ),
+          kind: "file",
+          name,
+          css: withSourceUrl(this.sourceURL, css, "file", name),
+          precedence: this.precedenceFor(name, normalized.precedence),
+        });
+      }
+    });
+
+    if (normalized.inlineStyle) {
+      const { name, css } = normalized.inlineStyle;
+      styles.push({
+        key: this.publicKey(
+          "inline",
+          name,
+          this.precedenceFor(name, normalized.precedence),
+        ),
+        kind: "inline",
+        name,
+        css: withSourceUrl(this.sourceURL, css, "inline", name),
+        precedence: this.precedenceFor(name, normalized.precedence),
+      });
+    }
+
+    return {
+      id,
+      status: missing ? "loading" : "ready",
+      files: normalized.files,
+      errors: [],
+      styles,
+    } satisfies StyleAtomSnapshot;
+  }
+
+  /** Adds ready head styles from a snapshot to an SSR collector. */
+  collect(collector: StyleCollector, snapshot: StyleAtomSnapshot, nonce?: string) {
+    snapshot.styles.forEach((style) => {
+      collector.collect({
+        ...style,
+        namespace: this.namespace,
+        nonce: nonce ?? this.defaultNonce,
+      });
+    });
+  }
+
+  /** Registers one style owner and returns its imperative controller. */
+  registerAtom(options: StyleAtomOptions<TFile> & { id?: string }): StyleAtomController<TFile> {
+    const id = options.id ?? this.createId();
     if (!this.atoms.has(id)) {
       this.atoms.set(id, {
         id,
-        options: normalizeStyleAtomOptions(options),
+        sourceOptions: options,
+        options: this.normalize(options),
         styleKeys: new Set(),
         listeners: new Set(),
         snapshot: emptySnapshot(id),
         snapshotKey: "",
       });
     }
-
     this.updateAtom(id, options);
-
     return this.createController(id);
   }
 
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***updateAtom***:
-   * update one registered atom.
-   * @description
-   * Reconciles file references for the atom id without touching unrelated atoms in the store.
-   */
-  updateAtom(id: string, options: StyleAtomOptions) {
+  /** Keeps named file atoms mounted until the returned controller is disposed. */
+  preload(files: StyleAtomFiles<TFile>, options: Omit<StyleAtomOptions<TFile>, "files"> = {}) {
+    return this.registerAtom({ ...options, files, id: this.createId("preload") });
+  }
+
+  /** Reloads selected mounted file atoms, or every mounted file when omitted. */
+  reload(files?: StyleAtomFiles<TFile>) {
+    const requested = new Set(compactList(files));
+    this.entries.forEach((entry) => {
+      if (entry.kind !== "file") return;
+      if (requested.size && !requested.has(entry.name as TFile)) return;
+      entry.status = "idle";
+      entry.error = undefined;
+      this.ensureLoaded(entry);
+    });
+  }
+
+  /** Retries failed entries for one atom, or every failed entry when omitted. */
+  retry(id?: string) {
+    const atom = id ? this.atoms.get(id) : undefined;
+    const keys = atom?.styleKeys;
+    this.entries.forEach((entry, key) => {
+      if (keys && !keys.has(key)) return;
+      if (entry.status !== "failed") return;
+      entry.status = "idle";
+      entry.error = undefined;
+      this.ensureLoaded(entry);
+    });
+    if (atom?.issue) {
+      atom.issue = undefined;
+      this.updateAtom(id!, atom.sourceOptions as StyleAtomOptions<TFile>);
+    }
+  }
+
+  /** Replaces mounted file CSS without calling the configured loader. */
+  replace(styles: readonly StyleAtomCssReplacement<TFile>[]) {
+    const replacements = new Map(
+      styles
+        .filter((item) => typeof item?.file === "string" && typeof item.css === "string")
+        .map((item) => [item.file, item.css]),
+    );
+    this.entries.forEach((entry) => {
+      if (entry.kind !== "file") return;
+      const css = replacements.get(entry.name as TFile);
+      if (css === undefined) return;
+      entry.revision += 1;
+      entry.css = css;
+      entry.error = undefined;
+      this.commitEntry(entry);
+    });
+  }
+
+  /** Releases every atom and DOM ownership reference held by this runtime. */
+  dispose() {
+    Array.from(this.atoms.keys()).forEach((id) => this.unregisterAtom(id));
+    this.entries.clear();
+    this.inlineDefinitions.clear();
+  }
+
+  private normalize(options: StyleAtomOptions<TFile>): NormalizedOptions {
+    const targetValue = options.target ?? this.runtimeTarget;
+    const resolvedTarget = resolveTarget(targetValue);
+    const placement = options.placement ?? this.defaultPlacement;
+    const explicitTarget = targetValue !== undefined;
+    const name = options.inlineStyle?.name.trim() ?? "";
+    return {
+      files: compactList(options.files),
+      inlineStyle:
+        name && typeof options.inlineStyle?.css === "string"
+          ? { name, css: options.inlineStyle.css }
+          : undefined,
+      placement,
+      target: resolvedTarget.target ?? (explicitTarget ? undefined : defaultTarget()),
+      nonce: options.nonce ?? this.defaultNonce,
+      precedence: options.precedence,
+      targetError:
+        placement === "head" && explicitTarget && !resolvedTarget.target
+          ? resolvedTarget.error ??
+            new Error("[styled-atom] The configured style target is not available.")
+          : undefined,
+    };
+  }
+
+  private updateAtom(id: string, options: StyleAtomOptions<TFile>) {
     const atom = this.atoms.get(id);
     if (!atom) return;
-
-    const normalized = normalizeStyleAtomOptions(options);
+    const normalized = this.normalize(options);
     const nextKeys = new Set<string>();
-    const nextEntries = normalized.files.map((file) => {
-      const key = getFileStyleEntryKey(file);
-      nextKeys.add(key);
+    const nextEntries: StyleEntry[] = [];
+    atom.issue = undefined;
 
-      let entry = this.styles.get(key);
+    if (normalized.targetError) {
+      atom.issue = this.reportError({
+        code: "target",
+        source: "target",
+        error: normalized.targetError,
+      });
+    }
 
-      if (!entry) {
-        entry = {
-          key,
-          kind: "file",
-          name: file,
-          refs: new Set(),
-          status: "idle",
-          revision: 0,
-        };
-        this.styles.set(key, entry);
-      }
-
-      return entry;
+    if (!atom.issue) normalized.files.forEach((name) => {
+      const entry = this.getOrCreateEntry("file", name, normalized);
+      nextKeys.add(entry.key);
+      nextEntries.push(entry);
     });
 
-    if (normalized.inlineStyle) {
+    if (normalized.inlineStyle && !atom.issue) {
       const { name, css } = normalized.inlineStyle;
-      const key = getInlineStyleEntryKey(name);
-      nextKeys.add(key);
-
-      let entry = this.styles.get(key);
-
-      if (!entry) {
-        entry = {
-          key,
-          kind: "inline",
-          name,
-          refs: new Set(),
-          status: "idle",
-          revision: 0,
-          css,
-        };
-        this.styles.set(key, entry);
-      } else if (entry.css !== css) {
-        entry.css = css;
-        entry.status = "idle";
-        entry.error = undefined;
+      const definition = this.inlineDefinitions.get(name);
+      const canReplaceOwnDefinition =
+        definition?.refs.size === 1 && definition.refs.has(id);
+      if (definition && definition.css !== css && !canReplaceOwnDefinition) {
+        atom.issue = this.reportError({
+          code: "conflict",
+          source: name,
+          error: new Error(
+            `[styled-atom] Inline style "${name}" is already mounted with different CSS. Use a unique name or identical styles.`,
+          ),
+        });
+      } else {
+        const nextDefinition = definition ?? { css, refs: new Set<string>() };
+        nextDefinition.css = css;
+        nextDefinition.refs.add(id);
+        this.inlineDefinitions.set(name, nextDefinition);
+        const entry = this.getOrCreateEntry("inline", name, normalized, css);
+        if (entry.css !== css) {
+          entry.css = css;
+          entry.status = "idle";
+          entry.error = undefined;
+        }
+        nextKeys.add(entry.key);
+        nextEntries.push(entry);
       }
-
-      nextEntries.push(entry);
     }
 
     atom.styleKeys.forEach((key) => {
-      if (!nextKeys.has(key)) {
-        this.releaseStyleRef(key, id);
-      }
+      if (!nextKeys.has(key)) this.releaseEntry(key, id);
     });
-
     nextEntries.forEach((entry) => {
       entry.refs.add(id);
-      this.ensureStyleLoaded(entry);
+      this.ensureLoaded(entry);
     });
-
+    if (
+      atom.options.inlineStyle?.name &&
+      atom.options.inlineStyle.name !== normalized.inlineStyle?.name
+    ) {
+      this.releaseInline(atom.options.inlineStyle.name, id);
+    }
+    atom.sourceOptions = options;
     atom.options = normalized;
     atom.styleKeys = nextKeys;
-    this.refreshAtomSnapshot(atom);
+    this.refreshSnapshot(atom);
   }
 
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***unregisterAtom***:
-   * dispose one atom by id.
-   * @description
-   * Releases the atom's style references, removes unused style tags and clears atom listeners.
-   */
-  unregisterAtom(id: string) {
-    const atom = this.atoms.get(id);
-    if (!atom) return;
-
-    atom.styleKeys.forEach((key) => this.releaseStyleRef(key, id));
-    atom.listeners.clear();
-    this.atoms.delete(id);
-  }
-
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***subscribeAtom***:
-   * subscribe to snapshot changes for one atom id.
-   * @returns unsubscribe function.
-   * @example
-   * ```ts
-   * const unsubscribe = store.subscribeAtom(atom.id, listener);
-   * unsubscribe();
-   * ```
-   */
-  subscribeAtom(id: string, listener: () => void) {
-    const atom = this.atoms.get(id);
-    if (!atom) return () => undefined;
-
-    atom.listeners.add(listener);
-
-    return () => {
-      atom.listeners.delete(listener);
-    };
-  }
-
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***getSnapshot***:
-   * read the latest loading snapshot for one atom id.
-   * @example
-   * ```ts
-   * const snapshot = store.getSnapshot(atom.id);
-   * ```
-   */
-  getSnapshot(id: string): StyleAtomSnapshot {
-    return this.atoms.get(id)?.snapshot ?? emptySnapshot(id);
-  }
-
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***preload***:
-   * register styles without rendering React content.
-   * @description
-   * Use it for shared resets, themes or shell styles that should stay mounted while a tool surface is alive. Dispose the returned controller when those styles are no longer needed.
-   * @example
-   * ```ts
-   * const preloaded = store.preload(["reset", "theme"]);
-   * ```
-   */
-  preload(
-    files: StyleAtomFiles,
-    options: Omit<StyleAtomOptions, "files"> = {},
+  private getOrCreateEntry(
+    kind: EntryKind,
+    name: string,
+    options: NormalizedOptions,
+    css?: string,
   ) {
-    return this.registerAtom({
-      ...options,
-      id: this.createId("preload"),
-      files,
-    });
-  }
-
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***reload***:
-   * reload registered style entries from the configured loader.
-   * @description
-   * When `files` is omitted every registered file entry is reloaded.
-   */
-  reload(files?: StyleAtomFiles) {
-    const requested = new Set(compactList(files));
-
-    this.styles.forEach((entry) => {
-      if (entry.kind !== "file") return;
-      if (requested.size > 0 && !requested.has(entry.name)) return;
-
-      entry.status = "idle";
-      entry.error = undefined;
-      this.ensureStyleLoaded(entry);
-    });
-  }
-
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***replace***:
-   * replace CSS text for registered file entries.
-   * @description
-   * Updates matching mounted style tags without calling the loader. This is intended for dev-time style reload servers.
-   * @example
-   * ```ts
-   * store.replace([{ file: "card", css: nextCss }]);
-   * ```
-   */
-  replace(styles: readonly StyleAtomCssReplacement[]) {
-    const replacements = new Map(
-      styles
-        .filter(
-          (style): style is StyleAtomCssReplacement =>
-            typeof style?.file === "string" &&
-            style.file.length > 0 &&
-            typeof style.css === "string",
-        )
-        .map((style) => [style.file, style.css]),
-    );
-
-    if (replacements.size === 0) return;
-
-    this.styles.forEach((entry) => {
-      if (entry.kind !== "file") return;
-
-      const css = replacements.get(entry.name);
-      if (css === undefined) return;
-
-      const element = this.ensureStyleElement(entry);
-      const nextCss = withStyleSourceUrl(css, entry.kind, entry.name);
-      if (element && element.textContent !== nextCss) {
-        element.textContent = nextCss;
-      }
-
-      entry.revision += 1;
-      entry.status = "loaded";
-      entry.error = undefined;
-      this.refreshAtomsForStyle(entry);
-    });
-  }
-
-  /**---
-   * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
-   * ### ***dispose***:
-   * remove every atom and every style tag owned by this store.
-   * @description
-   * Use it when a workbench, preview iframe or custom tool surface is torn down.
-   */
-  dispose() {
-    Array.from(this.atoms.keys()).forEach((id) => this.unregisterAtom(id));
-    this.styles.forEach((entry) => entry.element?.remove());
-    this.styles.clear();
-  }
-
-  private createController(id: string): StyleAtomController {
-    return {
-      id,
-      update: (options) => this.updateAtom(id, options),
-      subscribe: (listener) => this.subscribeAtom(id, listener),
-      getSnapshot: () => this.getSnapshot(id),
-      reload: () => this.reload(this.atoms.get(id)?.options.files),
-      replace: (styles) => this.replace(styles),
-      dispose: () => this.unregisterAtom(id),
-    };
-  }
-
-  private createId(prefix = "atom") {
-    this.idCounter += 1;
-    return `styled-atom-${prefix}-${this.idCounter}`;
-  }
-
-  private releaseStyleRef(key: string, atomId: string) {
-    const entry = this.styles.get(key);
-    if (!entry) return;
-
-    entry.refs.delete(atomId);
-
-    if (entry.refs.size === 0) {
-      entry.element?.remove();
-      this.styles.delete(key);
+    const targetId = options.placement === "head" ? this.idForTarget(options.target) : "inline";
+    const key = `${kind}:${name}:${options.placement}:${targetId}:${options.precedence ?? "default"}`;
+    let entry = this.entries.get(key);
+    if (!entry) {
+      entry = {
+        key,
+        publicKey: this.publicKey(
+          kind,
+          name,
+          this.precedenceFor(name, options.precedence),
+        ),
+        kind,
+        name,
+        placement: options.placement,
+        target: options.target,
+        nonce: options.nonce,
+        precedence: this.precedenceFor(name, options.precedence),
+        refs: new Set(),
+        status: "idle",
+        revision: 0,
+        css,
+        registryOwner: {},
+      };
+      this.entries.set(key, entry);
     }
+    return entry;
   }
 
-  private ensureStyleElement(entry: StyleEntryT) {
-    if (entry.element) return entry.element;
-
-    const doc = typeof document === "undefined" ? undefined : document;
-    const target = doc?.head;
-
-    if (!doc || !target) return undefined;
-
-    const element = doc.createElement("style");
-    element.setAttribute(
-      entry.kind === "file" ? "styled-atom-file" : "styled-atom-name",
-      entry.name,
-    );
-
-    target.appendChild(element);
-    entry.element = element;
-
-    return element;
-  }
-
-  private ensureStyleLoaded(entry: StyleEntryT) {
+  private ensureLoaded(entry: StyleEntry) {
+    if (entry.status === "loading" || entry.status === "ready") return;
     if (entry.kind === "inline") {
-      const element = this.ensureStyleElement(entry);
-
-      if (!element) {
-        entry.status = "loaded";
-        this.refreshAtomsForStyle(entry);
-        return;
-      }
-
-      const css = withStyleSourceUrl(entry.css ?? "", entry.kind, entry.name);
-
-      if (element.textContent !== css) {
-        element.textContent = css;
-      }
-
-      entry.revision += 1;
-      entry.status = "loaded";
-      entry.error = undefined;
-      this.refreshAtomsForStyle(entry);
+      this.commitEntry(entry);
       return;
     }
 
-    if (
-      entry.status === "loading" ||
-      entry.status === "loaded" ||
-      entry.status === "error"
-    ) {
+    const initial = this.initialStyles.get(entry.name);
+    if (entry.revision === 0 && initial !== undefined) {
+      entry.css = initial;
+      this.commitEntry(entry);
       return;
     }
-
-    const element = this.ensureStyleElement(entry);
-
-    if (!element) {
-      entry.status = "loaded";
-      this.refreshAtomsForStyle(entry);
-      return;
-    }
-
-    const loader = this.path;
-
-    if (!loader) {
-      this.refreshAtomsForStyle(entry);
+    if (!this.loader) {
+      entry.status = "failed";
+      entry.error = this.reportError({
+        code: "load",
+        source: entry.name,
+        error: new Error(`[styled-atom] No CSS loader is configured for "${entry.name}".`),
+      });
+      this.refreshAtoms(entry);
       return;
     }
 
@@ -796,85 +575,217 @@ export class StyledAtomStore {
     entry.revision = revision;
     entry.status = "loading";
     entry.error = undefined;
-    this.refreshAtomsForStyle(entry);
-
-    Promise.resolve(loader(entry.name))
+    this.refreshAtoms(entry);
+    Promise.resolve(this.loader(entry.name as TFile))
       .then((result) => {
-        if (entry.revision !== revision) return;
-
-        const css = withStyleSourceUrl(
-          normalizeLoaderResult(result),
-          entry.kind,
-          entry.name,
-        );
-
-        if (element.textContent !== css) {
-          element.textContent = css;
-        }
-
-        entry.status = "loaded";
-        entry.error = undefined;
-        this.refreshAtomsForStyle(entry);
+        if (entry.revision !== revision || !this.entries.has(entry.key)) return;
+        entry.css = normalizeLoaderResult(result);
+        this.commitEntry(entry);
       })
       .catch((error: unknown) => {
-        if (entry.revision !== revision) return;
-
-        element.textContent = `/* styled-atom failed to load "${entry.name}" */`;
-        entry.status = "error";
-        entry.error = error;
-        this.refreshAtomsForStyle(entry);
-
-        console.error(
-          `Loading failed for "${entry.name}" style`,
-          "\n",
-          "styled-atom",
-          "\n",
-          error,
-        );
+        if (entry.revision !== revision || !this.entries.has(entry.key)) return;
+        entry.status = "failed";
+        entry.error = this.reportError({ code: "load", source: entry.name, error });
+        this.refreshAtoms(entry);
       });
   }
 
-  private refreshAtomsForStyle(entry: StyleEntryT) {
-    entry.refs.forEach((atomId) => {
-      const atom = this.atoms.get(atomId);
-      if (atom) this.refreshAtomSnapshot(atom);
+  private commitEntry(entry: StyleEntry) {
+    entry.status = "ready";
+    entry.error = undefined;
+    if (entry.placement === "head") {
+      const result = mountRegistryEntry({
+        namespace: this.namespace,
+        publicKey: entry.publicKey,
+        kind: entry.kind,
+        name: entry.name,
+        precedence: entry.precedence,
+        css: withSourceUrl(
+          this.sourceURL,
+          entry.css ?? "",
+          entry.kind,
+          entry.name,
+        ),
+        nonce: entry.nonce,
+        target: entry.target,
+        owner: entry.registryOwner,
+      });
+      if (result.error) {
+        entry.status = "failed";
+        entry.error = this.reportError(result.error);
+      } else {
+        entry.element = result.element;
+      }
+    }
+    this.refreshAtoms(entry);
+  }
+
+  private refreshAtoms(entry: StyleEntry) {
+    entry.refs.forEach((id) => {
+      const atom = this.atoms.get(id);
+      if (atom) this.refreshSnapshot(atom);
     });
   }
 
-  private refreshAtomSnapshot(atom: AtomStateT) {
+  private refreshSnapshot(atom: AtomState) {
     const entries = Array.from(atom.styleKeys)
-      .map((key) => this.styles.get(key))
-      .filter((entry): entry is StyleEntryT => Boolean(entry));
-    const errors = entries
-      .filter((entry) => entry.kind === "file" && entry.status === "error")
-      .map((entry) => ({ file: entry.name, error: entry.error }));
-    const loading = entries.some(
-      (entry) => entry.status === "idle" || entry.status === "loading",
+      .map((key) => this.entries.get(key))
+      .filter((entry): entry is StyleEntry => Boolean(entry));
+    const errors = [
+      ...(atom.issue ? [atom.issue] : []),
+      ...entries.flatMap((entry) => (entry.error ? [entry.error] : [])),
+    ];
+    const status = errors.length
+      ? "failed"
+      : entries.some((entry) => entry.status === "idle" || entry.status === "loading")
+        ? "loading"
+        : "ready";
+    const styles = entries.flatMap<MountedStyle>((entry) =>
+      entry.status === "ready" && entry.css !== undefined
+        ? [{
+            key: entry.publicKey,
+            kind: entry.kind,
+            name: entry.name,
+            css: withSourceUrl(
+              this.sourceURL,
+              entry.css,
+              entry.kind,
+              entry.name,
+            ),
+            precedence: entry.precedence,
+          }]
+        : [],
     );
-    const loaded =
-      entries.length === 0 ||
-      entries.every(
-        (entry) => entry.status === "loaded" || entry.status === "error",
-      );
     const snapshot: StyleAtomSnapshot = {
       id: atom.id,
-      loaded,
-      loading,
+      status,
       files: atom.options.files,
       errors,
+      styles,
     };
-    const snapshotKey = stableKey({
-      loaded,
-      loading,
+    const snapshotKey = JSON.stringify({
+      status,
       files: atom.options.files,
-      errors: errors.map((error) => [error.file, formatError(error.error)]),
+      errors: errors.map((item) => [item.code, item.source, String(item.error)]),
+      styles: styles.map((style) => [style.key, style.css]),
     });
-
     atom.snapshot = snapshot;
-
     if (snapshotKey !== atom.snapshotKey) {
       atom.snapshotKey = snapshotKey;
       atom.listeners.forEach((listener) => listener());
     }
   }
+
+  private createController(id: string): StyleAtomController<TFile> {
+    return {
+      id,
+      update: (options) => this.updateAtom(id, options),
+      subscribe: (listener) => {
+        const atom = this.atoms.get(id);
+        if (!atom) return () => undefined;
+        atom.listeners.add(listener);
+        return () => atom.listeners.delete(listener);
+      },
+      getSnapshot: () => this.atoms.get(id)?.snapshot ?? emptySnapshot(id),
+      reload: () => this.reload(this.atoms.get(id)?.options.files as TFile[]),
+      retry: () => this.retry(id),
+      replace: (styles) => this.replace(styles),
+      dispose: () => this.unregisterAtom(id),
+    };
+  }
+
+  private unregisterAtom(id: string) {
+    const atom = this.atoms.get(id);
+    if (!atom) return;
+    atom.styleKeys.forEach((key) => this.releaseEntry(key, id));
+    if (atom.options.inlineStyle) {
+      this.releaseInline(atom.options.inlineStyle.name, id);
+    }
+    atom.listeners.clear();
+    this.atoms.delete(id);
+  }
+
+  private releaseEntry(key: string, id: string) {
+    const entry = this.entries.get(key);
+    if (!entry) return;
+    entry.refs.delete(id);
+    if (entry.refs.size === 0) {
+      entry.revision += 1;
+      if (entry.placement === "head") {
+        releaseRegistryEntry({
+          namespace: this.namespace,
+          publicKey: entry.publicKey,
+          target: entry.target,
+          owner: entry.registryOwner,
+        });
+      }
+      this.entries.delete(key);
+    }
+  }
+
+  private releaseInline(name: string, id: string) {
+    const definition = this.inlineDefinitions.get(name);
+    if (!definition) return;
+    definition.refs.delete(id);
+    if (definition.refs.size === 0) this.inlineDefinitions.delete(name);
+  }
+
+  private setOrder(order?: readonly TFile[]) {
+    this.order.clear();
+    order?.forEach((name, index) => this.order.set(name, index));
+  }
+
+  private setInitialStyles(styles?: InitialStyles<TFile>) {
+    if (!styles) return;
+    Object.entries(styles).forEach(([name, css]) => {
+      if (typeof css === "string") this.initialStyles.set(name, css);
+    });
+  }
+
+  private precedenceFor(name: string, explicit?: number) {
+    return explicit ?? this.order.get(name) ?? 10_000;
+  }
+
+  private publicKey(kind: EntryKind, name: string, precedence: number) {
+    return `${kind}:${name}:${precedence}`;
+  }
+
+  private idForTarget(target?: StyleTarget) {
+    const value = target ?? defaultTarget();
+    if (!value) return "server";
+    let id = this.targetIds.get(value);
+    if (!id) {
+      this.targetCounter += 1;
+      id = this.targetCounter;
+      this.targetIds.set(value, id);
+    }
+    return String(id);
+  }
+
+  private describeTarget(entry: StyleEntry): StyleRuntimeEntryInspection["target"] {
+    if (entry.placement === "inline") return "inline";
+    if (!entry.target) return "server";
+    if (entry.target.nodeType === 9) return "document";
+    if (entry.target.nodeType === 11) return "shadow-root";
+    return "element";
+  }
+
+  private reportError(error: StyleLoadError) {
+    this.onError?.(error);
+    return error;
+  }
+
+  private createId(prefix = "atom") {
+    this.idCounter += 1;
+    return `${this.namespace}-${prefix}-${this.idCounter}`;
+  }
 }
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***createStyleRuntime***:
+ * creates a framework-agnostic style runtime.
+ */
+export const createStyleRuntime = <TFile extends string = string>(
+  options: StyleRuntimeOptions<TFile> = {},
+) => new StyleRuntime(options);

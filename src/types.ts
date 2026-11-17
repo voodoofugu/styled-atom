@@ -1,15 +1,41 @@
-import type React from "react";
+import type * as CSS from "csstype";
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleStatus***:
+ * the lifecycle state of one registered style atom.
+ */
+export type StyleStatus = "loading" | "ready" | "failed";
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StylePlacement***:
+ * where the runtime renders a style element.
+ */
+export type StylePlacement = "head" | "inline";
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleTarget***:
+ * a DOM destination that can own injected style elements.
+ */
+export type StyleTarget = Document | ShadowRoot | HTMLElement;
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleTargetValue***:
+ * a style target or a callback that resolves it when the atom registers.
+ */
+export type StyleTargetValue =
+  | StyleTarget
+  | null
+  | undefined
+  | (() => StyleTarget | null | undefined);
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***ImportStyleResult***:
- * value returned by a dynamic CSS loader.
- * @description
- * CSS bundlers usually return `{ default: string }`, but `styled-atom` also accepts plain CSS strings and empty results. Empty results still mark the atom as loaded, so a loader can intentionally no-op for optional style files.
- * @example
- * ```ts
- * const css: ImportStyleResult = await import("./styles/button.css");
- * ```
+ * values accepted from a CSS file loader.
  */
 export type ImportStyleResult =
   | string
@@ -21,14 +47,7 @@ export type ImportStyleResult =
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***ImportStyle***:
- * dynamic CSS loader used by `createStyledAtomStore`.
- * @param fileName CSS atom name requested by `StyledAtom`.
- * @description
- * The loader receives the atom name without forcing a file extension convention. Host projects usually map it to a bundler import, for example `import("./css/" + fileName + ".css")`.
- * @example
- * ```ts
- * const path: ImportStyle = (name) => import(`./css/${name}.css`);
- * ```
+ * loads CSS text for a named file atom.
  */
 export type ImportStyle<TFile extends string = string> = (
   fileName: TFile,
@@ -36,302 +55,289 @@ export type ImportStyle<TFile extends string = string> = (
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyleEncap***:
- * wrapper configuration for optional style scopes.
- * @description
- * Store-bound atoms use `encap` only for the rendered wrapper element. Loaded CSS is injected as raw CSS, so imported files should target the same class, id or attribute themselves. Inline atoms also use this wrapper as the generated selector scope.
- * @example
- * ```tsx
- * <StyledAtom files="screen-main" encap />
- * <StyledAtom files="screen-main" encap="customClass" />
- * <StyledAtom files="screen-main" encap={{ className: "customClass" }} />
- * ```
- */
-export type StyleEncap =
-  | boolean
-  | string
-  | {
-      /** Wrapper element class names. */
-      className?: string | string[];
-      /** Wrapper element id. */
-      id?: string;
-      /** Wrapper element attributes. */
-      attribute?: Record<string, string>;
-    };
-
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleAtomFiles***:
- * one or many CSS atom names.
- * @description
- * Accepts a single CSS atom name or a readonly list of atom names.
- * @example
- * ```ts
- * const files: StyleAtomFiles = [
- *   "stabilize",
- *   "screen-main",
- * ];
- * ```
+ * one file atom name or a request for several file atoms.
  */
 export type StyleAtomFiles<TFile extends string = string> =
   | TFile
   | readonly TFile[];
 
-export type StyleAtomCssValue = string | number | null | undefined;
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleAtomCssScalar***:
+ * a declaration value before formatting.
+ */
+export type StyleAtomCssScalar = string | number;
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleAtomCssValue***:
+ * a declaration value, including repeated fallback declarations.
+ */
+export type StyleAtomCssValue =
+  | StyleAtomCssScalar
+  | readonly StyleAtomCssScalar[]
+  | null
+  | undefined;
+
+type CssPropertiesWithFallbacks = {
+  [TProperty in keyof CSS.Properties<StyleAtomCssScalar>]?:
+    | CSS.Properties<StyleAtomCssScalar>[TProperty]
+    | readonly Exclude<
+        CSS.Properties<StyleAtomCssScalar>[TProperty],
+        undefined
+      >[];
+};
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyledAtomStyles***:
- * React-like object styles for inline atoms.
- * @description
- * Nested selectors, at-rules and declarations are compiled into an owned style tag.
- * @example
- * ```ts
- * const styles: StyledAtomStyles = {
- *   display: "grid",
- *
- *   ".title": {
- *     color: "#2563eb",
- *   },
- * };
- * ```
+ * a typed stylesheet tree for the React `style` prop and the standalone
+ * compiler. Keys can be declarations, nested selectors or at-rules.
  */
-export type StyledAtomStyles = React.CSSProperties & {
+export type StyledAtomStyles = CssPropertiesWithFallbacks & {
   [selectorOrProperty: string]:
     | StyleAtomCssValue
     | StyledAtomStyles
     | undefined;
 };
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleAtomStyles***:
+ * the framework-agnostic name for `StyledAtomStyles`.
+ */
 export type StyleAtomStyles = StyledAtomStyles;
 
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleAtomInlineStyle***:
+ * precompiled inline CSS registered directly with the core runtime.
+ */
 export type StyleAtomInlineStyle = {
+  /** Stable public identity of the inline atom. */
   name: string;
+  /** CSS text mounted by the runtime. */
   css: string;
 };
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyleAtomOptions***:
- * shared style options used by React APIs.
- * @description
- * These options describe one atom: CSS files, optional inline CSS and optional wrapper behavior.
- * @example
- * ```ts
- * const options: StyleAtomOptions = {
- *   files: ["card", "theme"],
- *   encap: "customClass",
- * };
- * ```
+ * ### ***StyleErrorCode***:
+ * the failure categories reported by the runtime.
  */
-export type StyleAtomOptions<TFile extends string = string> = {
-  /** CSS atom names passed to the configured loader. */
-  files?: StyleAtomFiles<TFile>;
-  /** Already compiled inline CSS owned by this atom. */
-  inlineStyle?: StyleAtomInlineStyle;
-  /** Optional CSS encapsulation settings. */
-  encap?: StyleEncap;
-};
-
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyleAtomSnapshot***:
- * current loading state for one registered atom.
- * @description
- * Snapshots are emitted only when the atom-visible loading state changes. Use them in custom integrations to render loading UI, inspect failed files or wait until an atom is ready.
- * @example
- * ```ts
- * const snapshot = controller.getSnapshot();
- *
- * if (snapshot.loaded) {
- *   renderPreview();
- * }
- * ```
- */
-export type StyleAtomSnapshot = {
-  /** Stable atom id inside the store. */
-  id: string;
-  /** `true` when every requested style has either loaded or failed. */
-  loaded: boolean;
-  /** `true` while at least one requested style is still idle/loading. */
-  loading: boolean;
-  /** Normalized files requested by this atom. */
-  files: string[];
-  /** Loading errors grouped by file. */
-  errors: StyleLoadError[];
-};
+export type StyleErrorCode = "load" | "conflict" | "target";
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleLoadError***:
- * one failed style loader result.
- * @description
- * The store keeps the original thrown value so host tooling can decide whether to log, surface or ignore the failure.
+ * a loader, ownership or mount-target failure.
  */
 export type StyleLoadError = {
-  /** CSS atom name that failed to load. */
-  file: string;
-  /** Original error thrown by the configured loader. */
+  /** Machine-readable failure category. */
+  code: StyleErrorCode;
+  /** File name, inline atom name or `target`. */
+  source: string;
+  /** The original thrown value or a runtime error. */
   error: unknown;
 };
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***MountedStyle***:
+ * CSS ready to render or serialize.
+ */
+export type MountedStyle = {
+  /** Stable key within a namespace and precedence level. */
+  key: string;
+  /** How the CSS entered the runtime. */
+  kind: "file" | "inline";
+  /** Public file or inline atom name. */
+  name: string;
+  /** Final CSS text, including an optional generated `sourceURL`. */
+  css: string;
+  /** Numeric cascade position used to order style elements. */
+  precedence: number;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleAtomSnapshot***:
+ * immutable public state of one registered atom.
+ */
+export type StyleAtomSnapshot = {
+  /** Runtime-local atom identifier. */
+  id: string;
+  /** Current lifecycle state. */
+  status: StyleStatus;
+  /** Normalized file names requested by the atom. */
+  files: readonly string[];
+  /** Current failures. Empty while loading or ready. */
+  errors: readonly StyleLoadError[];
+  /** CSS that is ready to mount, collect or render inline. */
+  styles: readonly MountedStyle[];
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleRuntimeEntryInspection***:
+ * diagnostic information for one runtime CSS entry.
+ */
+export type StyleRuntimeEntryInspection = {
+  /** Stable public key used on the style element. */
+  key: string;
+  /** File or inline atom name. */
+  name: string;
+  /** How the CSS entered the runtime. */
+  kind: "file" | "inline";
+  /** Current entry state. */
+  status: StyleStatus;
+  /** Resolved style element placement. */
+  placement: StylePlacement;
+  /** Resolved destination category. */
+  target: "document" | "shadow-root" | "element" | "inline" | "server";
+  /** Numeric cascade position. */
+  precedence: number;
+  /** Number of atoms in this runtime that currently own the entry. */
+  localOwners: number;
+  /** Length of the loaded CSS text before generated annotations. */
+  cssLength: number;
+  /** Current failure, when the entry is failed. */
+  error?: StyleLoadError;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleRuntimeInspection***:
+ * a read-only diagnostic report for one runtime.
+ */
+export type StyleRuntimeInspection = {
+  /** Runtime namespace used to coordinate shared ownership. */
+  namespace: string;
+  /** Number of registered atoms in this runtime. */
+  atoms: number;
+  /** Active file and inline CSS entries. */
+  entries: readonly StyleRuntimeEntryInspection[];
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleAtomOptions***:
+ * options used to register or update one core runtime atom.
+ */
+export type StyleAtomOptions<TFile extends string = string> = {
+  /** Named CSS file atoms loaded through the runtime loader. */
+  files?: StyleAtomFiles<TFile>;
+  /** Precompiled inline CSS. React compiles its `style` prop into this form. */
+  inlineStyle?: StyleAtomInlineStyle;
+  /** Overrides the runtime placement for this atom. */
+  placement?: StylePlacement;
+  /** Overrides the runtime target for this atom. */
+  target?: StyleTargetValue;
+  /** Overrides the runtime CSP nonce for this atom. */
+  nonce?: string;
+  /** Overrides the configured cascade order for this atom. */
+  precedence?: number;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleAtomCssReplacement***:
- * CSS text replacement used by dev-time hot style updates.
- * @description
- * `replace()` updates already registered file atoms without calling the loader. This is useful for watch servers that compile CSS and push fresh text into mounted previews.
- * @example
- * ```ts
- * styleAtomsStore.replace([
- *   { file: "screen-main", css: nextCss },
- * ]);
- * ```
+ * a direct CSS replacement for a named file atom.
  */
 export type StyleAtomCssReplacement<TFile extends string = string> = {
-  /** CSS atom name to replace. */
+  /** File atom to replace. */
   file: TFile;
-  /** New CSS text for that atom. */
+  /** New CSS text. */
   css: string;
 };
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleAtomController***:
- * controller returned for one registered style atom.
- * @description
- * Keep the controller while the styles should stay mounted. Calling `dispose()` releases the atom references and removes any style tags that are no longer used by another atom.
- * @example
- * ```ts
- * const controller = store.preload(["reset", "theme"]);
- *
- * controller.subscribe(() => {
- *   console.log(controller.getSnapshot());
- * });
- *
- * controller.dispose();
- * ```
+ * imperative handle returned when the core runtime registers an atom.
  */
-export type StyleAtomController = {
-  /** Stable atom id inside the store. */
-  id: string;
-  /** Update the atom options without creating a new controller. */
-  update: (options: StyleAtomOptions) => void;
-  /** Subscribe to snapshot changes for this atom. */
+export type StyleAtomController<TFile extends string = string> = {
+  /** Runtime-local atom identifier. */
+  readonly id: string;
+  /** Reconciles the atom with a new set of options. */
+  update: (options: StyleAtomOptions<TFile>) => void;
+  /** Subscribes to snapshot changes. Returns the unsubscribe function. */
   subscribe: (listener: () => void) => () => void;
-  /** Read the latest loading snapshot for this atom. */
+  /** Returns the current immutable snapshot. */
   getSnapshot: () => StyleAtomSnapshot;
-  /** Reload this atom's files from the configured loader. */
+  /** Reloads file CSS owned by this atom. */
   reload: () => void;
-  /** Replace CSS text for already registered file entries. */
-  replace: (styles: readonly StyleAtomCssReplacement[]) => void;
-  /** Release this atom and remove unused style references. */
+  /** Retries failures owned by this atom. */
+  retry: () => void;
+  /** Replaces mounted file CSS without calling the loader. */
+  replace: (styles: readonly StyleAtomCssReplacement<TFile>[]) => void;
+  /** Releases this atom and its ownership references. */
   dispose: () => void;
 };
 
-export type StyledAtomBase = {
-  /** Optional wrapper and style scope settings. */
-  encap?: StyleEncap;
-  /** Content rendered while requested styles are loading. */
-  fallback?: React.ReactNode;
-  /** Called once when this atom changes from loading to loaded. */
-  onLoad?: () => void;
-  /** React content protected by this style atom. */
-  children?: React.ReactNode;
-};
-
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyledAtomImport***:
- * props accepted by store-bound StyledAtom components.
- * @description
- * Loads CSS atoms through the loader configured by `createStyledAtomStore`.
- * @example
- * ```tsx
- * <StyledAtomImport files="screen-main">
- *   <Preview />
- * </StyledAtomImport>
- * ```
+ * ### ***InitialStyles***:
+ * synchronous CSS available before a loader runs, including during SSR.
  */
-export type StyledAtomImport<TFile extends string = string> = StyledAtomBase & {
-  /** CSS atom names passed to the configured loader. */
-  files?: StyleAtomFiles<TFile>;
-  name?: never;
-  styles?: never;
-};
-
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyledAtomImportComponent***:
- * React component returned by `createStyledAtomStore`.
- * @description
- * Bound to a specific style atom runtime and loader configuration.
- * @example
- * ```ts
- * const StyledAtomImport =
- *   styleAtomsStore.StyledAtom;
- * ```
- */
-export type StyledAtomImportComponent<TFile extends string = string> = React.FC<
-  StyledAtomImport<TFile>
+export type InitialStyles<TFile extends string = string> = Partial<
+  Record<TFile, string>
 >;
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyledAtomInline***:
- * React-like object styles used by inline atoms.
- * @description
- * Compiles a React-like style object into an owned style tag.
- * @example
- * ```ts
- * const styles: StyledAtomInline = {
- *   display: "grid",
- *
- *   ".title": {
- *     color: "#2563eb",
- *   },
- * };
- * ```
+ * ### ***StyleRuntimeOptions***:
+ * configuration shared by every atom registered with a runtime.
  */
-export type StyledAtomInline = StyledAtomBase & {
-  /** Inline style atom name used for the DOM style tag, dev sourceURL and default root selector. */
-  name: string;
-  /** React-like CSS object compiled into an owned style tag. */
-  styles: StyledAtomStyles;
-  files?: never;
+export type StyleRuntimeOptions<TFile extends string = string> = {
+  /** Loads CSS text for named file atoms. */
+  loader?: ImportStyle<TFile>;
+  /** Default DOM destination. Uses the current document when omitted. */
+  target?: StyleTargetValue;
+  /** Default style element placement. @default "head" */
+  placement?: StylePlacement;
+  /**
+   * Adds readable virtual filenames to generated CSS. Defaults to enabled in
+   * development and tests, and disabled in production.
+   */
+  sourceURL?: boolean;
+  /** Default CSP nonce applied to owned style elements. */
+  nonce?: string;
+  /** Stable cascade order for named file atoms. */
+  order?: readonly TFile[];
+  /** CSS available synchronously for first render and server collection. */
+  initialStyles?: InitialStyles<TFile>;
+  /** Stable ownership namespace. Automatic namespaces are unique per runtime. */
+  namespace?: string;
+  /** Receives loader, target and ownership failures. */
+  onError?: (error: StyleLoadError) => void;
 };
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyledAtom***:
- * props accepted by the React `StyledAtom` component.
- * @description
- * Props accepted by a React `StyledAtom` component. Store-bound atoms load CSS files through `files`; the package-level atom accepts inline `name` and `styles`.
- * @example
- * ```tsx
- * <StyledAtom files="button" fallback={<span>Loading...</span>}>
- *   <Button />
- * </StyledAtom>
- * ```
+ * ### ***CollectedStyle***:
+ * a mounted style with the data needed for server serialization.
  */
-export type StyledAtomProps = StyledAtomImport | StyledAtomInline;
+export type CollectedStyle = MountedStyle & {
+  /** Runtime ownership namespace. */
+  namespace: string;
+  /** CSP nonce serialized on the style element. */
+  nonce?: string;
+};
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***StyledAtomRuntime***:
- * React-facing style atom runtime returned by `createStyledAtomStore`.
- * @description
- * Contains the bound `StyledAtom` component and a small set of runtime controls for configuring the CSS loader and refreshing mounted style tags during development.
+ * ### ***StyleCollector***:
+ * per-request collection of styles emitted during server rendering.
  */
-export type StyledAtomRuntime<TFile extends string = string> = {
-  /** React component bound to this runtime. */
-  StyledAtom: StyledAtomImportComponent<TFile>;
-  /** Set or replace the CSS loader. */
-  configure: (path?: ImportStyle<TFile>) => void;
-  /** Reload all or selected mounted CSS atoms through the configured loader. */
-  reload: (files?: StyleAtomFiles<TFile>) => void;
-  /** Replace CSS text for already mounted CSS atoms. */
-  replace: (styles: readonly StyleAtomCssReplacement<TFile>[]) => void;
-  /** Remove all mounted style tags owned by this runtime. */
-  dispose: () => void;
+export type StyleCollector = {
+  /** Adds or updates one collected style. */
+  collect: (style: CollectedStyle) => void;
+  /** Returns styles in deterministic cascade order. */
+  getStyles: () => readonly CollectedStyle[];
+  /** Serializes collected styles into HTML style tags. */
+  getStyleTags: () => string;
+  /** Removes every collected style. */
+  clear: () => void;
 };

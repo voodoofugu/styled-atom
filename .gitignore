@@ -4,3 +4,5 @@ Zone.Identifier
 publish
 dist
 example/dist
+test-results
+playwright-report
