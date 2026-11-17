@@ -1,11 +1,5 @@
 import React from "react";
 
-import Prism from "prismjs";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-jsx";
-import "prismjs/components/prism-tsx";
-import "prismjs/components/prism-typescript";
-
 import type { MorphScrollHandle } from "morphing-scroll";
 
 import {
@@ -149,18 +143,10 @@ function ThemeControl({
 }
 
 function Body({ html }: { html: string }) {
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-
-    Prism.highlightAllUnder(root);
-  }, [html]);
   return (
     <div
       className="doc-body"
       dangerouslySetInnerHTML={{ __html: html }}
-      ref={ref}
     />
   );
 }

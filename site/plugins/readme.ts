@@ -3,6 +3,11 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { marked } from "marked";
+import Prism from "prismjs";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-jsx";
+import "prismjs/components/prism-tsx";
+import "prismjs/components/prism-typescript";
 import type { Plugin } from "vite";
 
 const VIRTUAL_ID = "virtual:styled-atom-readme";
@@ -40,8 +45,37 @@ const siteLinks = (markdown: string) =>
       "(https://github.com/voodoofugu/styled-atom/blob/main/LICENSE)",
     );
 
+const languageAliases: Record<string, string> = {
+  html: "markup",
+  js: "javascript",
+  sh: "bash",
+  shell: "bash",
+  ts: "typescript",
+  xml: "markup",
+};
+
+const decodeCode = (html: string) =>
+  html
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(?:39|x27);/gi, "'")
+    .replace(/&amp;/g, "&");
+
+const highlightCode = (html: string) =>
+  html.replace(
+    /<pre><code class="language-([\w-]+)">([\s\S]*?)<\/code><\/pre>/g,
+    (block, language: string, code: string) => {
+      const grammarName = languageAliases[language] ?? language;
+      const grammar = Prism.languages[grammarName];
+      if (!grammar) return block;
+      const highlighted = Prism.highlight(decodeCode(code), grammar, grammarName);
+      return `<pre class="language-${language}"><code class="language-${language}">${highlighted}</code></pre>`;
+    },
+  );
+
 const render = (markdown: string) =>
-  marked.parse(siteLinks(markdown), { async: false }) as string;
+  highlightCode(marked.parse(siteLinks(markdown), { async: false }) as string);
 
 type ParsedSection = {
   id: string;
