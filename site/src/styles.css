@@ -5,10 +5,10 @@
 :root {
   color-scheme: light dark;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --bg: light-dark(#f4f6f9, #0c1118);
-  --panel: light-dark(#fafbfd, #111821);
-  --card: light-dark(#ffffff, #17202b);
-  --card-soft: light-dark(#f5f8fc, #1b2633);
+  --bg: light-dark(#f2f8fa, #0b1518);
+  --panel: light-dark(#f9fcfd, #111c20);
+  --card: light-dark(#ffffff, #17252b);
+  --card-soft: light-dark(#f3f9fb, #1b2a31);
   --ink: light-dark(#16202d, #edf4ff);
   --ink-soft: light-dark(#566476, #a4b2c4);
   --ink-faint: light-dark(#8995a5, #718196);
@@ -152,7 +152,6 @@ code { font-family: var(--mono); }
 
 .docs-shell {
   width: 100%;
-  max-width: 1180px;
   min-width: 0;
   min-height: 0;
   margin: 0 auto;
@@ -408,7 +407,7 @@ code { font-family: var(--mono); }
   background: linear-gradient(var(--fade, var(--bg)) 0%, transparent 100%);
 }
 
-.doc-page { max-width: 760px; }
+.doc-page { width: 100%; }
 
 .docs-content {
   display: flex;
