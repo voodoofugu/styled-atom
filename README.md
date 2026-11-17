@@ -4,6 +4,7 @@
 
 ### Table of contents
 
+- [Documentation](#documentation)
 - [About](#about)
 - [Installation](#installation)
 - [API](#api)
@@ -11,6 +12,14 @@
 - [Framework recipes](#framework-recipes)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
+
+<h2></h2>
+
+### Documentation
+
+This README is the source of truth; the
+[site](https://voodoofugu.github.io/styled-atom/) is the same text, easier to
+browse — searchable, with section navigation and live examples.
 
 <h2></h2>
 
