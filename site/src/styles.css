@@ -481,6 +481,9 @@ code { font-family: var(--mono); }
 }
 .chrome-scroll .ms-bar:hover .scroll-thumb,
 .chrome-scroll .ms-thumb.ms-grabbing .scroll-thumb { color: var(--ink-faint); }
+
+.docs-main > div > .chrome-scroll > .ms-content > .ms-bar { z-index: 30; }
+
 .doc-page { width: 100%; }
 
 .docs-content {
