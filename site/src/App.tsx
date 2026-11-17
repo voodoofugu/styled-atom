@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { MorphScrollHandle } from "morphing-scroll";
+import type { MorphScrollHandle, MorphScrollProps } from "morphing-scroll";
 
 import {
   createStyledAtomStore,
@@ -525,6 +525,17 @@ function App() {
     () => new Map(),
   );
   const page = React.useRef<MorphScrollHandle>(null);
+  const navigation = React.useRef<HTMLElement>(null);
+  const shell = React.useRef<HTMLDivElement>(null);
+  const keepNavigationStill = React.useCallback<
+    NonNullable<MorphScrollProps["onScrollPosition"]>
+  >((_left, top, _max, overscroll) => {
+    navigation.current?.style.setProperty(
+      "--docs-scroll-offset",
+      `${top - overscroll.y}px`,
+    );
+    shell.current?.toggleAttribute("data-scrolled", top > 8);
+  }, []);
   const id = route.startsWith("#/") ? route.slice(2) : "";
   const current = allSections.find((section) => section.id === id);
   const normalizedQuery = query.trim().toLowerCase();
@@ -548,7 +559,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" ref={shell}>
       <header className="top-bar">
         <div className="top-bar-inner">
           <a className="brand" href="#/">
@@ -567,11 +578,12 @@ function App() {
         <main className="docs-main">
           <ChromeScroll
             controls={{ keys: true }}
+            onScrollPosition={keepNavigationStill}
             ref={page}
           >
             <div className="docs-content">
               <div className="docs-body">
-                <aside className="docs-nav">
+                <aside className="docs-nav" ref={navigation}>
           <input
             aria-label="Search documentation"
             className="docs-search"

@@ -47,17 +47,27 @@ button, a { -webkit-tap-highlight-color: transparent; }
 code { font-family: var(--mono); }
 
 .app-shell {
+  --top-bar-height: 59px;
+  position: relative;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   height: 100dvh;
 }
 
 .top-bar {
-  position: relative;
+  position: absolute;
+  inset: 0 0 auto;
   z-index: 20;
-  border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
-  backdrop-filter: blur(18px);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.06);
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.app-shell[data-scrolled] .top-bar {
+  border-bottom-color: var(--line);
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .top-bar-inner {
@@ -163,8 +173,7 @@ code { font-family: var(--mono); }
 }
 
 .docs-nav {
-  position: sticky;
-  top: 0;
+  position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   align-content: start;
@@ -172,6 +181,8 @@ code { font-family: var(--mono); }
   min-height: 0;
   background: var(--bg);
   padding: 0 0 16px;
+  transform: translate3d(0, var(--docs-scroll-offset, 0px), 0);
+  will-change: transform;
 }
 
 .docs-nav-scroll,
@@ -431,11 +442,6 @@ code { font-family: var(--mono); }
 }
 .chrome-scroll .ms-bar:hover .scroll-thumb,
 .chrome-scroll .ms-thumb.ms-grabbing .scroll-thumb { color: var(--ink-faint); }
-.chrome-scroll .ms-edge:not(.ms-disabled) .ms-edge-inner {
-  width: 20px;
-  background: linear-gradient(var(--fade, var(--bg)) 0%, transparent 100%);
-}
-
 .doc-page { width: 100%; }
 
 .docs-content {
@@ -455,7 +461,7 @@ code { font-family: var(--mono); }
   width: 100%;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 24px 24px 0;
+  padding: calc(var(--top-bar-height) + 24px) 24px 0;
 }
 
 .docs-page-slot {
@@ -704,6 +710,8 @@ code { font-family: var(--mono); }
     height: 32dvh;
     border-bottom: 1px solid var(--line);
     padding: 12px 0;
+    transform: none;
+    will-change: auto;
   }
   .docs-page-slot { padding-top: 24px; }
   .doc-title { font-size: 24px; }

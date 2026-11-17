@@ -70,7 +70,7 @@ type ChromeScrollProps = Omit<MorphScrollProps, "controls" | "size"> & {
 
 const ChromeScroll = React.forwardRef<MorphScrollHandle, ChromeScrollProps>(
   function ChromeScroll(
-    { className, controls, edge, size = "auto", ...rest },
+    { className, controls, size = "auto", ...rest },
     ref,
   ) {
     return (
@@ -81,7 +81,6 @@ const ChromeScroll = React.forwardRef<MorphScrollHandle, ChromeScrollProps>(
           ...controls,
           bar: { ...bar, ...controls?.bar },
         }}
-        edge={edge ?? { size: 40 }}
         ref={ref}
         size={size}
         {...rest}
