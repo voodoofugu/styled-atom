@@ -340,6 +340,11 @@ code { font-family: var(--mono); }
   overflow: hidden;
 }
 
+.docs-tree-branch > div > ul {
+  padding-right: 4px;
+  padding-bottom: 3px;
+}
+
 .docs-tree-row.is-current {
   transform: translateY(-1px);
   filter: drop-shadow(2px 2px 0 var(--accent-ink));
