@@ -20,6 +20,8 @@ import ChromeScroll from "./ChromeScroll";
 
 type Theme = "system" | "light" | "dark";
 
+const themes = ["system", "light", "dark"] as const;
+
 let nextLoadFails = false;
 
 const lifecycle = createStyledAtomStore<"remote-card">({
@@ -69,9 +71,51 @@ function ThemeControl({
   theme: Theme;
   setTheme: (value: Theme) => void;
 }) {
+  const control = React.useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = React.useState(false);
+
+  const selectAt = (clientX: number) => {
+    const bounds = control.current?.getBoundingClientRect();
+    if (!bounds || bounds.width === 0) return;
+
+    const offset = Math.max(
+      0,
+      Math.min(bounds.width - 1, clientX - bounds.left),
+    );
+    const index = Math.min(
+      themes.length - 1,
+      Math.floor(offset / (bounds.width / themes.length)),
+    );
+    setTheme(themes[index]);
+  };
+
+  const stopDragging = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setDragging(false);
+  };
+
   return (
-    <div aria-label="Color theme" className="theme-control">
-      {(["system", "light", "dark"] as const).map((value) => (
+    <div
+      aria-label="Color theme"
+      className="theme-control"
+      data-dragging={dragging || undefined}
+      onLostPointerCapture={() => setDragging(false)}
+      onPointerCancel={stopDragging}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragging(true);
+        selectAt(event.clientX);
+      }}
+      onPointerMove={(event) => {
+        if (dragging) selectAt(event.clientX);
+      }}
+      onPointerUp={stopDragging}
+      ref={control}
+    >
+      {themes.map((value) => (
         <button
           aria-pressed={theme === value}
           key={value}
@@ -445,12 +489,13 @@ function App() {
             aria-hidden="true"
             className="brand-logo"
           />
-          <span>styled-atom</span>
+          <span className="brand-name">styled-atom</span>
           <small>v4</small>
         </a>
         <nav aria-label="Primary">
           <a href="https://github.com/voodoofugu/styled-atom">github</a>
           <a href="https://www.npmjs.com/package/styled-atom">npm</a>
+          <a href="https://resume.voodoofugu.com/?lang=ru">author</a>
         </nav>
         <ThemeControl setTheme={setTheme} theme={theme} />
       </header>
