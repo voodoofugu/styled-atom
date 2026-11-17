@@ -14,6 +14,7 @@
   --ink-faint: light-dark(#8995a5, #718196);
   --ink-faint-soft: light-dark(#aab3bf, #536276);
   --line: light-dark(#dbe2eb, #293646);
+  --line-soft: light-dark(#e7edf3, #202c3a);
   --line-strong: light-dark(#bdc9d8, #3b4c60);
   --accent: light-dark(#007f9e, #4dd9f5);
   --accent-ink: light-dark(#006a85, #78e7ff);
@@ -386,7 +387,7 @@ code { font-family: var(--mono); }
 
 .docs-tree-row.is-ancestor::before {
   z-index: -1;
-  background: var(--accent-ink);
+  background: var(--line-soft);
 }
 
 .docs-tree-row.is-ancestor::after {
