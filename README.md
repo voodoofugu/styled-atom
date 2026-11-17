@@ -80,9 +80,9 @@ Compiles a typed stylesheet object into an owned <code>&lt;style&gt;</code> elem
 - `name: string` - stable atom name, default root selector and development `sourceURL`.
 - `style: StyledAtomStyles` - declarations, nested selectors and at-rules.
 - `scope?: boolean | string | StyleScopeOptions` - optional wrapper and selector boundary.
-- `placement?: "head" | "inline"` - style element destination relative to the component.
+- `inlinePlacement?: boolean` - render the style element beside the content instead of in the target head.
 - `target?: Document | ShadowRoot | HTMLElement | (() => target)` - optional mount target.
-- `render?: "eager" | "ready"` - whether children wait for CSS.
+- `renderWhenReady?: boolean` - wait for every requested style before rendering children.
 - `fallback`, `errorFallback` - loading and failed content.
 - `onStatusChange`, `onReady`, `onError` - lifecycle callbacks.
 - `children` - content or a render function receiving status, errors and `retry()`.
@@ -290,7 +290,9 @@ const app = renderToString(
 const styleTags = collector.getStyleTags();
 ```
 
-Create the collector and store per request. Keep the namespace and initial manifest stable on the client so matching server style elements are adopted instead of duplicated.
+Create the collector and store per request. Keep the namespace and initial manifest stable on the client so matching server style elements are adopted instead of duplicated. Matching inline style input also reuses the collected CSS without compiling it again during hydration; changed or unsigned input falls back to normal compilation and validation.
+
+The React entry is marked as a client boundary for React Server Component bundlers. Create stores and pass non-serializable targets or callbacks from a client module; the collector remains the integration point for traditional React SSR.
 
 </div></ul></details>
 
@@ -344,7 +346,7 @@ Many consumers of the same identity still produce one head `<style>`. Many uniqu
 
 <details><summary><b>Lifecycle and recovery</b>: <em>make loading and failures explicit</em></summary><br />
 
-Every atom is `loading`, `ready` or `failed`. Children render eagerly by default. Passing `fallback`, or setting `render="ready"`, waits for CSS. Loader, target and ownership failures remain retryable.
+Every atom is `loading`, `ready` or `failed`. Children render eagerly by default. Passing `fallback`, or enabling `renderWhenReady`, waits for CSS. Loader, target and ownership failures remain retryable.
 
 Use `onStatusChange`, `onReady` and `onError` for external reporting. Scoped wrappers expose the same state as `data-styled-atom-status`.
 
@@ -364,7 +366,7 @@ iframe.addEventListener("load", () => previewStyles.retry());
 
 `target` accepts a `Document`, `ShadowRoot`, element or lazy callback. A missing explicit target fails safely instead of leaking CSS into the host document.
 
-Use `placement="inline"` when the style tag must travel through a React portal with its content. Prefer head placement when the destination document can be supplied as a target.
+Use `inlinePlacement` when the style tag must travel through a React portal with its content. Prefer head placement when the destination document can be supplied as a target.
 
 </details>
 

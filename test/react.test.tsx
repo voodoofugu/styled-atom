@@ -89,8 +89,8 @@ describe("StyledAtom", () => {
   it("renders inline style tags inside the wrapper", () => {
     const { container } = render(
       <StyledAtom
+        inlinePlacement
         name="inline-card"
-        placement="inline"
         scope
         style={{ color: "red" }}
       >
@@ -111,7 +111,7 @@ describe("StyledAtom", () => {
 
     render(
       createPortal(
-        <StyledAtom name="portal-card" placement="inline" style={styles}>
+        <StyledAtom inlinePlacement name="portal-card" style={styles}>
           <span>portal</span>
         </StyledAtom>,
         portalRoot,
@@ -238,6 +238,28 @@ describe("store-bound StyledAtom", () => {
     expect(screen.getByText("loading:content")).toBeTruthy();
   });
 
+  it("waits for CSS when renderWhenReady is enabled", async () => {
+    let resolve!: (css: string) => void;
+    const store = createStyledAtomStore({
+      loader: () =>
+        new Promise<string>((done) => {
+          resolve = done;
+        }),
+    });
+    const { container } = render(
+      <store.StyledAtom files="card" renderWhenReady>
+        ready content
+      </store.StyledAtom>,
+    );
+
+    expect(container.textContent).toBe("");
+    await act(async () => {
+      resolve(".card{color:green}");
+      await flush();
+    });
+    expect(container.textContent).toBe("ready content");
+  });
+
   it("shows an error fallback and retries", async () => {
     const loader = vi
       .fn()
@@ -274,5 +296,23 @@ describe("store-bound StyledAtom", () => {
 
     expect(frameDocument.head.querySelector("style")).toBeTruthy();
     expect(document.head.querySelector("style")).toBeNull();
+  });
+
+  it("can override an inline store default back to head placement", () => {
+    const store = createStyledAtomStore({ placement: "inline" });
+    const { container } = render(
+      <store.StyledAtom
+        inlinePlacement={false}
+        name="head-card"
+        style={{ color: "red" }}
+      >
+        head
+      </store.StyledAtom>,
+    );
+
+    expect(document.head.querySelector("style")?.textContent).toContain(
+      "color: red",
+    );
+    expect(container.querySelector("style")).toBeNull();
   });
 });

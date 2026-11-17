@@ -34,6 +34,7 @@ export type MountedRegistryEntry = {
   name: string;
   precedence: number;
   css: string;
+  signature?: string;
   nonce?: string;
   target?: StyleTarget;
   owner: RegistryOwner;
@@ -136,6 +137,29 @@ const findServerElement = (
       candidate.getAttribute("data-styled-atom-namespace") === namespace &&
       candidate.getAttribute("data-styled-atom-key") === publicKey,
   ) as HTMLStyleElement | undefined;
+
+export const findServerStyleCss = ({
+  target,
+  placement,
+  namespace,
+  publicKey,
+}: {
+  target?: StyleTarget;
+  placement: "head" | "inline";
+  namespace: string;
+  publicKey: string;
+}) => {
+  if (typeof document === "undefined") return undefined;
+  const container = placement === "head" ? targetContainer(target) : target;
+  if (!container) return undefined;
+  const element = findServerElement(container, namespace, publicKey);
+  if (!element) return undefined;
+  return {
+    css: (element.textContent ?? "").replace(/<\\\/style/gi, "</style"),
+    signature:
+      element.getAttribute("data-styled-atom-signature") ?? undefined,
+  };
+};
 
 const comparableCss = (css: string) =>
   css
@@ -271,6 +295,11 @@ export const mountRegistryEntry = (
   record.css = entry.css;
   record.nonce ??= entry.nonce;
   record.owners.add(entry.owner);
+  if (entry.signature) {
+    record.element.setAttribute("data-styled-atom-signature", entry.signature);
+  } else {
+    record.element.removeAttribute("data-styled-atom-signature");
+  }
   if (record.nonce) record.element.nonce = record.nonce;
   if (record.element.textContent !== entry.css) {
     record.element.textContent = entry.css;

@@ -22,6 +22,16 @@ for (const entry of [esmReact, cjsReact]) {
 
 const coreBundle = await readFile(new URL("../dist/esm/index.js", import.meta.url), "utf8");
 assert.doesNotMatch(coreBundle, /from["']react(?:\/|["'])/);
+const reactBundle = await readFile(
+  new URL("../dist/esm/react.js", import.meta.url),
+  "utf8",
+);
+assert.match(reactBundle, /^"use client";/);
+const coreTypes = await readFile(
+  new URL("../dist/esm/index.d.ts", import.meta.url),
+  "utf8",
+);
+assert.doesNotMatch(coreTypes, /resolveHydratedInlineStyle|signature\?: string/);
 
 const runtime = esmCore.createStyleRuntime({
   initialStyles: { card: ".card{color:red}" },

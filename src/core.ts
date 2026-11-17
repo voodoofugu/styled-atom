@@ -18,6 +18,7 @@ import type {
   StyleTargetValue,
 } from "./types";
 import {
+  findServerStyleCss,
   mountRegistryEntry,
   nextRuntimeNamespace,
   releaseRegistryEntry,
@@ -29,7 +30,7 @@ type EntryStatus = "idle" | "loading" | "ready" | "failed";
 
 type NormalizedOptions = {
   files: string[];
-  inlineStyle?: { name: string; css: string };
+  inlineStyle?: { name: string; css: string; signature?: string };
   placement: StylePlacement;
   target?: StyleTarget;
   nonce?: string;
@@ -50,6 +51,7 @@ type StyleEntry = {
   status: EntryStatus;
   revision: number;
   css?: string;
+  signature?: string;
   error?: StyleLoadError;
   element?: HTMLStyleElement;
   registryOwner: object;
@@ -159,7 +161,13 @@ export const createStyleCollector = (): StyleCollector => {
           `[styled-atom] Collected style "${style.name}" has conflicting CSS.`,
         );
       }
-      styles.set(collectionKey, style);
+      styles.set(collectionKey, {
+        ...style,
+        signature:
+          existing && existing.signature !== style.signature
+            ? undefined
+            : style.signature,
+      });
     },
     getStyles,
     getStyleTags() {
@@ -172,7 +180,11 @@ export const createStyleCollector = (): StyleCollector => {
             style.namespace,
           )}" data-styled-atom-key="${escapeAttribute(
             style.key,
-          )}" data-styled-atom-precedence="${style.precedence}"${nonce}>${escapeStyleText(
+          )}" data-styled-atom-precedence="${style.precedence}"${
+            style.signature
+              ? ` data-styled-atom-signature="${escapeAttribute(style.signature)}"`
+              : ""
+          }${nonce}>${escapeStyleText(
             style.css,
           )}</style>`;
         })
@@ -257,6 +269,27 @@ export class StyleRuntime<TFile extends string = string> {
     return nonce ?? this.defaultNonce;
   }
 
+  /** @internal Returns matching server CSS to skip hydration compilation. */
+  resolveHydratedInlineStyle(
+    name: string,
+    options: Pick<
+      StyleAtomOptions<TFile>,
+      "placement" | "target" | "precedence"
+    > = {},
+  ) {
+    const normalized = this.normalize({
+      ...options,
+      inlineStyle: { name, css: "" },
+    });
+    const precedence = this.precedenceFor(name, normalized.precedence);
+    return findServerStyleCss({
+      target: normalized.target,
+      placement: normalized.placement,
+      namespace: this.namespace,
+      publicKey: this.publicKey("inline", name, precedence),
+    });
+  }
+
   /** Returns a read-only diagnostic report without exposing mutable state. */
   inspect(): StyleRuntimeInspection {
     return {
@@ -308,7 +341,7 @@ export class StyleRuntime<TFile extends string = string> {
     });
 
     if (normalized.inlineStyle) {
-      const { name, css } = normalized.inlineStyle;
+      const { name, css, signature } = normalized.inlineStyle;
       styles.push({
         key: this.publicKey(
           "inline",
@@ -318,6 +351,7 @@ export class StyleRuntime<TFile extends string = string> {
         kind: "inline",
         name,
         css: withSourceUrl(this.sourceURL, css, "inline", name),
+        signature,
         precedence: this.precedenceFor(name, normalized.precedence),
       });
     }
@@ -429,7 +463,11 @@ export class StyleRuntime<TFile extends string = string> {
       files: compactList(options.files),
       inlineStyle:
         name && typeof options.inlineStyle?.css === "string"
-          ? { name, css: options.inlineStyle.css }
+          ? {
+              name,
+              css: options.inlineStyle.css,
+              signature: options.inlineStyle.signature,
+            }
           : undefined,
       placement,
       target: resolvedTarget.target ?? (explicitTarget ? undefined : defaultTarget()),
@@ -466,7 +504,7 @@ export class StyleRuntime<TFile extends string = string> {
     });
 
     if (normalized.inlineStyle && !atom.issue) {
-      const { name, css } = normalized.inlineStyle;
+      const { name, css, signature } = normalized.inlineStyle;
       const definition = this.inlineDefinitions.get(name);
       const canReplaceOwnDefinition =
         definition?.refs.size === 1 && definition.refs.has(id);
@@ -489,6 +527,7 @@ export class StyleRuntime<TFile extends string = string> {
           entry.status = "idle";
           entry.error = undefined;
         }
+        entry.signature = signature;
         nextKeys.add(entry.key);
         nextEntries.push(entry);
       }
@@ -540,6 +579,7 @@ export class StyleRuntime<TFile extends string = string> {
         status: "idle",
         revision: 0,
         css,
+        signature: options.inlineStyle?.signature,
         registryOwner: {},
       };
       this.entries.set(key, entry);
@@ -606,6 +646,7 @@ export class StyleRuntime<TFile extends string = string> {
           entry.kind,
           entry.name,
         ),
+        signature: entry.signature,
         nonce: entry.nonce,
         target: entry.target,
         owner: entry.registryOwner,
@@ -652,6 +693,7 @@ export class StyleRuntime<TFile extends string = string> {
               entry.kind,
               entry.name,
             ),
+            signature: entry.signature,
             precedence: entry.precedence,
           }]
         : [],

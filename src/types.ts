@@ -119,6 +119,8 @@ export type StyleAtomInlineStyle = {
   name: string;
   /** CSS text mounted by the runtime. */
   css: string;
+  /** @internal Input signature used to reuse matching server-rendered CSS. */
+  signature?: string;
 };
 
 /**---
@@ -156,6 +158,8 @@ export type MountedStyle = {
   name: string;
   /** Final CSS text, including an optional generated `sourceURL`. */
   css: string;
+  /** @internal Input signature used to reuse matching server-rendered CSS. */
+  signature?: string;
   /** Numeric cascade position used to order style elements. */
   precedence: number;
 };

@@ -1,6 +1,12 @@
 # Build-time inline compilation
 
-Status: design proposal. This is not part of the v4 public API.
+Status: deferred design proposal. This is not part of the v4 public API.
+
+Signed SSR hydration now reuses matching collected CSS without invoking the
+browser compiler. A build transform would therefore optimize only client-only
+static atoms, while the library is primarily intended for dynamic style
+lifecycle. Revisit this proposal only if application benchmarks show that the
+remaining compiler cost is material.
 
 ## Goal
 

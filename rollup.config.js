@@ -12,6 +12,17 @@ const entries = {
 
 const external = (id) => /^react(?:\/|$)/.test(id);
 
+const preserveClientDirective = () => ({
+  name: "preserve-client-directive",
+  generateBundle(_options, bundle) {
+    Object.values(bundle).forEach((output) => {
+      if (output.type === "chunk" && output.isEntry && output.name === "react") {
+        output.code = `"use client";${output.code}`;
+      }
+    });
+  },
+});
+
 const plugins = (clean) => [
   ...(clean ? [del({ targets: "dist/*" })] : []),
   resolve(),
@@ -31,6 +42,7 @@ const plugins = (clean) => [
     mangle: { toplevel: true },
     output: { comments: false, ecma: 2019 },
   }),
+  preserveClientDirective(),
 ];
 
 const declarationBuilds = (directory, entryFileNames = "[name].d.ts") =>

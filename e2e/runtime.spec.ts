@@ -640,6 +640,8 @@ test("hydrates collected CSS and follows a portal into an iframe", async ({ page
       hydrationStyles: document.head.querySelectorAll(
         'style[data-styled-atom-namespace="browser-hydration"]',
       ).length,
+      hydrationInitialColor: window.styledAtomHydrationInitialColor,
+      hydrationUpdatedColor: window.styledAtomHydrationUpdatedColor,
     };
   });
 
@@ -647,8 +649,10 @@ test("hydrates collected CSS and follows a portal into an iframe", async ({ page
     portalColor: "rgb(12, 34, 56)",
     portalStyles: 1,
     hostPortalStyles: 0,
-    hydrationColor: "rgb(78, 90, 123)",
+    hydrationColor: "rgb(21, 43, 65)",
     hydrationStyles: 1,
+    hydrationInitialColor: "rgb(78, 90, 123)",
+    hydrationUpdatedColor: "rgb(21, 43, 65)",
   });
   expect(consoleErrors).toEqual([]);
 });

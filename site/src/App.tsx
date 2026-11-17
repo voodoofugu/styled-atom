@@ -5,7 +5,6 @@ import type { MorphScrollHandle, MorphScrollProps } from "morphing-scroll";
 import {
   createStyledAtomStore,
   StyledAtom,
-  type StylePlacement,
   type StyledAtomStyles,
 } from "styled-atom/react";
 import readme, { type ReadmeSection } from "virtual:styled-atom-readme";
@@ -154,7 +153,7 @@ function Body({ html }: { html: string }) {
 function CompilerLab() {
   const [accent, setAccent] = React.useState("#007f9e");
   const [radius, setRadius] = React.useState(18);
-  const [placement, setPlacement] = React.useState<StylePlacement>("head");
+  const [placement, setPlacement] = React.useState<"head" | "inline">("head");
   const styles = React.useMemo(
     () =>
       ({
@@ -231,8 +230,8 @@ function CompilerLab() {
         </div>
 
         <StyledAtom
+          inlinePlacement={placement === "inline"}
           name="compiler-lab-card"
-          placement={placement}
           scope
           style={styles}
         >

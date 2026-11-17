@@ -51,7 +51,7 @@ The core must be usable without React and must not import React types.
 ### Mounting and cascade
 
 - Default placement is the target document's `head`.
-- `placement="inline"` renders style elements next to the protected content, or
+- React `inlinePlacement` renders style elements next to the protected content, or
   inside the optional wrapper. This follows React portals into their document.
 - A runtime and an individual atom may target a `Document`, `ShadowRoot` or
   element. This covers iframes and isolated preview roots.
@@ -67,7 +67,7 @@ The core must be usable without React and must not import React types.
 - Runtime insertion uses `useInsertionEffect`; external snapshots use
   `useSyncExternalStore`.
 - Children render eagerly by default so SSR does not erase page content.
-  `render="ready"` is the explicit blocking mode.
+  `renderWhenReady` is the explicit blocking mode.
 - Wrapper elements expose `data-styled-atom-status`. Status is also available to
   callbacks and render-function children.
 - `scope` replaces the unclear `encap` name. v4 may provide a deprecated alias
@@ -81,6 +81,11 @@ The core must be usable without React and must not import React types.
 - Imported CSS is server-ready when supplied through an initial CSS manifest.
 - A per-request collector serializes style tags for the document head.
 - The browser adopts matching server style tags instead of inserting duplicates.
+- Matching inline input reuses collected CSS without recompiling it during
+  hydration; unsigned or changed input keeps the safe compiler fallback.
+- The React entry is an RSC client boundary. The collector targets traditional
+  React SSR; server-component integrations must keep stores and non-serializable
+  props inside client modules.
 
 ### Quality bar
 

@@ -46,8 +46,8 @@ describe("server rendering", () => {
   it("renders inline placement beside content without a collector", () => {
     const html = renderToString(
       <StyledAtom
+        inlinePlacement
         name="inline-card"
-        placement="inline"
         style={{ color: "red" }}
       >
         <article>card</article>

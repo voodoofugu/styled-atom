@@ -2,7 +2,10 @@ import React from "react";
 
 import { StyleRuntime } from "./core";
 import { isDevelopmentEnvironment } from "./environment";
-import { compileStyleAtomStyles } from "./styles";
+import {
+  compileStyleAtomStyles,
+  createStyleAtomSignature,
+} from "./styles";
 import type {
   StyleAtomController,
   StyleAtomCssReplacement,
@@ -11,7 +14,6 @@ import type {
   StyleAtomSnapshot,
   StyleCollector,
   StyledAtomStyles,
-  StylePlacement,
   StyleRuntimeOptions,
   StyleTargetValue,
 } from "./types";
@@ -74,16 +76,16 @@ export type StyledAtomFallback =
 type StyledAtomSharedProps = {
   /** Creates a selector wrapper for the atom. No wrapper is rendered by default. */
   scope?: StyleScope;
-  /** Style element placement. Uses the runtime default when omitted. */
-  placement?: StylePlacement;
+  /** Renders the style element beside the content instead of in the target head. @default false */
+  inlinePlacement?: boolean;
   /** DOM destination for this atom. Overrides the runtime target. */
   target?: StyleTargetValue;
   /** CSP nonce for this atom. Overrides the runtime nonce. */
   nonce?: string;
   /** Cascade position for this atom. Overrides the configured file order. */
   precedence?: number;
-  /** Whether children render while CSS loads. @default "eager" */
-  render?: "eager" | "ready";
+  /** Waits until every requested style is ready before rendering children. @default false */
+  renderWhenReady?: boolean;
   /** Content shown while CSS loads. Passing it enables blocking rendering. */
   fallback?: StyledAtomFallback;
   /** Content shown after a loader, target or ownership failure. */
@@ -385,11 +387,11 @@ const createComponent = <TFile extends string>(
       name,
       style,
       scope,
-      placement,
+      inlinePlacement,
       target,
       nonce,
       precedence,
-      render = "eager",
+      renderWhenReady = false,
       fallback,
       errorFallback,
       children,
@@ -397,6 +399,14 @@ const createComponent = <TFile extends string>(
       onReady,
       onError,
     } = props;
+    const collector = React.useContext(CollectorContext);
+    const placement =
+      inlinePlacement === undefined
+        ? undefined
+        : inlinePlacement
+          ? "inline"
+          : "head";
+    const resolvedPlacement = runtime.resolvePlacement(placement);
 
     if (!allowFiles && files !== undefined) {
       throw new Error(
@@ -415,37 +425,65 @@ const createComponent = <TFile extends string>(
       reactAtomCounter += 1;
       return `${runtime.namespace}-react-${reactAtomCounter}`;
     });
+    const [hydrationStyle] = React.useState(() => style);
     const fileNames = filesList(files);
     const normalizedScope = normalizeScope(scope);
     const inlineName = name?.trim();
     const selector = scopeSelector(normalizedScope, fileNames, inlineName);
     const fingerprint = styleFingerprint(style);
+    const hydrationCandidate = React.useMemo(
+      () =>
+        inlineName
+          ? runtime.resolveHydratedInlineStyle(inlineName, {
+              placement,
+              target,
+              precedence,
+            })
+          : undefined,
+      [inlineName, placement, precedence, runtime, target],
+    );
+    const shouldSign = Boolean(
+      style &&
+        inlineName &&
+        style === hydrationStyle &&
+        (collector || typeof document === "undefined" || hydrationCandidate),
+    );
+    const signature = React.useMemo(
+      () =>
+        shouldSign && style && inlineName
+          ? createStyleAtomSignature(inlineName, style, selector)
+          : undefined,
+      [inlineName, selector, shouldSign, style],
+    );
+    const hydratedCss =
+      signature && hydrationCandidate?.signature === signature
+        ? hydrationCandidate.css
+        : undefined;
     const css = React.useMemo(
       () =>
         style && inlineName
-          ? compileCached(inlineName, style, selector, fingerprint)
+          ? hydratedCss ??
+            compileCached(inlineName, style, selector, fingerprint)
           : undefined,
-      [fingerprint, inlineName, selector, style],
+      [fingerprint, hydratedCss, inlineName, selector, style],
     );
     const atomOptions = React.useMemo<StyleAtomOptions<TFile>>(
       () => ({
         files,
-        inlineStyle: css && inlineName ? { name: inlineName, css } : undefined,
+        inlineStyle:
+          css && inlineName ? { name: inlineName, css, signature } : undefined,
         placement,
         target,
         nonce,
         precedence,
       }),
-      [files, css, inlineName, placement, target, nonce, precedence],
+      [files, css, inlineName, signature, placement, target, nonce, precedence],
     );
     const { snapshot, retry } = useRuntimeAtom(runtime, id, atomOptions);
     const state = React.useMemo<StyledAtomRenderState>(
       () => ({ ...snapshot, retry }),
       [snapshot, retry],
     );
-    const collector = React.useContext(CollectorContext);
-    const resolvedPlacement = runtime.resolvePlacement(placement);
-
     if (collector && resolvedPlacement === "head") {
       runtime.collect(collector, snapshot, nonce);
     }
@@ -462,13 +500,13 @@ const createComponent = <TFile extends string>(
       previousStatus.current = snapshot.status;
     }, [onError, onReady, onStatusChange, snapshot.status, state]);
 
-    const blocking = render === "ready" || fallback !== undefined;
+    const blocking = renderWhenReady || fallback !== undefined;
     let content = renderValue(children, state);
     if (snapshot.status === "loading" && blocking) {
       content = renderValue(fallback, state) ?? null;
     } else if (snapshot.status === "failed" && errorFallback !== undefined) {
       content = renderValue(errorFallback, state) ?? null;
-    } else if (snapshot.status === "failed" && render === "ready") {
+    } else if (snapshot.status === "failed" && renderWhenReady) {
       content = null;
     }
 
@@ -479,6 +517,7 @@ const createComponent = <TFile extends string>(
               data-styled-atom-key={style.key}
               data-styled-atom-namespace={runtime.namespace}
               data-styled-atom-precedence={style.precedence}
+              data-styled-atom-signature={style.signature}
               key={style.key}
               nonce={runtime.resolveNonce(nonce)}
             >

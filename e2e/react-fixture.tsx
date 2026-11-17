@@ -14,6 +14,8 @@ declare global {
   interface Window {
     styledAtomFixtureReady?: boolean;
     styledAtomFixtureError?: string;
+    styledAtomHydrationInitialColor?: string;
+    styledAtomHydrationUpdatedColor?: string;
   }
 }
 
@@ -33,8 +35,8 @@ const start = async () => {
   createRoot(document.querySelector("#portal-root")!).render(
     createPortal(
       <StyledAtom
+        inlinePlacement
         name="portal-probe"
-        placement="inline"
         style={portalStyles}
       >
         <span className="portal-probe" data-portal-probe="">
@@ -46,24 +48,60 @@ const start = async () => {
   );
 
   const collector = createStyleCollector();
-  const store = createStyledAtomStore({ namespace: "browser-hydration" });
-  const app = (
+  const serverStore = createStyledAtomStore({ namespace: "browser-hydration" });
+  const serverApp = (
     <StyleCollectorProvider collector={collector}>
-      <store.StyledAtom
+      <serverStore.StyledAtom
         name="hydration-probe"
         scope
         style={hydrationStyles}
       >
         <span data-hydration-probe="">hydrated</span>
-      </store.StyledAtom>
+      </serverStore.StyledAtom>
     </StyleCollectorProvider>
   );
   const hydrationRoot = document.querySelector("#hydration-root")!;
-  hydrationRoot.innerHTML = renderToString(app);
+  hydrationRoot.innerHTML = renderToString(serverApp);
   document.head.insertAdjacentHTML("beforeend", collector.getStyleTags());
-  hydrateRoot(hydrationRoot, app);
+  const clientStore = createStyledAtomStore({ namespace: "browser-hydration" });
+  const hydrationInput = {
+    color: {
+      toJSON: () => hydrationStyles.color,
+      toString() {
+        throw new Error("The client compiler ran during hydration.");
+      },
+    } as unknown as string,
+  };
+  let resolveHydrated!: () => void;
+  const hydrated = new Promise<void>((resolve) => {
+    resolveHydrated = resolve;
+  });
+  let hydrationReported = false;
+  const clientApp = (style: typeof hydrationStyles) => (
+    <clientStore.StyledAtom
+      name="hydration-probe"
+      onReady={() => {
+        if (hydrationReported) return;
+        hydrationReported = true;
+        resolveHydrated();
+      }}
+      scope
+      style={style}
+    >
+      <span data-hydration-probe="">hydrated</span>
+    </clientStore.StyledAtom>
+  );
+  const root = hydrateRoot(hydrationRoot, clientApp(hydrationInput));
 
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await hydrated;
+  const hydrationProbe = document.querySelector("[data-hydration-probe]")!;
+  window.styledAtomHydrationInitialColor = getComputedStyle(hydrationProbe).color;
+  root.render(clientApp({ color: "rgb(21, 43, 65)" }));
+  for (let frame = 0; frame < 10; frame += 1) {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (getComputedStyle(hydrationProbe).color === "rgb(21, 43, 65)") break;
+  }
+  window.styledAtomHydrationUpdatedColor = getComputedStyle(hydrationProbe).color;
   window.styledAtomFixtureReady = true;
 };
 

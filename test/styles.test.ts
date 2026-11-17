@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { compileStyleAtomStyles } from "../src/styles";
+import {
+  compileStyleAtomStyles,
+  createStyleAtomSignature,
+} from "../src/styles";
 import type { StyledAtomStyles } from "../src/types";
 
 describe("compileStyleAtomStyles", () => {
@@ -147,5 +150,45 @@ describe("compileStyleAtomStyles", () => {
     expect(() =>
       compileStyleAtomStyles("demo", styles as StyledAtomStyles),
     ).toThrow("A circular reference was found in a style object");
+  });
+});
+
+describe("createStyleAtomSignature", () => {
+  it("is stable for equivalent hydration input", () => {
+    expect(
+      createStyleAtomSignature("card", { color: "red" }, ".surface"),
+    ).toBe(
+      createStyleAtomSignature("card", { color: "red" }, ".surface"),
+    );
+  });
+
+  it("changes with styles, selectors and declaration order", () => {
+    const base = createStyleAtomSignature("card", {
+      color: "red",
+      backgroundColor: "white",
+    });
+
+    expect(createStyleAtomSignature("card", { color: "blue" })).not.toBe(base);
+    expect(
+      createStyleAtomSignature("card", {
+        backgroundColor: "white",
+        color: "red",
+      }),
+    ).not.toBe(base);
+    expect(
+      createStyleAtomSignature("card", {
+        color: "red",
+        backgroundColor: "white",
+      }, ".surface"),
+    ).not.toBe(base);
+  });
+
+  it("disables reuse for unserializable input", () => {
+    const styles: Record<string, unknown> = { color: "red" };
+    styles.child = styles;
+
+    expect(
+      createStyleAtomSignature("card", styles as StyledAtomStyles),
+    ).toBeUndefined();
   });
 });
