@@ -155,8 +155,9 @@ For Vite loaders:
 + (name) => import(`./styles/${name}.css?inline`)
 ```
 
-Use `render="ready"` when children must stay hidden until every requested style
-is ready. Use `errorFallback` or `onError` to handle failed files explicitly.
+Use `renderWhenReady` when children must stay hidden until every requested style
+is ready. Use `errorFallback` or inspect `state.status` in `onStatusChange` to
+handle failed files explicitly.
 If v3 relied on insertion order, declare the cascade through the store's
 `order`; equal default precedence is sorted by stable identity in v4.
 
@@ -165,7 +166,8 @@ If v3 relied on insertion order, declare the cascade through the store's
 - Fixed nested selector-list scoping in the inline style compiler.
 - Shipped the v3 runtime store, inline compiler, reload and replacement APIs.
 
-[Unreleased]: https://github.com/voodoofugu/styled-atom/compare/v4.0.1...HEAD
+[Unreleased]: https://github.com/voodoofugu/styled-atom/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/voodoofugu/styled-atom/compare/v4.0.1...v5.0.0
 [4.0.1]: https://github.com/voodoofugu/styled-atom/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/voodoofugu/styled-atom/compare/v3.0.3...v4.0.0
 [3.0.3]: https://github.com/voodoofugu/styled-atom/releases/tag/v3.0.3
