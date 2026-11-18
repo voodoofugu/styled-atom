@@ -587,7 +587,7 @@ function App() {
               className="brand-logo"
             />
             <span className="brand-name">styled-atom</span>
-            <small>v4</small>
+            <small>v5</small>
           </a>
           <ThemeControl setTheme={setTheme} theme={theme} />
         </div>
