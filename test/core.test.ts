@@ -82,10 +82,10 @@ describe("StyleRuntime", () => {
     }).registerAtom({ files: "button" });
 
     const productionCss = document.head.querySelector(
-      'style[data-styled-atom-namespace="production-source"]',
+      'style[sa-namespace="production-source"]',
     )?.textContent;
     const forcedCss = document.head.querySelector(
-      'style[data-styled-atom-namespace="forced-source"]',
+      'style[sa-namespace="forced-source"]',
     )?.textContent;
 
     expect(productionCss).not.toContain("sourceURL=");
@@ -216,7 +216,7 @@ describe("StyleRuntime", () => {
     const theme = runtime.registerAtom({ files: "theme" });
     const reset = runtime.registerAtom({ files: "reset" });
     const keys = Array.from(document.head.querySelectorAll("style")).map((node) =>
-      node.getAttribute("data-styled-atom-key"),
+      node.getAttribute("sa-key"),
     );
 
     expect(keys).toEqual(["file:reset:0", "file:theme:1"]);
@@ -235,7 +235,7 @@ describe("StyleRuntime", () => {
     const zebra = runtime.registerAtom({ files: "zebra" });
     const alpha = runtime.registerAtom({ files: "alpha" });
     const keys = Array.from(document.head.querySelectorAll("style")).map((node) =>
-      node.getAttribute("data-styled-atom-key"),
+      node.getAttribute("sa-key"),
     );
 
     expect(keys).toEqual(["file:alpha:10000", "file:zebra:10000"]);
@@ -499,7 +499,7 @@ describe("StyleRuntime", () => {
 
   it("adopts a server-rendered style instead of duplicating it", () => {
     document.head.innerHTML =
-      '<style data-styled-atom-namespace="app" data-styled-atom-key="file:card:10000" data-styled-atom-precedence="10000">.card{color:red}</style>';
+      '<style sa-namespace="app" sa-key="file:card:10000" sa-precedence="10000">.card{color:red}</style>';
     const runtime = createStyleRuntime({
       namespace: "app",
       initialStyles: { card: ".card{color:red}" },
@@ -511,7 +511,7 @@ describe("StyleRuntime", () => {
 
   it("reports an SSR adoption mismatch without overwriting server CSS", () => {
     document.head.innerHTML =
-      '<style data-styled-atom-namespace="app" data-styled-atom-key="file:card:10000" data-styled-atom-precedence="10000">.card{color:red}</style>';
+      '<style sa-namespace="app" sa-key="file:card:10000" sa-precedence="10000">.card{color:red}</style>';
     const atom = createStyleRuntime({
       namespace: "app",
       initialStyles: { card: ".card{color:blue}" },
@@ -527,7 +527,7 @@ describe("StyleRuntime", () => {
 
   it("preserves and validates a server-rendered CSP nonce", () => {
     document.head.innerHTML =
-      '<style nonce="server-nonce" data-styled-atom-namespace="app" data-styled-atom-key="file:card:10000" data-styled-atom-precedence="10000">.card{color:red}</style>';
+      '<style nonce="server-nonce" sa-namespace="app" sa-key="file:card:10000" sa-precedence="10000">.card{color:red}</style>';
     const matching = createStyleRuntime({
       namespace: "app",
       nonce: "server-nonce",

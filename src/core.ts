@@ -176,13 +176,13 @@ export const createStyleCollector = (): StyleCollector => {
           const nonce = style.nonce
             ? ` nonce="${escapeAttribute(style.nonce)}"`
             : "";
-          return `<style data-styled-atom-namespace="${escapeAttribute(
+          return `<style sa-namespace="${escapeAttribute(
             style.namespace,
-          )}" data-styled-atom-key="${escapeAttribute(
+          )}" sa-key="${escapeAttribute(
             style.key,
-          )}" data-styled-atom-precedence="${style.precedence}"${
+          )}" sa-precedence="${style.precedence}"${
             style.signature
-              ? ` data-styled-atom-signature="${escapeAttribute(style.signature)}"`
+              ? ` sa-signature="${escapeAttribute(style.signature)}"`
               : ""
           }${nonce}>${escapeStyleText(
             style.css,

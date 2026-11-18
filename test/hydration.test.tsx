@@ -105,7 +105,7 @@ describe("SSR hydration", () => {
     const container = hydrationContainer(server.html, server.styleTags);
     const serverElement = document.head.querySelector("style");
 
-    expect(serverElement?.dataset.styledAtomSignature).toMatch(/^v1-/);
+    expect(serverElement?.getAttribute("sa-signature")).toMatch(/^v1-/);
     expect(compiler).toHaveBeenCalledOnce();
     compiler.mockClear();
     signer.mockClear();
@@ -171,7 +171,7 @@ describe("SSR hydration", () => {
     const container = hydrationContainer(server.html, server.styleTags);
     document.head
       .querySelector("style")
-      ?.removeAttribute("data-styled-atom-signature");
+      ?.removeAttribute("sa-signature");
     compiler.mockClear();
     signer.mockClear();
     const store = createStyledAtomStore({ namespace });

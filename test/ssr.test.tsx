@@ -38,7 +38,7 @@ describe("server rendering", () => {
 
     expect(html).toContain("card");
     expect(html).not.toContain("<style");
-    expect(tags).toContain('data-styled-atom-namespace="ssr-app"');
+    expect(tags).toContain('sa-namespace="ssr-app"');
     expect(tags).toContain(".card");
     expect(tags).toContain("color: red");
   });
@@ -73,7 +73,7 @@ describe("server rendering", () => {
       </StyleCollectorProvider>,
     );
 
-    expect(html).toContain('data-styled-atom-status="ready"');
+    expect(html).toContain('sa-status="ready"');
     expect(html).toContain("manifest content");
     expect(collector.getStyleTags()).toContain("color:green");
   });
@@ -89,7 +89,7 @@ describe("server rendering", () => {
       </store.StyledAtom>,
     );
 
-    expect(html).toContain('data-styled-atom-status="loading"');
+    expect(html).toContain('sa-status="loading"');
     expect(html).toContain("eager content");
   });
 });

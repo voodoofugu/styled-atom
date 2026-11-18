@@ -5,6 +5,10 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Internal DOM attributes now use the shorter `sa-*` prefix.
+
 ## [4.0.1] - 2026-11-18
 
 This replaces the prematurely published and deprecated `4.0.0` package.

@@ -68,7 +68,7 @@ The core must be usable without React and must not import React types.
   `useSyncExternalStore`.
 - Children render eagerly by default so SSR does not erase page content.
   `renderWhenReady` is the explicit blocking mode.
-- Wrapper elements expose `data-styled-atom-status`. Status is also available to
+- Wrapper elements expose `sa-status`. Status is also available to
   callbacks and render-function children.
 - `scope` replaces the unclear `encap` name. v4 may provide a deprecated alias
   only where it does not complicate the type contract.

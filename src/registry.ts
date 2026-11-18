@@ -7,6 +7,21 @@ const containerRegistrySymbol = Symbol.for(
 const runtimeCounterSymbol = Symbol.for("styled-atom.runtime-counter.v4");
 const runtimeRealmSymbol = Symbol.for("styled-atom.runtime-realm.v4");
 
+const styleAttributes = {
+  key: "sa-key",
+  namespace: "sa-namespace",
+  precedence: "sa-precedence",
+  signature: "sa-signature",
+} as const;
+
+type StyleAttribute = keyof typeof styleAttributes;
+
+const readStyleAttribute = (element: Element, attribute: StyleAttribute) =>
+  element.getAttribute(styleAttributes[attribute]);
+
+const styleSelector = (attribute: StyleAttribute) =>
+  `style[${styleAttributes[attribute]}]`;
+
 type RegistryOwner = object;
 
 type RegistryRecord = {
@@ -131,11 +146,11 @@ const findServerElement = (
   publicKey: string,
 ) =>
   Array.from(
-    container.querySelectorAll?.("style[data-styled-atom-namespace]") ?? [],
+    container.querySelectorAll?.(styleSelector("namespace")) ?? [],
   ).find(
     (candidate) =>
-      candidate.getAttribute("data-styled-atom-namespace") === namespace &&
-      candidate.getAttribute("data-styled-atom-key") === publicKey,
+      readStyleAttribute(candidate, "namespace") === namespace &&
+      readStyleAttribute(candidate, "key") === publicKey,
   ) as HTMLStyleElement | undefined;
 
 export const findServerStyleCss = ({
@@ -156,8 +171,7 @@ export const findServerStyleCss = ({
   if (!element) return undefined;
   return {
     css: (element.textContent ?? "").replace(/<\\\/style/gi, "</style"),
-    signature:
-      element.getAttribute("data-styled-atom-signature") ?? undefined,
+    signature: readStyleAttribute(element, "signature") ?? undefined,
   };
 };
 
@@ -175,17 +189,13 @@ const insertInOrder = (
   precedence: number,
 ) => {
   const siblings = Array.from(
-    container.querySelectorAll?.("style[data-styled-atom-precedence]") ?? [],
+    container.querySelectorAll?.(styleSelector("precedence")) ?? [],
   ) as HTMLStyleElement[];
   const identity = `${namespace}\u0000${publicKey}`;
   const before = siblings.find((sibling) => {
     if (sibling === element) return false;
-    const siblingPrecedence = Number(
-      sibling.getAttribute("data-styled-atom-precedence"),
-    );
-    const siblingIdentity = `${
-      sibling.getAttribute("data-styled-atom-namespace") ?? ""
-    }\u0000${sibling.getAttribute("data-styled-atom-key") ?? ""}`;
+    const siblingPrecedence = Number(readStyleAttribute(sibling, "precedence"));
+    const siblingIdentity = `${readStyleAttribute(sibling, "namespace") ?? ""}\u0000${readStyleAttribute(sibling, "key") ?? ""}`;
     return (
       siblingPrecedence > precedence ||
       (siblingPrecedence === precedence && siblingIdentity > identity)
@@ -274,10 +284,10 @@ export const mountRegistryEntry = (
       };
     }
     const element = serverElement ?? doc.createElement("style");
-    element.setAttribute("data-styled-atom-namespace", entry.namespace);
-    element.setAttribute("data-styled-atom-key", entry.publicKey);
+    element.setAttribute(styleAttributes.namespace, entry.namespace);
+    element.setAttribute(styleAttributes.key, entry.publicKey);
     element.setAttribute(
-      "data-styled-atom-precedence",
+      styleAttributes.precedence,
       String(entry.precedence),
     );
     record = {
@@ -296,9 +306,9 @@ export const mountRegistryEntry = (
   record.nonce ??= entry.nonce;
   record.owners.add(entry.owner);
   if (entry.signature) {
-    record.element.setAttribute("data-styled-atom-signature", entry.signature);
+    record.element.setAttribute(styleAttributes.signature, entry.signature);
   } else {
-    record.element.removeAttribute("data-styled-atom-signature");
+    record.element.removeAttribute(styleAttributes.signature);
   }
   if (record.nonce) record.element.nonce = record.nonce;
   if (record.element.textContent !== entry.css) {

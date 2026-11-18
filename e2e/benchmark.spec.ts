@@ -114,6 +114,6 @@ test("reports representative lifecycle benchmarks", async ({ page }, testInfo) =
   expect(measurements.sharedRelease).toBeLessThan(10_000);
   expect(measurements.toggle).toBeLessThan(10_000);
   expect(
-    await page.locator('style[data-styled-atom-namespace^="benchmark-"]').count(),
+    await page.locator('style[sa-namespace^="benchmark-"]').count(),
   ).toBe(0);
 });

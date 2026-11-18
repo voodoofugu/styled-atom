@@ -145,7 +145,7 @@ Without `scope`, root declarations compile against `.${name}` and that class bel
 </StyledAtom>
 ```
 
-The wrapper exposes `loading`, `ready` or `failed` through `data-styled-atom-status`.
+The wrapper exposes `loading`, `ready` or `failed` through `sa-status`.
 
 </details>
 
@@ -348,7 +348,7 @@ Many consumers of the same identity still produce one head `<style>`. Many uniqu
 
 Every atom is `loading`, `ready` or `failed`. Children render eagerly by default. Passing `fallback`, or enabling `renderWhenReady`, waits for CSS. Loader, target and ownership failures remain retryable.
 
-Use `onStatusChange`, `onReady` and `onError` for external reporting. Scoped wrappers expose the same state as `data-styled-atom-status`.
+Use `onStatusChange`, `onReady` and `onError` for external reporting. Scoped wrappers expose the same state as `sa-status`.
 
 </details>
 

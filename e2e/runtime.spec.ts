@@ -21,7 +21,7 @@ test("applies deterministic cascade order in a real browser", async ({ page }) =
     const override = runtime.registerAtom({ files: "override" });
     const base = runtime.registerAtom({ files: "base" });
     const keys = Array.from(document.head.querySelectorAll("style")).map((style) =>
-      style.getAttribute("data-styled-atom-key"),
+      style.getAttribute("sa-key"),
     );
     const color = getComputedStyle(node).color;
     base.dispose();
@@ -120,11 +120,11 @@ test("shares iframe-document ownership across JavaScript realms", async ({ page 
     })()`);
 
     const mounted = frameDocument.head.querySelectorAll(
-      'style[data-styled-atom-namespace="cross-realm"]',
+      'style[sa-namespace="cross-realm"]',
     ).length;
     hostAtom.dispose();
     const afterHostDispose = frameDocument.head.querySelectorAll(
-      'style[data-styled-atom-namespace="cross-realm"]',
+      'style[sa-namespace="cross-realm"]',
     ).length;
     const colorAfterHostDispose = frameWindow.getComputedStyle(
       frameDocument.querySelector(".realm-probe")!,
@@ -150,7 +150,7 @@ test("shares iframe-document ownership across JavaScript realms", async ({ page 
       return { namespace: runtime.namespace, status: atom.getSnapshot().status };
     })()`)) as { namespace: string; status: string };
     const defaultStyles = frameDocument.head.querySelectorAll(
-      'style[data-styled-atom-key^="file:private:"]',
+      'style[sa-key^="file:private:"]',
     ).length;
     const hostDefaultStatus = hostDefaultAtom.getSnapshot().status;
     hostDefaultAtom.dispose();
@@ -164,7 +164,7 @@ test("shares iframe-document ownership across JavaScript realms", async ({ page 
       afterHostDispose,
       colorAfterHostDispose,
       afterBothDispose: frameDocument.head.querySelectorAll(
-        'style[data-styled-atom-namespace="cross-realm"]',
+        'style[sa-namespace="cross-realm"]',
       ).length,
       defaultNamespacesDiffer:
         hostDefaultRuntime.namespace !== iframeDefault.namespace,
@@ -210,7 +210,7 @@ test("applies compiled inline CSS as valid browser rules", async ({ page }) => {
       inlineStyle: { name: "compiler-probe", css },
     });
     const style = document.head.querySelector(
-      'style[data-styled-atom-namespace="compiler-contract"]',
+      'style[sa-namespace="compiler-contract"]',
     ) as HTMLStyleElement | null;
     const parentStyle = getComputedStyle(parent);
     const childStyle = getComputedStyle(parent.querySelector(".child")!);
@@ -294,7 +294,7 @@ test("adopts server CSS and rejects a conflicting physical copy", async ({ page 
   const result = await page.evaluate(async () => {
     document.head.insertAdjacentHTML(
       "beforeend",
-      '<style data-styled-atom-namespace="hydrated" data-styled-atom-key="file:card:10000" data-styled-atom-precedence="10000">.card{color:red}</style>',
+      '<style sa-namespace="hydrated" sa-key="file:card:10000" sa-precedence="10000">.card{color:red}</style>',
     );
     const firstPackage = await import("/dist/esm/index.js?hydrate-copy=one");
     const secondPackage = await import("/dist/esm/index.js?hydrate-copy=two");
@@ -377,19 +377,19 @@ test("shares one style between one thousand owners", async ({ page }) => {
       entries: runtime.inspect().entries.length,
       localOwners: runtime.inspect().entries[0]?.localOwners,
       elements: document.head.querySelectorAll(
-        'style[data-styled-atom-namespace="shared-scale-browser"]',
+        'style[sa-namespace="shared-scale-browser"]',
       ).length,
     };
     atoms.slice(0, -1).forEach((atom) => atom.dispose());
     const beforeLastRelease = document.head.querySelectorAll(
-      'style[data-styled-atom-namespace="shared-scale-browser"]',
+      'style[sa-namespace="shared-scale-browser"]',
     ).length;
     atoms.at(-1)?.dispose();
     return {
       mounted,
       beforeLastRelease,
       afterLastRelease: document.head.querySelectorAll(
-        'style[data-styled-atom-namespace="shared-scale-browser"]',
+        'style[sa-namespace="shared-scale-browser"]',
       ).length,
       remainingEntries: runtime.inspect().entries.length,
     };
@@ -424,7 +424,7 @@ test("survives repeated mount and release cycles without registry residue", asyn
       maximumElements = Math.max(
         maximumElements,
         document.head.querySelectorAll(
-          'style[data-styled-atom-namespace="cycle-browser"]',
+          'style[sa-namespace="cycle-browser"]',
         ).length,
       );
       first.dispose();
@@ -436,7 +436,7 @@ test("survives repeated mount and release cycles without registry residue", asyn
       atoms: final.atoms,
       entries: final.entries.length,
       elements: document.head.querySelectorAll(
-        'style[data-styled-atom-namespace="cycle-browser"]',
+        'style[sa-namespace="cycle-browser"]',
       ).length,
     };
   });
@@ -461,21 +461,21 @@ test("replaces CSS in place and keeps computed styles current", async ({ page })
     });
     const atom = runtime.registerAtom({ files: "card" });
     const beforeElement = document.head.querySelector(
-      'style[data-styled-atom-namespace="replace-browser"]',
+      'style[sa-namespace="replace-browser"]',
     );
     const beforeColor = getComputedStyle(probe).color;
     runtime.replace([
       { file: "card", css: ".replace-probe{color:rgb(4, 5, 6)}" },
     ]);
     const afterElement = document.head.querySelector(
-      'style[data-styled-atom-namespace="replace-browser"]',
+      'style[sa-namespace="replace-browser"]',
     );
     const value = {
       beforeColor,
       afterColor: getComputedStyle(probe).color,
       sameElement: beforeElement === afterElement,
       elements: document.head.querySelectorAll(
-        'style[data-styled-atom-namespace="replace-browser"]',
+        'style[sa-namespace="replace-browser"]',
       ).length,
     };
     atom.dispose();
@@ -539,10 +539,10 @@ test("enables generated source URLs in a development bundler", async ({ page }) 
     }).registerAtom({ files: "card" });
 
     const automaticCss = document.head.querySelector(
-      'style[data-styled-atom-namespace="source-url-automatic"]',
+      'style[sa-namespace="source-url-automatic"]',
     )?.textContent;
     const disabledCss = document.head.querySelector(
-      'style[data-styled-atom-namespace="source-url-disabled"]',
+      'style[sa-namespace="source-url-disabled"]',
     )?.textContent;
 
     automatic.dispose();
@@ -577,16 +577,16 @@ test("moves an atom between documents without leaving the old target behind", as
     });
     const atom = runtime.registerAtom({ files: "card" });
     const hostBefore = document.head.querySelectorAll(
-      'style[data-styled-atom-namespace="moving-browser"]',
+      'style[sa-namespace="moving-browser"]',
     ).length;
     atom.update({ files: "card", target: frameDocument });
     const value = {
       hostBefore,
       hostAfter: document.head.querySelectorAll(
-        'style[data-styled-atom-namespace="moving-browser"]',
+        'style[sa-namespace="moving-browser"]',
       ).length,
       frameAfter: frameDocument.head.querySelectorAll(
-        'style[data-styled-atom-namespace="moving-browser"]',
+        'style[sa-namespace="moving-browser"]',
       ).length,
       frameColor: frame.contentWindow!.getComputedStyle(
         frameDocument.querySelector(".moving")!,
@@ -596,7 +596,7 @@ test("moves an atom between documents without leaving the old target behind", as
     return {
       ...value,
       frameAfterDispose: frameDocument.head.querySelectorAll(
-        'style[data-styled-atom-namespace="moving-browser"]',
+        'style[sa-namespace="moving-browser"]',
       ).length,
     };
   });
@@ -631,14 +631,14 @@ test("hydrates collected CSS and follows a portal into an iframe", async ({ page
     return {
       portalColor: frame.contentWindow!.getComputedStyle(portalProbe).color,
       portalStyles: frameDocument.querySelectorAll(
-        'style[data-styled-atom-namespace="inline"]',
+        'style[sa-namespace="inline"]',
       ).length,
       hostPortalStyles: document.head.querySelectorAll(
-        'style[data-styled-atom-namespace="inline"]',
+        'style[sa-namespace="inline"]',
       ).length,
       hydrationColor: getComputedStyle(hydrationProbe).color,
       hydrationStyles: document.head.querySelectorAll(
-        'style[data-styled-atom-namespace="browser-hydration"]',
+        'style[sa-namespace="browser-hydration"]',
       ).length,
       hydrationInitialColor: window.styledAtomHydrationInitialColor,
       hydrationUpdatedColor: window.styledAtomHydrationUpdatedColor,
@@ -669,10 +669,10 @@ test("applies nonce-bearing styles under a real CSP and blocks missing nonces", 
       document.querySelector("[data-csp-blocked]")!,
     ).color,
     allowedNonce: document.head.querySelector(
-      'style[data-styled-atom-namespace="csp-allowed"]',
+      'style[sa-namespace="csp-allowed"]',
     )?.nonce,
     blockedNonce: document.head.querySelector(
-      'style[data-styled-atom-namespace="csp-blocked"]',
+      'style[sa-namespace="csp-blocked"]',
     )?.nonce,
   }));
 

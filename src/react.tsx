@@ -514,10 +514,10 @@ const createComponent = <TFile extends string>(
       resolvedPlacement === "inline"
         ? snapshot.styles.map((style) => (
             <style
-              data-styled-atom-key={style.key}
-              data-styled-atom-namespace={runtime.namespace}
-              data-styled-atom-precedence={style.precedence}
-              data-styled-atom-signature={style.signature}
+              sa-key={style.key}
+              sa-namespace={runtime.namespace}
+              sa-precedence={style.precedence}
+              sa-signature={style.signature}
               key={style.key}
               nonce={runtime.resolveNonce(nonce)}
             >
@@ -539,8 +539,8 @@ const createComponent = <TFile extends string>(
     const classes = scopeClassNames(normalizedScope, fileNames, inlineName);
     const nextProps: Record<string, unknown> = {
       ...normalizedScope.props,
-      "data-styled-atom-shell": "",
-      "data-styled-atom-status": snapshot.status,
+      "sa-shell": "",
+      "sa-status": snapshot.status,
       className: classes.join(" ") || undefined,
     };
 

@@ -62,7 +62,7 @@ describe("StyledAtom", () => {
 
     expect(wrapper?.className).toBe("preview");
     expect(wrapper?.getAttribute("data-surface")).toBe("docs");
-    expect(wrapper?.getAttribute("data-styled-atom-status")).toBe("ready");
+    expect(wrapper?.getAttribute("sa-status")).toBe("ready");
     expect(wrapper?.getAttribute("aria-label")).toBe("preview");
     expect(document.head.textContent).toContain(".preview");
   });
@@ -213,14 +213,14 @@ describe("store-bound StyledAtom", () => {
     );
 
     const wrapper = container.querySelector(".surface");
-    expect(wrapper?.getAttribute("data-styled-atom-status")).toBe("loading");
+    expect(wrapper?.getAttribute("sa-status")).toBe("loading");
     expect(screen.getByText("loading")).toBeTruthy();
 
     await act(async () => {
       resolve(".surface{color:green}");
       await flush();
     });
-    expect(wrapper?.getAttribute("data-styled-atom-status")).toBe("ready");
+    expect(wrapper?.getAttribute("sa-status")).toBe("ready");
     expect(screen.getByText("ready")).toBeTruthy();
     expect(onReady).toHaveBeenCalledOnce();
   });
