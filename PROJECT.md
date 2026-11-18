@@ -1,6 +1,6 @@
 # styled-atom — project context and decision log
 
-_Last updated: 2026-11-18 · target version: 4.1.0_
+_Last updated: 2026-11-18 · target version: 5.0.0_
 
 ## What it is
 
@@ -19,7 +19,7 @@ The inline style-object compiler is a first-class feature. Its `style` prop lets
 a component define a small typed CSS atom directly in JSX while still
 supporting nested selectors, at-rules, keyframes and optional scoping.
 
-## v4 decisions
+## v5 decisions
 
 ### Entry points
 
@@ -70,8 +70,9 @@ The core must be usable without React and must not import React types.
   `renderWhenReady` is the explicit blocking mode.
 - Wrapper elements expose `sa-status`. Status is also available to
   callbacks and render-function children.
-- `scope` replaces the unclear `encap` name. v4 may provide a deprecated alias
-  only where it does not complicate the type contract.
+- React components expose one lifecycle callback, `onStatusChange`; the runtime
+  keeps `onError` for centralized loader reporting.
+- `scope` is the selector and optional wrapper boundary.
 - Basic scoping stays `scope` or `scope="name"`; the optional wrapper element
   and DOM attributes live in the same `scope` object instead of separate props.
 
@@ -106,14 +107,13 @@ The core must be usable without React and must not import React types.
 
 ## Compatibility and migration
 
-v4 is intentionally breaking. The migration guide must cover:
+The v4 foundation remains intact. v5 adds external stylesheet ownership and
+simplifies the component lifecycle API:
 
-- imports moving from `styled-atom` to `styled-atom/react` for React APIs;
-- `encap` becoming `scope`;
-- eager children as the default loading behavior;
-- explicit error states and retry;
-- Vite CSS text imports using `?inline` rather than ordinary CSS imports.
-- cascade order moving from insertion timing to explicit `order`/`precedence`.
+- `StaticAtom` requires only `href`; an optional `name` opts into an explicit
+  shared identity.
+- Component `onReady` and `onError` are replaced by `onStatusChange`.
+- Runtime/store `onError` remains available and is not a component prop.
 
 ## Documentation UI contract
 
@@ -156,9 +156,11 @@ example stay in the article.
 - `StyledAtom` owns dynamic CSS text and keeps the runtime compiler and
   `<style>` backend. `StaticAtom` owns ready-made immutable CSS assets through
   `<link rel="stylesheet">`.
-- Standalone static atoms accept `name` and `href`; store-bound static atoms
-  resolve typed file names through a `stylesheets` manifest. This keeps the
-  semantic choice explicit without a misleading `cached` or `static` mode prop.
+- Standalone static atoms require only `href`; `name` is optional when shared
+  ownership, stable replacement identity or readable diagnostics are useful.
+  Store-bound static atoms resolve typed file names through a `stylesheets`
+  manifest. This keeps the semantic choice explicit without a misleading
+  `cached` or `static` mode prop.
 - Removing the last owner removes the link and its CSS from the cascade. HTTP
   cache retention remains browser-owned and can accelerate a later mount.
 - Link replacement keeps the previous stylesheet active until the new URL has

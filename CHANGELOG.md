@@ -5,7 +5,7 @@ Semantic Versioning.
 
 ## [Unreleased]
 
-## [4.1.0] - 2026-11-18
+## [5.0.0] - 2026-11-18
 
 ### Added
 
@@ -19,6 +19,16 @@ Semantic Versioning.
 ### Changed
 
 - Internal DOM attributes now use the shorter `sa-*` prefix.
+- Standalone `StaticAtom` now requires only `href`; `name` remains available for
+  shared ownership, stable replacement identity and readable diagnostics.
+- React components now report lifecycle changes through the single
+  `onStatusChange` callback. Runtime/store-level `onError` remains available for
+  centralized loader error reporting.
+
+### Removed
+
+- React component props `onReady` and `onError`; inspect `state.status` inside
+  `onStatusChange` instead.
 
 ## [4.0.1] - 2026-11-18
 

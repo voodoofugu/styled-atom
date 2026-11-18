@@ -11,7 +11,7 @@ import {
   type StyledAtomProps,
 } from "../src/react";
 
-const styles = {
+const atomStyle = {
   display: "grid",
   color: ["#0969da", "oklch(55% 0.2 250)"],
   gap: 12,
@@ -19,7 +19,7 @@ const styles = {
   "@media (width < 40rem)": { gap: 8 },
 } satisfies StyledAtomStyles;
 
-compileStyles("card", styles);
+compileStyles("card", atomStyle);
 createStyleCollector();
 
 const runtime = createStyleRuntime<"reset" | "card">({
@@ -55,7 +55,7 @@ void imported;
 
 const legacyWrapper: StyledAtomProps = {
   name: "card",
-  style: styles,
+  style: atomStyle,
   scope: true,
   // @ts-expect-error wrapper configuration belongs inside scope
   as: "section",
@@ -65,19 +65,19 @@ void legacyWrapper;
 const combined: StyledAtomProps<"reset" | "card"> = {
   files: "reset",
   name: "card",
-  style: styles,
+  style: atomStyle,
 };
 void combined;
 
 const legacyStyleProp: StyledAtomProps = {
   name: "card",
   // @ts-expect-error the inline compiler prop is singular: style
-  styles,
+  styles: atomStyle,
 };
 void legacyStyleProp;
 
 // @ts-expect-error inline style requires a name
-const missingName: StyledAtomProps = { style: styles };
+const missingName: StyledAtomProps = { style: atomStyle };
 void missingName;
 
 // @ts-expect-error a name requires style
@@ -96,22 +96,36 @@ const staticFile: Parameters<typeof store.StaticAtom>[0] = { files: "card" };
 void staticFile;
 
 const standaloneStatic: Parameters<typeof StaticAtom>[0] = {
-  name: "card",
   href: "/assets/card.a1.css",
 };
 void standaloneStatic;
 
 // @ts-expect-error standalone StaticAtom requires a stylesheet URL
-const staticWithoutHref: Parameters<typeof StaticAtom>[0] = { name: "card" };
+const staticWithoutHref: Parameters<typeof StaticAtom>[0] = {};
 void staticWithoutHref;
 
 const staticWithRuntimeStyle: Parameters<typeof StaticAtom>[0] = {
   name: "card",
   href: "/assets/card.a1.css",
   // @ts-expect-error StaticAtom does not accept runtime style objects
-  style: styles,
+  style: atomStyle,
 };
 void staticWithRuntimeStyle;
+
+const unifiedLifecycle: Parameters<typeof StaticAtom>[0] = {
+  href: "/assets/card.a1.css",
+  onStatusChange: (state) => void state.status,
+  // @ts-expect-error component lifecycle uses onStatusChange only
+  onReady: () => undefined,
+};
+void unifiedLifecycle;
+
+const removedComponentError: Parameters<typeof StaticAtom>[0] = {
+  href: "/assets/card.a1.css",
+  // @ts-expect-error component lifecycle uses onStatusChange only
+  onError: () => undefined,
+};
+void removedComponentError;
 
 const unknownStaticFile: Parameters<typeof store.StaticAtom>[0] = {
   // @ts-expect-error store-bound static file names remain typed

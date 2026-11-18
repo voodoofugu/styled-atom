@@ -88,7 +88,7 @@ Compiles a typed stylesheet object into an owned <code>&lt;style&gt;</code> elem
 - `target?: Document | ShadowRoot | HTMLElement | (() => target)` - optional mount target.
 - `renderWhenReady?: boolean` - wait for every requested style before rendering children.
 - `fallback`, `errorFallback` - loading and failed content.
-- `onStatusChange`, `onReady`, `onError` - lifecycle callbacks.
+- `onStatusChange` - lifecycle callback receiving `loading`, `ready` or `failed` state.
 - `children` - content or a render function receiving status, errors and `retry()`.
 
 <br />
@@ -164,7 +164,7 @@ Registers requested CSS files in a shared runtime. Equal file identities share o
 <b>Example:</b><br />
 
 ```tsx
-<styles.StyledAtom
+<atoms.StyledAtom
   files={["tokens", "preview-card"]}
   scope="preview-surface"
   fallback={<span>Loading…</span>}
@@ -173,7 +173,7 @@ Registers requested CSS files in a shared runtime. Equal file identities share o
   )}
 >
   {({ status }) => <PreviewCard status={status} />}
-</styles.StyledAtom>
+</atoms.StyledAtom>
 ```
 
 Imported CSS is not rewritten. It must contain any selector used by its scope wrapper.
@@ -194,17 +194,25 @@ Mounts a stylesheet link while its UI surface exists. Equal identities share one
 import cardStylesheet from "./card.css?url";
 import { StaticAtom } from "styled-atom/react";
 
-<StaticAtom name="card" href={cardStylesheet} scope>
+<StaticAtom href={cardStylesheet} scope>
   <Card />
 </StaticAtom>
 ```
 
-Use immutable, content-hashed asset URLs. When `href` changes, the previous stylesheet stays active until the replacement fires `load`; a failed replacement remains retryable without removing the working CSS.
+Use immutable, content-hashed asset URLs. `name` is optional; provide it when
+several atoms should share one stable identity, when the `href` will change in
+place, or when a readable name in `inspect()` matters. Without it, the initial
+`href` becomes the stable generated identity, so equal assets still share one
+link.
+
+When `href` changes, the previous stylesheet stays active until the replacement
+fires `load`; a failed replacement remains retryable without removing the
+working CSS.
 
 Store-bound static atoms resolve typed names from a manifest:
 
 ```tsx
-const styles = createStyledAtomStore({
+const atoms = createStyledAtomStore({
   namespace: "app",
   order: ["tokens", "editor"],
   stylesheets: {
@@ -213,9 +221,9 @@ const styles = createStyledAtomStore({
   },
 });
 
-<styles.StaticAtom files={["tokens", "editor"]}>
+<atoms.StaticAtom files={["tokens", "editor"]}>
   <Editor />
-</styles.StaticAtom>
+</atoms.StaticAtom>
 ```
 
 `StaticAtom` supports lifecycle state, fallback content, scope wrappers, precedence and `Document`, `ShadowRoot` or element targets. Inline placement belongs to runtime `<style>` atoms and is intentionally unavailable here.
@@ -242,7 +250,7 @@ const modules = import.meta.glob("./styles/*.css", {
   import: "default",
 });
 
-export const styles = createStyledAtomStore<StyleFile>({
+export const atoms = createStyledAtomStore<StyleFile>({
   namespace: "workspace",
   order: ["reset", "tokens", "preview-card"],
   loader(name) {
@@ -252,6 +260,9 @@ export const styles = createStyledAtomStore<StyleFile>({
   },
 });
 ```
+
+`atoms` is simply the object returned by `createStyledAtomStore`; its React
+components and commands are bound to the same runtime.
 
 Vite's ordinary `.css` import injects CSS itself. Use `?inline` when the store should receive and own the CSS text.
 
@@ -321,7 +332,7 @@ The first argument is the root class name. `compileStyles` is an alias for the s
 
 ```tsx
 const collector = createStyleCollector();
-const styles = createStyledAtomStore({
+const atoms = createStyledAtomStore({
   namespace: "app",
   initialStyles: cssManifest,
   loader,
@@ -329,7 +340,9 @@ const styles = createStyledAtomStore({
 
 const app = renderToString(
   <StyleCollectorProvider collector={collector}>
-    <App />
+    <atoms.StyledAtom files="app">
+      <App />
+    </atoms.StyledAtom>
   </StyleCollectorProvider>,
 );
 
@@ -379,9 +392,9 @@ Reusable style objects should remain immutable. Compilation is cached by object 
 ```tsx
 export function HostStyledShell({ children }) {
   return (
-    <styles.StyledAtom files={["reset", "theme"]}>
+    <atoms.StyledAtom files={["reset", "theme"]}>
       {children}
-    </styles.StyledAtom>
+    </atoms.StyledAtom>
   );
 }
 ```
@@ -396,7 +409,9 @@ Ready-made CSS assets can use `StaticAtom` instead. Their `<link>` elements foll
 
 Every atom is `loading`, `ready` or `failed`. Children render eagerly by default. Passing `fallback`, or enabling `renderWhenReady`, waits for CSS. Loader, target and ownership failures remain retryable.
 
-Use `onStatusChange`, `onReady` and `onError` for external reporting. Scoped wrappers expose the same state as `sa-status`.
+Use `onStatusChange` for component-level reporting and inspect `state.status` in
+the callback. Store/runtime `onError` is available for centralized loader error
+reporting. Scoped wrappers expose the current state as `sa-status`.
 
 </details>
 
@@ -429,8 +444,8 @@ Equal namespaces and names declare one shared CSS resource across stores and phy
 <details><summary><b>Development reload</b>: <em>update CSS without remounting previews</em></summary><br />
 
 ```ts
-styles.replace([{ file: changedFileName, css: nextCssText }]);
-styles.reload(["main", "card"]);
+atoms.replace([{ file: changedFileName, css: nextCssText }]);
+atoms.reload(["main", "card"]);
 ```
 
 `replace()` updates CSS directly. `reload()` asks the loader for fresh CSS. Stale async responses cannot overwrite a newer revision.
@@ -442,7 +457,7 @@ Development and test builds also add a readable `sourceURL`. Production omits ge
 <details><summary><b>Content Security Policy</b>: <em>apply a nonce to dynamic style elements</em></summary><br />
 
 ```ts
-const styles = createStyledAtomStore({ nonce: requestNonce, loader });
+const atoms = createStyledAtomStore({ nonce: requestNonce, loader });
 ```
 
 Style objects and loader results are trusted CSS. Validate untrusted input before compiling or mounting it.

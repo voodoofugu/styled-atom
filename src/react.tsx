@@ -94,10 +94,6 @@ type StyledAtomSharedProps = {
   children?: StyledAtomChildren;
   /** Called after the atom changes between loading, ready and failed. */
   onStatusChange?: (state: StyledAtomRenderState) => void;
-  /** Called when every requested style is ready. */
-  onReady?: (state: StyledAtomRenderState) => void;
-  /** Called when the atom enters the failed state. */
-  onError?: (state: StyledAtomRenderState) => void;
 };
 
 type StyledAtomSource<TFile extends string> =
@@ -152,8 +148,8 @@ type StaticAtomSharedProps = Omit<
  */
 export type StaticAtomProps = StaticAtomSharedProps & {
   files?: never;
-  /** Stable public identity used for ownership and diagnostics. */
-  name: string;
+  /** Optional stable identity used for shared ownership and diagnostics. */
+  name?: string;
   /** URL of a ready-made immutable CSS asset. */
   href: string;
 };
@@ -455,8 +451,6 @@ const createComponent = <TFile extends string>(
       errorFallback,
       children,
       onStatusChange,
-      onReady,
-      onError,
     } = props;
     const style = "style" in props ? props.style : undefined;
     const href = "href" in props ? props.href : undefined;
@@ -481,10 +475,8 @@ const createComponent = <TFile extends string>(
     if (hasStyle && (typeof style !== "object" || Array.isArray(style))) {
       throw new Error("[styled-atom] style must be an object.");
     }
-    if (mode === "static" && !allowFiles && (!name?.trim() || !href?.trim())) {
-      throw new Error(
-        "[styled-atom] StaticAtom requires a non-empty name and href.",
-      );
+    if (mode === "static" && !allowFiles && !href?.trim()) {
+      throw new Error("[styled-atom] StaticAtom requires a non-empty href.");
     }
 
     const [id] = React.useState(() => {
@@ -492,6 +484,10 @@ const createComponent = <TFile extends string>(
       return `${runtime.namespace}-react-${reactAtomCounter}`;
     });
     const [hydrationStyle] = React.useState(() => style);
+    const [staticIdentity] = React.useState(() => {
+      const explicitName = name?.trim();
+      return explicitName || (href?.trim() ? `stylesheet:${href.trim()}` : "");
+    });
     const fileNames = filesList(files);
     const normalizedScope = normalizeScope(scope);
     const inlineName = name?.trim();
@@ -538,8 +534,8 @@ const createComponent = <TFile extends string>(
         files: mode === "dynamic" ? files : undefined,
         stylesheets: mode === "static" && allowFiles ? files : undefined,
         stylesheet:
-          mode === "static" && !allowFiles && inlineName && href
-            ? { name: inlineName, href }
+          mode === "static" && !allowFiles && staticIdentity && href
+            ? { name: staticIdentity, href }
             : undefined,
         inlineStyle:
           mode === "dynamic" && css && inlineName
@@ -557,6 +553,7 @@ const createComponent = <TFile extends string>(
         href,
         inlineName,
         mode,
+        staticIdentity,
         signature,
         placement,
         target,
@@ -579,11 +576,9 @@ const createComponent = <TFile extends string>(
     React.useEffect(() => {
       if (previousStatus.current !== snapshot.status) {
         onStatusChange?.(state);
-        if (snapshot.status === "ready") onReady?.(state);
-        if (snapshot.status === "failed") onError?.(state);
       }
       previousStatus.current = snapshot.status;
-    }, [onError, onReady, onStatusChange, snapshot.status, state]);
+    }, [onStatusChange, snapshot.status, state]);
 
     const blocking = renderWhenReady || fallback !== undefined;
     let content = renderValue(children, state);

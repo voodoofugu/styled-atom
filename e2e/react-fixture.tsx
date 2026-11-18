@@ -98,7 +98,9 @@ const start = async () => {
     <>
       <clientStore.StyledAtom
         name="hydration-probe"
-        onReady={() => reportReady("dynamic")}
+        onStatusChange={(state) => {
+          if (state.status === "ready") reportReady("dynamic");
+        }}
         scope
         style={style}
       >
@@ -106,7 +108,9 @@ const start = async () => {
       </clientStore.StyledAtom>
       <clientStore.StaticAtom
         files="static-probe"
-        onReady={() => reportReady("static")}
+        onStatusChange={(state) => {
+          if (state.status === "ready") reportReady("static");
+        }}
         scope="link-probe"
       >
         <span data-static-hydration-probe="">static hydrated</span>

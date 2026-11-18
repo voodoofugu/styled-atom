@@ -180,7 +180,7 @@ describe("SSR hydration", () => {
     const container = hydrationContainer(server.html, server.styleTags);
     compiler.mockClear();
     signer.mockClear();
-    const onError = vi.fn();
+    const onStatusChange = vi.fn();
     const store = createStyledAtomStore({ namespace });
     let root: Root | undefined;
 
@@ -189,7 +189,7 @@ describe("SSR hydration", () => {
         container,
         <store.StyledAtom
           name="card"
-          onError={onError}
+          onStatusChange={onStatusChange}
           style={{ color: "blue" }}
         >
           <article>card</article>
@@ -199,8 +199,11 @@ describe("SSR hydration", () => {
 
     expect(compiler).toHaveBeenCalledOnce();
     expect(signer).toHaveBeenCalledOnce();
-    expect(onError).toHaveBeenCalledOnce();
-    expect(String(onError.mock.calls[0][0].errors[0].error)).toContain(
+    const failedState = onStatusChange.mock.calls.find(
+      ([state]) => state.status === "failed",
+    )?.[0];
+    expect(failedState).toBeDefined();
+    expect(String(failedState?.errors[0].error)).toContain(
       "does not match the client CSS",
     );
     expect(document.head.textContent).toContain("color: red");

@@ -69,12 +69,10 @@ describe("StyledAtom", () => {
   });
 
   it("reports an initially ready atom after mount", async () => {
-    const onReady = vi.fn();
     const onStatusChange = vi.fn();
     render(
       <StyledAtom
         name="ready-card"
-        onReady={onReady}
         onStatusChange={onStatusChange}
         style={{ color: "red" }}
       >
@@ -82,9 +80,8 @@ describe("StyledAtom", () => {
       </StyledAtom>,
     );
 
-    await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
-    expect(onStatusChange).toHaveBeenCalledOnce();
-    expect(onReady.mock.calls[0][0].status).toBe("ready");
+    await waitFor(() => expect(onStatusChange).toHaveBeenCalledOnce());
+    expect(onStatusChange.mock.calls[0][0].status).toBe("ready");
   });
 
   it("renders inline style tags inside the wrapper", () => {
@@ -198,7 +195,6 @@ describe("StaticAtom", () => {
     const view = render(
       <StaticAtom
         href="/assets/card.a1.css"
-        name="card"
         scope="card"
       >
         <article>static card</article>
@@ -222,6 +218,30 @@ describe("StaticAtom", () => {
 
     view.unmount();
     expect(document.head.querySelector("link")).toBeNull();
+  });
+
+  it("keeps a private identity stable when name is omitted", async () => {
+    const view = render(<StaticAtom href="/assets/card.a1.css">card</StaticAtom>);
+    await act(async () => {
+      document.head
+        .querySelector<HTMLLinkElement>('link[href="/assets/card.a1.css"]')
+        ?.dispatchEvent(new Event("load"));
+      await flush();
+    });
+
+    view.rerender(<StaticAtom href="/assets/card.b2.css">card</StaticAtom>);
+    expect(document.head.querySelectorAll("link")).toHaveLength(2);
+
+    await act(async () => {
+      document.head
+        .querySelector<HTMLLinkElement>('link[href="/assets/card.b2.css"]')
+        ?.dispatchEvent(new Event("load"));
+      await flush();
+    });
+    expect(document.head.querySelectorAll("link")).toHaveLength(1);
+    expect(
+      document.head.querySelector('link[href="/assets/card.b2.css"]'),
+    ).toBeTruthy();
   });
 
   it("resolves store-bound static files from the stylesheet manifest", async () => {
@@ -296,12 +316,12 @@ describe("store-bound StyledAtom", () => {
         resolve = done;
       });
     const store = createStyledAtomStore({ loader, namespace: "async" });
-    const onReady = vi.fn();
+    const onStatusChange = vi.fn();
     const { container } = render(
       <store.StyledAtom
         files="card"
         fallback={<span>loading</span>}
-        onReady={onReady}
+        onStatusChange={onStatusChange}
         scope="surface"
       >
         <span>ready</span>
@@ -318,7 +338,9 @@ describe("store-bound StyledAtom", () => {
     });
     expect(wrapper?.getAttribute("sa-status")).toBe("ready");
     expect(screen.getByText("ready")).toBeTruthy();
-    expect(onReady).toHaveBeenCalledOnce();
+    expect(onStatusChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "ready" }),
+    );
   });
 
   it("renders eager children while a file loads", () => {
