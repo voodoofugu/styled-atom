@@ -5,6 +5,26 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-11-18
+
+This replaces the prematurely published and deprecated `4.0.0` package.
+
+### Added
+
+- Hydration signatures that let matching inline style input reuse collected CSS
+  without running the compiler again in the browser.
+- A `"use client"` boundary on the React entry for React Server Component
+  bundlers.
+- A production Next.js App Router fixture covering a Server Component import,
+  SSR inline CSS reuse, hydration and a dynamic client update.
+
+### Changed
+
+- React placement and blocking controls are now the boolean `inlinePlacement`
+  and `renderWhenReady` props.
+- Client-only mounts and dynamic updates keep the direct compiler path; only
+  initial hydration input pays the cheaper signature check.
+
 ## [4.0.0] - 2026-11-17
 
 ### Added
@@ -15,7 +35,7 @@ Semantic Versioning.
 - Explicit `loading`, `ready` and `failed` atom states.
 - `errorFallback`, `onError`, `onReady`, `onStatusChange` and retry support.
 - `data-styled-atom-status` on scoped wrappers.
-- React `inlinePlacement` for style tags that travel with component content and
+- `placement="inline"` for style tags that travel with component content and
   React portals.
 - Runtime and per-atom targets for `Document`, `ShadowRoot`, iframe documents and
   element containers.
@@ -25,12 +45,6 @@ Semantic Versioning.
 - CSP nonce support.
 - SSR style collection, initial CSS manifests and client adoption of server
   style elements.
-- Hydration signatures that let matching inline style input reuse collected CSS
-  without running the compiler again in the browser.
-- A `"use client"` boundary on the React entry for React Server Component
-  bundlers.
-- A production Next.js App Router fixture covering a Server Component import,
-  SSR inline CSS reuse, hydration and a dynamic client update.
 - Scope wrapper configuration and render-function children.
 - Conflict reporting for simultaneously mounted inline atoms that reuse a name
   with different CSS.
@@ -64,7 +78,7 @@ Semantic Versioning.
 
 - The library is positioned around atomic style ownership and CSS lifecycle
   management for dynamic UI surfaces.
-- React children render eagerly while CSS loads unless `renderWhenReady` or a
+- React children render eagerly while CSS loads unless `render="ready"` or a
   `fallback` requests blocking behavior.
 - `scope` replaces `encap`.
 - The inline compiler prop is now `style` instead of `styles`.
@@ -80,8 +94,6 @@ Semantic Versioning.
   target migration and precedence changes.
 - Server style adoption validates CSS and nonce compatibility before taking
   ownership.
-- Client-only mounts and dynamic updates keep the direct compiler path; only
-  initial hydration input pays the cheaper signature check.
 - The documentation site now renders README content as its source of truth and
   uses `morphing-scroll` for its navigation and article scrolling, with the same
   scrollbar and documentation shell grammar. The README keeps the established
@@ -118,7 +130,7 @@ For Vite loaders:
 + (name) => import(`./styles/${name}.css?inline`)
 ```
 
-Use `renderWhenReady` when children must stay hidden until every requested style
+Use `render="ready"` when children must stay hidden until every requested style
 is ready. Use `errorFallback` or `onError` to handle failed files explicitly.
 If v3 relied on insertion order, declare the cascade through the store's
 `order`; equal default precedence is sorted by stable identity in v4.
@@ -128,6 +140,7 @@ If v3 relied on insertion order, declare the cascade through the store's
 - Fixed nested selector-list scoping in the inline style compiler.
 - Shipped the v3 runtime store, inline compiler, reload and replacement APIs.
 
-[Unreleased]: https://github.com/voodoofugu/styled-atom/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/voodoofugu/styled-atom/compare/v4.0.1...HEAD
+[4.0.1]: https://github.com/voodoofugu/styled-atom/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/voodoofugu/styled-atom/compare/v3.0.3...v4.0.0
 [3.0.3]: https://github.com/voodoofugu/styled-atom/releases/tag/v3.0.3
