@@ -150,3 +150,16 @@ example stay in the article.
   shipped from this package. Source JSX remains unchanged and dynamic values
   keep the runtime compiler fallback. The design and acceptance criteria live
   in `BUILD_TIME_COMPILATION.md`.
+
+### External stylesheet research
+
+- A `<link rel="stylesheet">` source is a separate runtime backend, not a
+  Constructable Stylesheet implementation and not atom batching.
+- Browser tests validate load and error states, document and ShadowRoot use,
+  cleanup, cache reuse and replacement that keeps the old link until the new
+  CSS has loaded. The same behavior passes in Chromium, Firefox and WebKit.
+- Local benchmarks show no meaningful parse or mount advantage over one style
+  element at this scale. The useful properties are smaller HTML, browser cache
+  ownership and a natural target for emitted build assets.
+- Keep this experimental until the source contract, SSR output, CSP behavior
+  and dynamic-style fallback justify public API surface.
