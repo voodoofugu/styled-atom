@@ -2,11 +2,10 @@
 
 Status: deferred design proposal. This is not part of the v4 public API.
 
-Signed SSR hydration now reuses matching collected CSS without invoking the
-browser compiler. A build transform would therefore optimize only client-only
-static atoms, while the library is primarily intended for dynamic style
-lifecycle. Revisit this proposal only if application benchmarks show that the
-remaining compiler cost is material.
+Signed SSR hydration already reuses matching collected CSS without invoking the
+browser compiler. The external stylesheet backend now provides a lifecycle-safe
+destination for extracted assets, while dynamic values keep the runtime
+compiler. Revisit this proposal after the link backend has production evidence.
 
 ## Goal
 
@@ -54,8 +53,9 @@ For each statically analyzable `StyledAtom` use, the transform should:
 
 1. resolve a static `name`, `scope` and style object;
 2. run the existing compiler during the build;
-3. emit the CSS as a virtual build asset or a precompiled module value;
-4. replace only the internal runtime input, leaving source JSX unchanged;
+3. emit a content-hashed CSS asset;
+4. replace only the internal runtime input with that asset URL, leaving source
+   JSX unchanged;
 5. return an accurate JavaScript source map and attach a CSS source map;
 6. retain runtime compilation when the name, scope or object is dynamic.
 
@@ -99,9 +99,8 @@ host build pipeline.
 
 ## Open questions before implementation
 
-- Whether CSS should be emitted as an extracted asset or kept as a precompiled
-  module string for lifecycle mounting. Extraction is smaller at runtime but
-  cannot preserve per-atom removal by itself.
+- Whether very small extracted atoms should remain precompiled text when a
+  separate request and link element cost more than their cache value.
 - How static scope attributes and reusable objects used by several atom names
   are represented without duplicating CSS.
 - Which parser gives stable JSX and TypeScript locations without making the

@@ -23,6 +23,117 @@ afterEach(() => {
 });
 
 describe("StyleRuntime", () => {
+  it("mounts, shares and releases a ready-made stylesheet asset", async () => {
+    const runtime = createStyleRuntime({
+      namespace: "static-shared",
+      stylesheets: { card: "/assets/card.a1.css" },
+    });
+    const first = runtime.registerAtom({ stylesheets: "card" });
+    const second = runtime.registerAtom({ stylesheets: "card" });
+    const link = document.head.querySelector<HTMLLinkElement>(
+      'link[href="/assets/card.a1.css"]',
+    );
+
+    expect(link).toBeTruthy();
+    expect(document.head.querySelectorAll("link")).toHaveLength(1);
+    expect(first.getSnapshot().status).toBe("loading");
+
+    link?.dispatchEvent(new Event("load"));
+    await flush();
+
+    expect(first.getSnapshot().status).toBe("ready");
+    expect(second.getSnapshot().status).toBe("ready");
+    expect(first.getSnapshot().styles[0]).toMatchObject({
+      kind: "stylesheet",
+      href: "/assets/card.a1.css",
+    });
+    first.dispose();
+    expect(document.head.querySelectorAll("link")).toHaveLength(1);
+    second.dispose();
+    expect(document.head.querySelectorAll("link")).toHaveLength(0);
+  });
+
+  it("keeps the previous stylesheet active until its replacement loads", async () => {
+    const runtime = createStyleRuntime({
+      namespace: "static-swap",
+      stylesheets: { card: "/assets/card.a1.css" },
+    });
+    const atom = runtime.registerAtom({ stylesheets: "card" });
+    document.head
+      .querySelector<HTMLLinkElement>('link[href="/assets/card.a1.css"]')
+      ?.dispatchEvent(new Event("load"));
+    await flush();
+
+    runtime.configure({
+      stylesheets: { card: "/assets/card.b2.css" },
+    });
+
+    expect(atom.getSnapshot().status).toBe("loading");
+    expect(document.head.querySelectorAll("link")).toHaveLength(2);
+    expect(
+      document.head.querySelector('link[href="/assets/card.a1.css"]'),
+    ).toBeTruthy();
+
+    document.head
+      .querySelector<HTMLLinkElement>('link[href="/assets/card.b2.css"]')
+      ?.dispatchEvent(new Event("load"));
+    await flush();
+
+    expect(atom.getSnapshot().status).toBe("ready");
+    expect(document.head.querySelectorAll("link")).toHaveLength(1);
+    expect(
+      document.head.querySelector('link[href="/assets/card.a1.css"]'),
+    ).toBeNull();
+  });
+
+  it("keeps the previous stylesheet when its replacement fails", async () => {
+    const runtime = createStyleRuntime({
+      namespace: "static-failed-swap",
+      stylesheets: { card: "/assets/card.a1.css" },
+    });
+    const atom = runtime.registerAtom({ stylesheets: "card" });
+    document.head
+      .querySelector<HTMLLinkElement>('link[href="/assets/card.a1.css"]')
+      ?.dispatchEvent(new Event("load"));
+    await flush();
+
+    runtime.configure({
+      stylesheets: { card: "/assets/card.broken.css" },
+    });
+    document.head
+      .querySelector<HTMLLinkElement>('link[href="/assets/card.broken.css"]')
+      ?.dispatchEvent(new Event("error"));
+    await flush();
+
+    expect(atom.getSnapshot().status).toBe("failed");
+    expect(
+      document.head.querySelector('link[href="/assets/card.a1.css"]'),
+    ).toBeTruthy();
+    expect(
+      document.head.querySelector('link[href="/assets/card.broken.css"]'),
+    ).toBeNull();
+  });
+
+  it("keeps a failed stylesheet retryable", async () => {
+    const atom = createStyleRuntime({
+      namespace: "static-retry",
+      stylesheets: { card: "/assets/card.css" },
+    }).registerAtom({ stylesheets: "card" });
+    const failed = document.head.querySelector<HTMLLinkElement>("link");
+    failed?.dispatchEvent(new Event("error"));
+    await flush();
+
+    expect(atom.getSnapshot().status).toBe("failed");
+    atom.retry();
+    const retry = Array.from(document.head.querySelectorAll("link")).at(-1);
+    expect(retry).not.toBe(failed);
+    retry?.dispatchEvent(new Event("load"));
+    await flush();
+
+    expect(atom.getSnapshot().status).toBe("ready");
+    expect(document.head.querySelectorAll("link")).toHaveLength(1);
+  });
+
   it("shares one head style until the last atom is disposed", () => {
     const runtime = createStyleRuntime({
       namespace: "shared",

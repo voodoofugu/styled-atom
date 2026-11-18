@@ -6,6 +6,7 @@ import {
 } from "../src";
 import {
   createStyledAtomStore,
+  StaticAtom,
   StyledAtom,
   type StyledAtomProps,
 } from "../src/react";
@@ -32,6 +33,7 @@ runtime.preload("missing");
 
 const store = createStyledAtomStore<"reset" | "card">({
   loader: (name) => import(`./${name}.css?inline`),
+  stylesheets: { card: "/assets/card.a1.css" },
 });
 
 // @ts-expect-error runtime creation uses one object configuration form
@@ -89,5 +91,32 @@ void unknownFile;
 // @ts-expect-error standalone StyledAtom does not accept files
 const standaloneFiles: Parameters<typeof StyledAtom>[0] = { files: "card" };
 void standaloneFiles;
+
+const staticFile: Parameters<typeof store.StaticAtom>[0] = { files: "card" };
+void staticFile;
+
+const standaloneStatic: Parameters<typeof StaticAtom>[0] = {
+  name: "card",
+  href: "/assets/card.a1.css",
+};
+void standaloneStatic;
+
+// @ts-expect-error standalone StaticAtom requires a stylesheet URL
+const staticWithoutHref: Parameters<typeof StaticAtom>[0] = { name: "card" };
+void staticWithoutHref;
+
+const staticWithRuntimeStyle: Parameters<typeof StaticAtom>[0] = {
+  name: "card",
+  href: "/assets/card.a1.css",
+  // @ts-expect-error StaticAtom does not accept runtime style objects
+  style: styles,
+};
+void staticWithRuntimeStyle;
+
+const unknownStaticFile: Parameters<typeof store.StaticAtom>[0] = {
+  // @ts-expect-error store-bound static file names remain typed
+  files: "other",
+};
+void unknownStaticFile;
 
 export { runtime, store };

@@ -15,6 +15,7 @@ declare global {
     styledAtomFixtureReady?: boolean;
     styledAtomFixtureError?: string;
     styledAtomHydrationInitialColor?: string;
+    styledAtomStaticHydrationColor?: string;
     styledAtomHydrationUpdatedColor?: string;
   }
 }
@@ -48,22 +49,34 @@ const start = async () => {
   );
 
   const collector = createStyleCollector();
-  const serverStore = createStyledAtomStore({ namespace: "browser-hydration" });
+  const stylesheetHref = "/e2e/link-asset.css?version=red&cache=1";
+  const serverStore = createStyledAtomStore({
+    namespace: "browser-hydration",
+    stylesheets: { "static-probe": stylesheetHref },
+  });
   const serverApp = (
     <StyleCollectorProvider collector={collector}>
-      <serverStore.StyledAtom
-        name="hydration-probe"
-        scope
-        style={hydrationStyles}
-      >
-        <span data-hydration-probe="">hydrated</span>
-      </serverStore.StyledAtom>
+      <>
+        <serverStore.StyledAtom
+          name="hydration-probe"
+          scope
+          style={hydrationStyles}
+        >
+          <span data-hydration-probe="">hydrated</span>
+        </serverStore.StyledAtom>
+        <serverStore.StaticAtom files="static-probe" scope="link-probe">
+          <span data-static-hydration-probe="">static hydrated</span>
+        </serverStore.StaticAtom>
+      </>
     </StyleCollectorProvider>
   );
   const hydrationRoot = document.querySelector("#hydration-root")!;
   hydrationRoot.innerHTML = renderToString(serverApp);
   document.head.insertAdjacentHTML("beforeend", collector.getStyleTags());
-  const clientStore = createStyledAtomStore({ namespace: "browser-hydration" });
+  const clientStore = createStyledAtomStore({
+    namespace: "browser-hydration",
+    stylesheets: { "static-probe": stylesheetHref },
+  });
   const hydrationInput = {
     color: {
       toJSON: () => hydrationStyles.color,
@@ -76,26 +89,41 @@ const start = async () => {
   const hydrated = new Promise<void>((resolve) => {
     resolveHydrated = resolve;
   });
-  let hydrationReported = false;
+  const readyAtoms = new Set<string>();
+  const reportReady = (name: string) => {
+    readyAtoms.add(name);
+    if (readyAtoms.size === 2) resolveHydrated();
+  };
   const clientApp = (style: typeof hydrationStyles) => (
-    <clientStore.StyledAtom
-      name="hydration-probe"
-      onReady={() => {
-        if (hydrationReported) return;
-        hydrationReported = true;
-        resolveHydrated();
-      }}
-      scope
-      style={style}
-    >
-      <span data-hydration-probe="">hydrated</span>
-    </clientStore.StyledAtom>
+    <>
+      <clientStore.StyledAtom
+        name="hydration-probe"
+        onReady={() => reportReady("dynamic")}
+        scope
+        style={style}
+      >
+        <span data-hydration-probe="">hydrated</span>
+      </clientStore.StyledAtom>
+      <clientStore.StaticAtom
+        files="static-probe"
+        onReady={() => reportReady("static")}
+        scope="link-probe"
+      >
+        <span data-static-hydration-probe="">static hydrated</span>
+      </clientStore.StaticAtom>
+    </>
   );
   const root = hydrateRoot(hydrationRoot, clientApp(hydrationInput));
 
   await hydrated;
   const hydrationProbe = document.querySelector("[data-hydration-probe]")!;
+  const staticProbe = document.querySelector("[data-static-hydration-probe]")!;
+  for (let frame = 0; frame < 10; frame += 1) {
+    if (getComputedStyle(staticProbe).color === "rgb(180, 32, 48)") break;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
   window.styledAtomHydrationInitialColor = getComputedStyle(hydrationProbe).color;
+  window.styledAtomStaticHydrationColor = getComputedStyle(staticProbe).color;
   root.render(clientApp({ color: "rgb(21, 43, 65)" }));
   for (let frame = 0; frame < 10; frame += 1) {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

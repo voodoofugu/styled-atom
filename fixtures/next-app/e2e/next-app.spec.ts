@@ -21,9 +21,13 @@ test("renders through an App Router boundary and reuses hydration CSS", async ({
   await page.goto("/");
   const serverCard = page.locator("[data-server-card]");
   const hydrationCard = page.locator("[data-hydration-card]");
+  const staticCard = page.locator("[data-static-card]");
   await expect(hydrationCard).toHaveAttribute("data-hydrated", "true");
   await expect(serverCard).toHaveCSS("color", "rgb(38, 85, 115)");
   await expect(hydrationCard).toHaveCSS("color", "rgb(96, 64, 160)");
+  await expect(staticCard).toHaveCSS("color", "rgb(142, 54, 88)");
+  await expect(page.locator('link[sa-key^="stylesheet:next-static-card:"]'))
+    .toHaveCount(1);
   await expect(page.locator("style[sa-signature]"))
     .toHaveCount(2);
 

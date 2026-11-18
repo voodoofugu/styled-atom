@@ -1,9 +1,9 @@
 {
   "name": "styled-atom",
   "author": "Georg Schilin",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "private": true,
-  "description": "Lifecycle-managed CSS files and focused inline styles for dynamic UI surfaces",
+  "description": "Lifecycle-managed CSS assets and focused inline styles for dynamic UI surfaces",
   "engines": {
     "node": ">=20"
   },

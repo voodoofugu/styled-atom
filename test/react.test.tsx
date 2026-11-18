@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createStyledAtomStore,
+  StaticAtom,
   StyledAtom,
   type StyledAtomStyles,
 } from "../src/react";
@@ -189,6 +190,101 @@ describe("StyledAtom", () => {
     expect(document.head.querySelectorAll("style")).toHaveLength(1);
     view.unmount();
     expect(document.head.querySelectorAll("style")).toHaveLength(0);
+  });
+});
+
+describe("StaticAtom", () => {
+  it("mounts a ready-made stylesheet and releases it on unmount", async () => {
+    const view = render(
+      <StaticAtom
+        href="/assets/card.a1.css"
+        name="card"
+        scope="card"
+      >
+        <article>static card</article>
+      </StaticAtom>,
+    );
+    const link = document.head.querySelector<HTMLLinkElement>(
+      'link[href="/assets/card.a1.css"]',
+    );
+
+    expect(link).toBeTruthy();
+    expect(view.container.firstElementChild?.getAttribute("sa-status")).toBe(
+      "loading",
+    );
+    await act(async () => {
+      link?.dispatchEvent(new Event("load"));
+      await flush();
+    });
+    expect(view.container.firstElementChild?.getAttribute("sa-status")).toBe(
+      "ready",
+    );
+
+    view.unmount();
+    expect(document.head.querySelector("link")).toBeNull();
+  });
+
+  it("resolves store-bound static files from the stylesheet manifest", async () => {
+    const store = createStyledAtomStore({
+      namespace: "static-store",
+      stylesheets: { editor: "/assets/editor.a1.css" },
+    });
+    const view = render(
+      <store.StaticAtom files="editor">
+        {({ status }) => <span>{status}</span>}
+      </store.StaticAtom>,
+    );
+    const link = document.head.querySelector<HTMLLinkElement>(
+      'link[href="/assets/editor.a1.css"]',
+    );
+
+    expect(screen.getByText("loading")).toBeTruthy();
+    await act(async () => {
+      link?.dispatchEvent(new Event("load"));
+      await flush();
+    });
+    expect(screen.getByText("ready")).toBeTruthy();
+    expect(store.inspect().entries[0]).toMatchObject({
+      href: "/assets/editor.a1.css",
+      kind: "stylesheet",
+      status: "ready",
+    });
+    view.unmount();
+  });
+
+  it("keeps the previous link while a new href loads", async () => {
+    const view = render(
+      <StaticAtom href="/assets/card.a1.css" name="card">
+        card
+      </StaticAtom>,
+    );
+    await act(async () => {
+      document.head
+        .querySelector<HTMLLinkElement>('link[href="/assets/card.a1.css"]')
+        ?.dispatchEvent(new Event("load"));
+      await flush();
+    });
+
+    view.rerender(
+      <StaticAtom href="/assets/card.b2.css" name="card">
+        card
+      </StaticAtom>,
+    );
+    expect(document.head.querySelectorAll("link")).toHaveLength(2);
+    expect(
+      document.head.querySelector('link[href="/assets/card.a1.css"]'),
+    ).toBeTruthy();
+
+    await act(async () => {
+      document.head
+        .querySelector<HTMLLinkElement>('link[href="/assets/card.b2.css"]')
+        ?.dispatchEvent(new Event("load"));
+      await flush();
+    });
+    expect(document.head.querySelectorAll("link")).toHaveLength(1);
+    expect(
+      document.head.querySelector('link[href="/assets/card.b2.css"]'),
+    ).toBeTruthy();
   });
 });
 

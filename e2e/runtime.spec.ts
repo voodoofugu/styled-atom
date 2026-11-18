@@ -610,6 +610,94 @@ test("moves an atom between documents without leaving the old target behind", as
   });
 });
 
+test("owns, caches and safely replaces an external stylesheet atom", async ({
+  page,
+}) => {
+  await page.goto("/e2e/");
+  const result = await page.evaluate(async () => {
+    const { createStyleRuntime } = await import(
+      "/dist/esm/index.js?static-atom"
+    );
+    const red = "/e2e/link-asset.css?version=red&cache=1";
+    const blue = "/e2e/link-asset.css?version=blue&delay=120&cache=1";
+    const probe = document.createElement("div");
+    probe.className = "link-probe";
+    document.body.append(probe);
+    const runtime = createStyleRuntime({
+      namespace: "static-browser",
+      initialStyles: {
+        override: ".link-probe{color:rgb(61, 71, 81)}",
+      },
+      order: ["card", "override"],
+      stylesheets: { card: red },
+    });
+    const atom = runtime.registerAtom({ stylesheets: "card" });
+    const waitUntilReady = () =>
+      new Promise<void>((resolve) => {
+        if (atom.getSnapshot().status === "ready") {
+          resolve();
+          return;
+        }
+        const unsubscribe = atom.subscribe(() => {
+          if (atom.getSnapshot().status === "ready") {
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
+    await waitUntilReady();
+    const initial = getComputedStyle(probe).color;
+    runtime.configure({ stylesheets: { card: blue } });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const duringSwap = getComputedStyle(probe).color;
+    const linksDuringSwap = document.head.querySelectorAll(
+      'link[sa-namespace="static-browser"]',
+    ).length;
+    await waitUntilReady();
+    const afterSwap = getComputedStyle(probe).color;
+    const override = runtime.registerAtom({ files: "override" });
+    const mixedColor = getComputedStyle(probe).color;
+    const managedTags = Array.from(
+      document.head.querySelectorAll('[sa-namespace="static-browser"]'),
+    ).map((element) => element.tagName);
+    const inspection = runtime
+      .inspect()
+      .entries.find((entry) => entry.kind === "stylesheet");
+    override.dispose();
+    atom.dispose();
+    const linksAfterDispose = document.head.querySelectorAll(
+      'link[sa-namespace="static-browser"]',
+    ).length;
+    probe.remove();
+    return {
+      afterSwap,
+      duringSwap,
+      initial,
+      inspection,
+      linksAfterDispose,
+      linksDuringSwap,
+      managedTags,
+      mixedColor,
+    };
+  });
+
+  expect(result).toMatchObject({
+    initial: "rgb(180, 32, 48)",
+    duringSwap: "rgb(180, 32, 48)",
+    linksDuringSwap: 2,
+    afterSwap: "rgb(16, 112, 96)",
+    mixedColor: "rgb(61, 71, 81)",
+    managedTags: ["LINK", "STYLE"],
+    linksAfterDispose: 0,
+    inspection: {
+      kind: "stylesheet",
+      status: "ready",
+      href: "/e2e/link-asset.css?version=blue&delay=120&cache=1",
+    },
+  });
+});
+
 test("hydrates collected CSS and follows a portal into an iframe", async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
@@ -641,6 +729,10 @@ test("hydrates collected CSS and follows a portal into an iframe", async ({ page
         'style[sa-namespace="browser-hydration"]',
       ).length,
       hydrationInitialColor: window.styledAtomHydrationInitialColor,
+      staticHydrationColor: window.styledAtomStaticHydrationColor,
+      staticHydrationLinks: document.head.querySelectorAll(
+        'link[sa-namespace="browser-hydration"]',
+      ).length,
       hydrationUpdatedColor: window.styledAtomHydrationUpdatedColor,
     };
   });
@@ -652,6 +744,8 @@ test("hydrates collected CSS and follows a portal into an iframe", async ({ page
     hydrationColor: "rgb(21, 43, 65)",
     hydrationStyles: 1,
     hydrationInitialColor: "rgb(78, 90, 123)",
+    staticHydrationColor: "rgb(180, 32, 48)",
+    staticHydrationLinks: 1,
     hydrationUpdatedColor: "rgb(21, 43, 65)",
   });
   expect(consoleErrors).toEqual([]);

@@ -137,6 +137,40 @@ export type InlineStyledAtomProps = StyledAtomSharedProps & {
   style: StyledAtomStyles;
 };
 
+type StaticAtomSharedProps = Omit<
+  StyledAtomSharedProps,
+  "inlinePlacement"
+> & {
+  /** Static stylesheet links mount into their target rather than beside content. */
+  inlinePlacement?: never;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StaticAtomProps***:
+ * props accepted by the standalone external stylesheet atom.
+ */
+export type StaticAtomProps = StaticAtomSharedProps & {
+  files?: never;
+  /** Stable public identity used for ownership and diagnostics. */
+  name: string;
+  /** URL of a ready-made immutable CSS asset. */
+  href: string;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StoreStaticAtomProps***:
+ * props accepted by a store-bound external stylesheet atom.
+ */
+export type StoreStaticAtomProps<TFile extends string = string> =
+  StaticAtomSharedProps & {
+    /** Named stylesheet assets requested from the store manifest. */
+    files: StyleAtomFiles<TFile>;
+    name?: never;
+    href?: never;
+  };
+
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyledAtomComponent***:
@@ -148,16 +182,29 @@ export type StyledAtomComponent<TFile extends string = string> = React.FC<
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StaticAtomComponent***:
+ * a React component bound to a typed set of external stylesheet names.
+ */
+export type StaticAtomComponent<TFile extends string = string> = React.FC<
+  StoreStaticAtomProps<TFile>
+>;
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyledAtomStore***:
  * React component and runtime commands returned by `createStyledAtomStore`.
  */
 export type StyledAtomStore<TFile extends string = string> = {
   /** React component bound to this store and its loader. */
   StyledAtom: StyledAtomComponent<TFile>;
+  /** React component bound to ready-made stylesheet assets in this store. */
+  StaticAtom: StaticAtomComponent<TFile>;
   /** Updates runtime defaults and reconciles mounted atoms. */
   configure: StyleRuntime<TFile>["configure"];
   /** Keeps file atoms mounted without a React owner. */
   preload: StyleRuntime<TFile>["preload"];
+  /** Keeps ready-made stylesheet assets mounted without a React owner. */
+  preloadStylesheets: StyleRuntime<TFile>["preloadStylesheets"];
   /** Calls the loader again for mounted file atoms. */
   reload: StyleRuntime<TFile>["reload"];
   /** Retries failed atoms, or one atom when an id is supplied. */
@@ -327,7 +374,9 @@ const renderValue = (
 const createAtomKey = (options: StyleAtomOptions) =>
   JSON.stringify({
     files: filesList(options.files),
+    stylesheets: filesList(options.stylesheets),
     inlineStyle: options.inlineStyle ?? null,
+    stylesheet: options.stylesheet ?? null,
     placement: options.placement ?? null,
     nonce: options.nonce ?? null,
     precedence: options.precedence ?? null,
@@ -363,6 +412,11 @@ const useRuntimeAtom = <TFile extends string>(
       next.dispose();
       if (controller.current === next) controller.current = null;
     };
+    // Option changes reconcile through the stable controller below.
+  }, [runtime, id]);
+
+  React.useLayoutEffect(() => {
+    controller.current?.update(options);
   }, [runtime, id, key, options.target]);
 
   const snapshot = React.useSyncExternalStore(
@@ -380,12 +434,17 @@ const useRuntimeAtom = <TFile extends string>(
 const createComponent = <TFile extends string>(
   runtime: StyleRuntime<TFile>,
   allowFiles: boolean,
+  mode: "dynamic" | "static" = "dynamic",
 ) => {
-  const Component = (props: StyledAtomProps<TFile>) => {
+  const Component = (
+    props:
+      | StyledAtomProps<TFile>
+      | StoreStaticAtomProps<TFile>
+      | StaticAtomProps,
+  ) => {
     const {
       files,
       name,
-      style,
       scope,
       inlinePlacement,
       target,
@@ -399,6 +458,8 @@ const createComponent = <TFile extends string>(
       onReady,
       onError,
     } = props;
+    const style = "style" in props ? props.style : undefined;
+    const href = "href" in props ? props.href : undefined;
     const collector = React.useContext(CollectorContext);
     const placement =
       inlinePlacement === undefined
@@ -408,7 +469,7 @@ const createComponent = <TFile extends string>(
           : "head";
     const resolvedPlacement = runtime.resolvePlacement(placement);
 
-    if (!allowFiles && files !== undefined) {
+    if (mode === "dynamic" && !allowFiles && files !== undefined) {
       throw new Error(
         "[styled-atom] The standalone StyledAtom accepts inline name/style only. Use createStyledAtomStore() for CSS files.",
       );
@@ -420,6 +481,11 @@ const createComponent = <TFile extends string>(
     if (hasStyle && (typeof style !== "object" || Array.isArray(style))) {
       throw new Error("[styled-atom] style must be an object.");
     }
+    if (mode === "static" && !allowFiles && (!name?.trim() || !href?.trim())) {
+      throw new Error(
+        "[styled-atom] StaticAtom requires a non-empty name and href.",
+      );
+    }
 
     const [id] = React.useState(() => {
       reactAtomCounter += 1;
@@ -430,17 +496,17 @@ const createComponent = <TFile extends string>(
     const normalizedScope = normalizeScope(scope);
     const inlineName = name?.trim();
     const selector = scopeSelector(normalizedScope, fileNames, inlineName);
-    const fingerprint = styleFingerprint(style);
+    const fingerprint = styleFingerprint(mode === "dynamic" ? style : undefined);
     const hydrationCandidate = React.useMemo(
       () =>
-        inlineName
+        mode === "dynamic" && inlineName
           ? runtime.resolveHydratedInlineStyle(inlineName, {
               placement,
               target,
               precedence,
             })
           : undefined,
-      [inlineName, placement, precedence, runtime, target],
+      [inlineName, mode, placement, precedence, runtime, target],
     );
     const shouldSign = Boolean(
       style &&
@@ -469,15 +535,34 @@ const createComponent = <TFile extends string>(
     );
     const atomOptions = React.useMemo<StyleAtomOptions<TFile>>(
       () => ({
-        files,
+        files: mode === "dynamic" ? files : undefined,
+        stylesheets: mode === "static" && allowFiles ? files : undefined,
+        stylesheet:
+          mode === "static" && !allowFiles && inlineName && href
+            ? { name: inlineName, href }
+            : undefined,
         inlineStyle:
-          css && inlineName ? { name: inlineName, css, signature } : undefined,
+          mode === "dynamic" && css && inlineName
+            ? { name: inlineName, css, signature }
+            : undefined,
         placement,
         target,
         nonce,
         precedence,
       }),
-      [files, css, inlineName, signature, placement, target, nonce, precedence],
+      [
+        allowFiles,
+        files,
+        css,
+        href,
+        inlineName,
+        mode,
+        signature,
+        placement,
+        target,
+        nonce,
+        precedence,
+      ],
     );
     const { snapshot, retry } = useRuntimeAtom(runtime, id, atomOptions);
     const state = React.useMemo<StyledAtomRenderState>(
@@ -512,18 +597,20 @@ const createComponent = <TFile extends string>(
 
     const inlineStyles =
       resolvedPlacement === "inline"
-        ? snapshot.styles.map((style) => (
-            <style
-              sa-key={style.key}
-              sa-namespace={runtime.namespace}
-              sa-precedence={style.precedence}
-              sa-signature={style.signature}
-              key={style.key}
-              nonce={runtime.resolveNonce(nonce)}
-            >
-              {style.css}
-            </style>
-          ))
+        ? snapshot.styles.map((style) =>
+            style.kind === "stylesheet" ? null : (
+              <style
+                sa-key={style.key}
+                sa-namespace={runtime.namespace}
+                sa-precedence={style.precedence}
+                sa-signature={style.signature}
+                key={style.key}
+                nonce={runtime.resolveNonce(nonce)}
+              >
+                {style.css}
+              </style>
+            ),
+          )
         : null;
 
     if (!normalizedScope.enabled) {
@@ -552,7 +639,7 @@ const createComponent = <TFile extends string>(
     );
   };
 
-  Component.displayName = "StyledAtom";
+  Component.displayName = mode === "static" ? "StaticAtom" : "StyledAtom";
   return Component;
 };
 
@@ -569,6 +656,19 @@ export const StyledAtom = createComponent(
   false,
 ) as React.FC<InlineStyledAtomProps>;
 
+const staticRuntime = new StyleRuntime({ namespace: "static" });
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StaticAtom***:
+ * standalone React component for one ready-made stylesheet asset.
+ */
+export const StaticAtom = createComponent(
+  staticRuntime,
+  false,
+  "static",
+) as React.FC<StaticAtomProps>;
+
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***createStyledAtomStore***:
@@ -580,8 +680,14 @@ export const createStyledAtomStore = <TFile extends string = string>(
   const runtime = new StyleRuntime(options);
   return {
     StyledAtom: createComponent(runtime, true),
+    StaticAtom: createComponent(
+      runtime,
+      true,
+      "static",
+    ) as StaticAtomComponent<TFile>,
     configure: runtime.configure.bind(runtime),
     preload: runtime.preload.bind(runtime),
+    preloadStylesheets: runtime.preloadStylesheets.bind(runtime),
     reload: runtime.reload.bind(runtime),
     retry: runtime.retry.bind(runtime),
     inspect: runtime.inspect.bind(runtime),
@@ -602,4 +708,5 @@ export type {
   StyleRuntimeEntryInspection,
   StyleRuntimeInspection,
   StyleTargetValue,
+  StylesheetManifest,
 } from "./types";

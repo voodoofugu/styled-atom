@@ -27,7 +27,7 @@ browse — searchable, with section navigation and live examples.
 
 `styled-atom` is a small TypeScript runtime for mounting CSS only while a component, preview or tool surface needs it.
 
-It loads ordinary CSS files by name or compiles focused inline style objects, shares mounted styles between consumers, exposes their lifecycle and removes them after the last owner disappears.
+It mounts ready-made CSS assets as browser-cacheable stylesheet links, loads CSS text by name or compiles focused inline style objects. Every source shares ownership, exposes its lifecycle and leaves the cascade after the last owner disappears.
 
 The library is useful in component workbenches, visual editors, previews, route-owned interfaces, portals, iframes and microfrontends. It works alongside CSS Modules, global styles and extracted bundles: traditional CSS can remain in the application shell while `styled-atom` owns dynamic UI surfaces.
 
@@ -43,7 +43,11 @@ npm install styled-atom
 
 ```tsx
 import { createStyleRuntime } from "styled-atom";
-import { StyledAtom, createStyledAtomStore } from "styled-atom/react";
+import {
+  StaticAtom,
+  StyledAtom,
+  createStyledAtomStore,
+} from "styled-atom/react";
 ```
 
 > **✦ Note:**
@@ -180,10 +184,50 @@ Imported CSS is not rewritten. It must contain any selector used by its scope wr
 
 <h2></h2>
 
+<details><summary><b><code>StaticAtom</code></b>: <em>own a ready-made CSS asset</em></summary><br /><ul><div>
+
+<b>Description:</b><em><br />
+Mounts a stylesheet link while its UI surface exists. Equal identities share one link and reference count. Removing the last owner removes the CSS from the cascade while the browser may keep the asset in its HTTP cache.
+</em><br />
+
+```tsx
+import cardStylesheet from "./card.css?url";
+import { StaticAtom } from "styled-atom/react";
+
+<StaticAtom name="card" href={cardStylesheet} scope>
+  <Card />
+</StaticAtom>
+```
+
+Use immutable, content-hashed asset URLs. When `href` changes, the previous stylesheet stays active until the replacement fires `load`; a failed replacement remains retryable without removing the working CSS.
+
+Store-bound static atoms resolve typed names from a manifest:
+
+```tsx
+const styles = createStyledAtomStore({
+  namespace: "app",
+  order: ["tokens", "editor"],
+  stylesheets: {
+    tokens: "/assets/tokens.a1.css",
+    editor: "/assets/editor.b2.css",
+  },
+});
+
+<styles.StaticAtom files={["tokens", "editor"]}>
+  <Editor />
+</styles.StaticAtom>
+```
+
+`StaticAtom` supports lifecycle state, fallback content, scope wrappers, precedence and `Document`, `ShadowRoot` or element targets. Inline placement belongs to runtime `<style>` atoms and is intentionally unavailable here.
+
+</div></ul></details>
+
+<h2></h2>
+
 <details><summary><b><code>createStyledAtomStore</code></b>: <em>bind the runtime to React</em></summary><br /><ul><div>
 
 <b>Description:</b><em><br />
-Creates one React-bound runtime and a typed <code>StyledAtom</code> component. Use one store for a shell, workspace or isolated UI surface.
+Creates one React-bound runtime with typed <code>StyledAtom</code> and <code>StaticAtom</code> components. Use one store for a shell, workspace or isolated UI surface.
 </em><br />
 
 <b>Example:</b><br />
@@ -214,8 +258,10 @@ Vite's ordinary `.css` import injects CSS itself. Use `?inline` when the store s
 <b>Return:</b><br />
 
 - `StyledAtom` - component bound to this store.
+- `StaticAtom` - component bound to the store's `stylesheets` manifest.
 - `configure(options)` - update loader, target, placement, nonce, order or `sourceURL` defaults.
 - `preload(files)` - keep shared styles mounted without a component.
+- `preloadStylesheets(files)` - keep shared stylesheet assets mounted without a component.
 - `reload(files?)` - call the loader again for mounted files.
 - `replace(styles)` - update mounted CSS without calling the loader.
 - `retry(id?)` - retry failed atoms.
@@ -341,6 +387,8 @@ export function HostStyledShell({ children }) {
 ```
 
 Many consumers of the same identity still produce one head `<style>`. Many unique active identities produce many elements, so stable application CSS can stay in ordinary extracted bundles.
+
+Ready-made CSS assets can use `StaticAtom` instead. Their `<link>` elements follow the same ownership lifecycle, while repeat mounts can reuse the browser's HTTP cache.
 
 </details>
 
@@ -483,7 +531,7 @@ onCleanup(() => atom?.dispose());
 
 <details><summary><b>The atom stays in <code>loading</code></b></summary><br />
 
-Check that the loader settles and returns CSS text. Use `inspect()` to find the active entry.
+For `StyledAtom`, check that the loader settles and returns CSS text. For `StaticAtom`, check that the URL returns CSS successfully and is allowed by CSP. Use `inspect()` to see the active kind, target, status and `href`.
 
 </details>
 

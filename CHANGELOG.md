@@ -5,6 +5,17 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-11-18
+
+### Added
+
+- Standalone and store-bound `StaticAtom` components for ready-made CSS assets.
+- A typed `stylesheets` manifest, `preloadStylesheets()` and core stylesheet
+  registration through lifecycle-owned `<link rel="stylesheet">` elements.
+- Safe stylesheet replacement that keeps the previous asset active until the
+  new link loads, with retryable load failures and shared ownership.
+- SSR collection and hydration adoption for external stylesheet links.
+
 ### Changed
 
 - Internal DOM attributes now use the shorter `sa-*` prefix.

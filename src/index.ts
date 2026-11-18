@@ -16,6 +16,7 @@ export type {
   StyleAtomInlineStyle,
   StyleAtomOptions,
   StyleAtomSnapshot,
+  StyleAtomStylesheet,
   StyleAtomStyles,
   StyleCollector,
   StyledAtomStyles,
@@ -28,4 +29,5 @@ export type {
   StyleStatus,
   StyleTarget,
   StyleTargetValue,
+  StylesheetManifest,
 } from "./types";

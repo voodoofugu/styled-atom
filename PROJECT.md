@@ -1,6 +1,6 @@
 # styled-atom — project context and decision log
 
-_Last updated: 2026-11-16 · target version: 4.0.0_
+_Last updated: 2026-11-18 · target version: 4.1.0_
 
 ## What it is
 
@@ -153,13 +153,15 @@ example stay in the article.
 
 ### External stylesheet research
 
-- A `<link rel="stylesheet">` source is a separate runtime backend, not a
-  Constructable Stylesheet implementation and not atom batching.
-- Browser tests validate load and error states, document and ShadowRoot use,
-  cleanup, cache reuse and replacement that keeps the old link until the new
-  CSS has loaded. The same behavior passes in Chromium, Firefox and WebKit.
-- Local benchmarks show no meaningful parse or mount advantage over one style
-  element at this scale. The useful properties are smaller HTML, browser cache
-  ownership and a natural target for emitted build assets.
-- Keep this experimental until the source contract, SSR output, CSP behavior
-  and dynamic-style fallback justify public API surface.
+- `StyledAtom` owns dynamic CSS text and keeps the runtime compiler and
+  `<style>` backend. `StaticAtom` owns ready-made immutable CSS assets through
+  `<link rel="stylesheet">`.
+- Standalone static atoms accept `name` and `href`; store-bound static atoms
+  resolve typed file names through a `stylesheets` manifest. This keeps the
+  semantic choice explicit without a misleading `cached` or `static` mode prop.
+- Removing the last owner removes the link and its CSS from the cascade. HTTP
+  cache retention remains browser-owned and can accelerate a later mount.
+- Link replacement keeps the previous stylesheet active until the new URL has
+  loaded. Errors remain retryable without leaving the UI unstyled.
+- Build-time extraction may later turn provably static `style` objects into
+  assets consumed by the same link backend. Dynamic values retain runtime CSS.

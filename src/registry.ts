@@ -19,18 +19,22 @@ type StyleAttribute = keyof typeof styleAttributes;
 const readStyleAttribute = (element: Element, attribute: StyleAttribute) =>
   element.getAttribute(styleAttributes[attribute]);
 
-const styleSelector = (attribute: StyleAttribute) =>
-  `style[${styleAttributes[attribute]}]`;
+const managedSelector = (attribute: StyleAttribute) =>
+  `style[${styleAttributes[attribute]}],link[${styleAttributes[attribute]}]`;
 
 type RegistryOwner = object;
 
 type RegistryRecord = {
-  element: HTMLStyleElement;
+  element: HTMLStyleElement | HTMLLinkElement;
+  pending?: HTMLLinkElement;
   publicKey: string;
   identity: string;
-  css: string;
+  css?: string;
+  href?: string;
   nonce?: string;
   owners: Set<RegistryOwner>;
+  ready?: Promise<void>;
+  failed?: boolean;
 };
 
 type ContainerRegistry = {
@@ -45,10 +49,11 @@ type RegistryContainer = object & {
 export type MountedRegistryEntry = {
   namespace: string;
   publicKey: string;
-  kind: "file" | "inline";
+  kind: "file" | "inline" | "stylesheet";
   name: string;
   precedence: number;
-  css: string;
+  css?: string;
+  href?: string;
   signature?: string;
   nonce?: string;
   target?: StyleTarget;
@@ -56,7 +61,11 @@ export type MountedRegistryEntry = {
 };
 
 export type RegistryMountResult =
-  | { element: HTMLStyleElement; error?: never }
+  | {
+      element: HTMLStyleElement | HTMLLinkElement;
+      ready?: Promise<void>;
+      error?: never;
+    }
   | { element?: never; error: StyleLoadError };
 
 type RegistryGlobal = typeof globalThis & {
@@ -146,12 +155,12 @@ const findServerElement = (
   publicKey: string,
 ) =>
   Array.from(
-    container.querySelectorAll?.(styleSelector("namespace")) ?? [],
+    container.querySelectorAll?.(managedSelector("namespace")) ?? [],
   ).find(
     (candidate) =>
       readStyleAttribute(candidate, "namespace") === namespace &&
       readStyleAttribute(candidate, "key") === publicKey,
-  ) as HTMLStyleElement | undefined;
+  ) as HTMLStyleElement | HTMLLinkElement | undefined;
 
 export const findServerStyleCss = ({
   target,
@@ -168,7 +177,7 @@ export const findServerStyleCss = ({
   const container = placement === "head" ? targetContainer(target) : target;
   if (!container) return undefined;
   const element = findServerElement(container, namespace, publicKey);
-  if (!element) return undefined;
+  if (!element || element.tagName !== "STYLE") return undefined;
   return {
     css: (element.textContent ?? "").replace(/<\\\/style/gi, "</style"),
     signature: readStyleAttribute(element, "signature") ?? undefined,
@@ -183,14 +192,14 @@ const comparableCss = (css: string) =>
 
 const insertInOrder = (
   container: ParentNode,
-  element: HTMLStyleElement,
+  element: HTMLStyleElement | HTMLLinkElement,
   namespace: string,
   publicKey: string,
   precedence: number,
 ) => {
   const siblings = Array.from(
-    container.querySelectorAll?.(styleSelector("precedence")) ?? [],
-  ) as HTMLStyleElement[];
+    container.querySelectorAll?.(managedSelector("precedence")) ?? [],
+  ) as Array<HTMLStyleElement | HTMLLinkElement>;
   const identity = `${namespace}\u0000${publicKey}`;
   const before = siblings.find((sibling) => {
     if (sibling === element) return false;
@@ -202,6 +211,52 @@ const insertInOrder = (
     );
   });
   container.insertBefore(element, before ?? null);
+};
+
+const stylesheetReady = (element: HTMLLinkElement, name: string) => {
+  if (element.sheet) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      element.removeEventListener("load", onLoad);
+      element.removeEventListener("error", onError);
+    };
+    const onLoad = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error(`[styled-atom] Stylesheet "${name}" failed to load.`));
+    };
+    element.addEventListener("load", onLoad, { once: true });
+    element.addEventListener("error", onError, { once: true });
+  });
+};
+
+const configureManagedElement = (
+  element: HTMLStyleElement | HTMLLinkElement,
+  entry: MountedRegistryEntry,
+) => {
+  element.setAttribute(styleAttributes.namespace, entry.namespace);
+  element.setAttribute(styleAttributes.key, entry.publicKey);
+  element.setAttribute(styleAttributes.precedence, String(entry.precedence));
+  if (entry.signature) {
+    element.setAttribute(styleAttributes.signature, entry.signature);
+  } else {
+    element.removeAttribute(styleAttributes.signature);
+  }
+  if (entry.nonce) element.nonce = entry.nonce;
+};
+
+const createStylesheet = (
+  doc: Document,
+  entry: MountedRegistryEntry,
+) => {
+  const element = doc.createElement("link");
+  element.rel = "stylesheet";
+  element.href = entry.href ?? "";
+  configureManagedElement(element, entry);
+  return element;
 };
 
 export const mountRegistryEntry = (
@@ -232,13 +287,18 @@ export const mountRegistryEntry = (
     };
   }
   let record = records.records.get(key);
-  if (record && record.css !== entry.css) {
+  const sourceChanged =
+    record &&
+    (entry.kind === "stylesheet"
+      ? record.href !== entry.href
+      : record.css !== entry.css);
+  if (sourceChanged && record) {
     const ownsRecord = record.owners.has(entry.owner);
     if (!ownsRecord || record.owners.size > 1) {
       return {
         error: conflict(
           entry.name,
-          `Style "${entry.name}" is already mounted by another runtime with different CSS. Use a different namespace or style name.`,
+          `Style "${entry.name}" is already mounted by another runtime with different content. Use a different namespace or style name.`,
         ),
       };
     }
@@ -263,14 +323,35 @@ export const mountRegistryEntry = (
       entry.namespace,
       entry.publicKey,
     );
+    const expectedTag = entry.kind === "stylesheet" ? "LINK" : "STYLE";
+    if (serverElement && serverElement.tagName !== expectedTag) {
+      return {
+        error: conflict(
+          entry.name,
+          `Server style "${entry.name}" uses a different element type from the client runtime.`,
+        ),
+      };
+    }
     if (
-      serverElement &&
-      comparableCss(serverElement.textContent ?? "") !== comparableCss(entry.css)
+      serverElement?.tagName === "STYLE" &&
+      comparableCss(serverElement.textContent ?? "") !==
+        comparableCss(entry.css ?? "")
     ) {
       return {
         error: conflict(
           entry.name,
           `Server style "${entry.name}" does not match the client CSS for the same namespace and key.`,
+        ),
+      };
+    }
+    if (
+      serverElement?.tagName === "LINK" &&
+      serverElement.getAttribute("href") !== entry.href
+    ) {
+      return {
+        error: conflict(
+          entry.name,
+          `Server stylesheet "${entry.name}" does not match the client URL for the same namespace and key.`,
         ),
       };
     }
@@ -283,36 +364,79 @@ export const mountRegistryEntry = (
         ),
       };
     }
-    const element = serverElement ?? doc.createElement("style");
-    element.setAttribute(styleAttributes.namespace, entry.namespace);
-    element.setAttribute(styleAttributes.key, entry.publicKey);
-    element.setAttribute(
-      styleAttributes.precedence,
-      String(entry.precedence),
-    );
+    const element =
+      serverElement ??
+      (entry.kind === "stylesheet"
+        ? createStylesheet(doc, entry)
+        : doc.createElement("style"));
+    configureManagedElement(element, entry);
     record = {
       element,
       publicKey: entry.publicKey,
       identity,
       css: entry.css,
+      href: entry.href,
       nonce: serverNonce ?? entry.nonce,
       owners: new Set(),
     };
+    if (element.tagName === "LINK") {
+      record.ready = stylesheetReady(
+        element as HTMLLinkElement,
+        entry.name,
+      ).catch((error: unknown) => {
+        if (record) record.failed = true;
+        throw error;
+      });
+    }
     records.records.set(key, record);
     records.identities.set(identity, record);
   }
 
+  if ((sourceChanged || record.failed) && entry.kind === "stylesheet") {
+    const doc = ownerDocument(entry.target, document);
+    const previous = record.element;
+    record.pending?.remove();
+    const candidate = createStylesheet(doc, entry);
+    record.pending = candidate;
+    insertInOrder(
+      container,
+      candidate,
+      entry.namespace,
+      entry.publicKey,
+      entry.precedence,
+    );
+    const ready = stylesheetReady(candidate, entry.name)
+      .then(() => {
+        if (record?.pending !== candidate) return;
+        previous.remove();
+        record.element = candidate;
+        record.pending = undefined;
+        record.href = entry.href;
+        record.failed = false;
+      })
+      .catch((error: unknown) => {
+        if (record?.pending === candidate) {
+          record.pending = undefined;
+          record.failed = true;
+        }
+        candidate.remove();
+        throw error;
+      });
+    record.ready = ready;
+    record.owners.add(entry.owner);
+    return { element: candidate, ready };
+  }
+
   record.css = entry.css;
+  record.href = entry.href;
   record.nonce ??= entry.nonce;
   record.owners.add(entry.owner);
-  if (entry.signature) {
-    record.element.setAttribute(styleAttributes.signature, entry.signature);
-  } else {
-    record.element.removeAttribute(styleAttributes.signature);
-  }
-  if (record.nonce) record.element.nonce = record.nonce;
-  if (record.element.textContent !== entry.css) {
-    record.element.textContent = entry.css;
+  configureManagedElement(record.element, entry);
+  if (
+    record.element.tagName === "STYLE" &&
+    record.element.textContent !== entry.css
+  ) {
+    record.element.textContent = entry.css ?? "";
   }
   insertInOrder(
     container,
@@ -322,7 +446,7 @@ export const mountRegistryEntry = (
     entry.precedence,
   );
 
-  return { element: record.element };
+  return { element: record.element, ready: record.ready };
 };
 
 export const releaseRegistryEntry = (
@@ -336,6 +460,7 @@ export const releaseRegistryEntry = (
   if (!record) return;
   record.owners.delete(entry.owner);
   if (record.owners.size > 0) return;
+  record.pending?.remove();
   record.element.remove();
   records?.records.delete(key);
   records?.identities.delete(record.identity);

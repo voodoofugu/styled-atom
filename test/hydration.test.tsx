@@ -83,6 +83,50 @@ afterEach(() => {
 });
 
 describe("SSR hydration", () => {
+  it("adopts a collected stylesheet link without duplicating it", async () => {
+    const namespace = "hydrate-static";
+    const collector = createStyleCollector();
+    const serverStore = createStyledAtomStore({
+      namespace,
+      stylesheets: { card: "/assets/card.a1.css" },
+    });
+    const content = (
+      <serverStore.StaticAtom files="card">
+        <article>static card</article>
+      </serverStore.StaticAtom>
+    );
+    const html = renderToString(
+      <StyleCollectorProvider collector={collector}>
+        {content}
+      </StyleCollectorProvider>,
+    );
+    const container = hydrationContainer(html, collector.getStyleTags());
+    const serverLink = document.head.querySelector<HTMLLinkElement>("link");
+    const clientStore = createStyledAtomStore({
+      namespace,
+      stylesheets: { card: "/assets/card.a1.css" },
+    });
+    let root: Root | undefined;
+
+    await act(async () => {
+      root = hydrateRoot(
+        container,
+        <clientStore.StaticAtom files="card">
+          <article>static card</article>
+        </clientStore.StaticAtom>,
+      );
+    });
+
+    expect(document.head.querySelectorAll("link")).toHaveLength(1);
+    expect(document.head.querySelector("link")).toBe(serverLink);
+    await act(async () => {
+      serverLink?.dispatchEvent(new Event("load"));
+      await Promise.resolve();
+    });
+    await unmount(root);
+    expect(document.head.querySelector("link")).toBeNull();
+  });
+
   it("does not calculate hydration signatures for client-only mounts", () => {
     const store = createStyledAtomStore({ namespace: "client-only" });
 
@@ -123,7 +167,6 @@ describe("SSR hydration", () => {
         </store.StyledAtom>,
       );
     });
-
     expect(compiler).not.toHaveBeenCalled();
     expect(signer).toHaveBeenCalledOnce();
     expect(document.head.querySelectorAll("style")).toHaveLength(1);

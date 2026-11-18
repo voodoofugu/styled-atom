@@ -125,6 +125,18 @@ export type StyleAtomInlineStyle = {
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StyleAtomStylesheet***:
+ * a ready-made CSS asset mounted through a stylesheet link.
+ */
+export type StyleAtomStylesheet = {
+  /** Stable public identity used for ownership and diagnostics. */
+  name: string;
+  /** URL of an immutable CSS asset. */
+  href: string;
+};
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleErrorCode***:
  * the failure categories reported by the runtime.
  */
@@ -144,25 +156,40 @@ export type StyleLoadError = {
   error: unknown;
 };
 
-/**---
- * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
- * ### ***MountedStyle***:
- * CSS ready to render or serialize.
- */
-export type MountedStyle = {
+type MountedStyleBase = {
   /** Stable key within a namespace and precedence level. */
   key: string;
   /** How the CSS entered the runtime. */
-  kind: "file" | "inline";
+  kind: "file" | "inline" | "stylesheet";
   /** Public file or inline atom name. */
   name: string;
-  /** Final CSS text, including an optional generated `sourceURL`. */
-  css: string;
-  /** @internal Input signature used to reuse matching server-rendered CSS. */
-  signature?: string;
   /** Numeric cascade position used to order style elements. */
   precedence: number;
 };
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***MountedStyle***:
+ * CSS text or an external stylesheet ready to render or serialize.
+ */
+export type MountedStyle = MountedStyleBase &
+  (
+    | {
+        kind: "file" | "inline";
+        /** Final CSS text, including an optional generated `sourceURL`. */
+        css: string;
+        href?: never;
+        /** @internal Input signature used to reuse matching server-rendered CSS. */
+        signature?: string;
+      }
+    | {
+        kind: "stylesheet";
+        /** URL mounted through `<link rel="stylesheet">`. */
+        href: string;
+        css?: never;
+        signature?: never;
+      }
+  );
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
@@ -193,7 +220,7 @@ export type StyleRuntimeEntryInspection = {
   /** File or inline atom name. */
   name: string;
   /** How the CSS entered the runtime. */
-  kind: "file" | "inline";
+  kind: "file" | "inline" | "stylesheet";
   /** Current entry state. */
   status: StyleStatus;
   /** Resolved style element placement. */
@@ -206,6 +233,8 @@ export type StyleRuntimeEntryInspection = {
   localOwners: number;
   /** Length of the loaded CSS text before generated annotations. */
   cssLength: number;
+  /** External stylesheet URL when the entry uses a link element. */
+  href?: string;
   /** Current failure, when the entry is failed. */
   error?: StyleLoadError;
 };
@@ -234,6 +263,10 @@ export type StyleAtomOptions<TFile extends string = string> = {
   files?: StyleAtomFiles<TFile>;
   /** Precompiled inline CSS. React compiles its `style` prop into this form. */
   inlineStyle?: StyleAtomInlineStyle;
+  /** Named ready-made stylesheet assets from the runtime manifest. */
+  stylesheets?: StyleAtomFiles<TFile>;
+  /** One ready-made stylesheet registered directly by URL. */
+  stylesheet?: StyleAtomStylesheet;
   /** Overrides the runtime placement for this atom. */
   placement?: StylePlacement;
   /** Overrides the runtime target for this atom. */
@@ -291,6 +324,15 @@ export type InitialStyles<TFile extends string = string> = Partial<
 
 /**---
  * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
+ * ### ***StylesheetManifest***:
+ * immutable CSS asset URLs available to store-bound static atoms.
+ */
+export type StylesheetManifest<TFile extends string = string> = Partial<
+  Record<TFile, string>
+>;
+
+/**---
+ * ## ![logo](https://github.com/voodoofugu/styled-atom/raw/main/src/assets/styled-atom-logo.png)
  * ### ***StyleRuntimeOptions***:
  * configuration shared by every atom registered with a runtime.
  */
@@ -312,6 +354,8 @@ export type StyleRuntimeOptions<TFile extends string = string> = {
   order?: readonly TFile[];
   /** CSS available synchronously for first render and server collection. */
   initialStyles?: InitialStyles<TFile>;
+  /** Ready-made CSS asset URLs mounted by store-bound static atoms. */
+  stylesheets?: StylesheetManifest<TFile>;
   /** Stable ownership namespace. Automatic namespaces are unique per runtime. */
   namespace?: string;
   /** Receives loader, target and ownership failures. */

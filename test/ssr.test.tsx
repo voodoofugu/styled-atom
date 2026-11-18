@@ -78,6 +78,29 @@ describe("server rendering", () => {
     expect(collector.getStyleTags()).toContain("color:green");
   });
 
+  it("collects static stylesheet assets as links", () => {
+    const collector = createStyleCollector();
+    const store = createStyledAtomStore({
+      namespace: "static-manifest",
+      stylesheets: { card: "/assets/card.a1.css" },
+    });
+    const html = renderToString(
+      <StyleCollectorProvider collector={collector}>
+        <store.StaticAtom files="card" scope="card">
+          <article>static card</article>
+        </store.StaticAtom>
+      </StyleCollectorProvider>,
+    );
+    const tags = collector.getStyleTags();
+
+    expect(html).toContain("static card");
+    expect(tags).toContain("<link");
+    expect(tags).toContain('sa-namespace="static-manifest"');
+    expect(tags).toContain('rel="stylesheet"');
+    expect(tags).toContain('href="/assets/card.a1.css"');
+    expect(tags).not.toContain("<style");
+  });
+
   it("renders eager content with loading status when server CSS is unavailable", () => {
     const store = createStyledAtomStore({
       namespace: "missing",

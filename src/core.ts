@@ -14,6 +14,7 @@ import type {
   StyleRuntimeOptions,
   StyleRuntimeInspection,
   StyleRuntimeEntryInspection,
+  StylesheetManifest,
   StyleTarget,
   StyleTargetValue,
 } from "./types";
@@ -25,12 +26,14 @@ import {
 } from "./registry";
 import { isDevelopmentEnvironment } from "./environment";
 
-type EntryKind = "file" | "inline";
+type EntryKind = "file" | "inline" | "stylesheet";
 type EntryStatus = "idle" | "loading" | "ready" | "failed";
 
 type NormalizedOptions = {
   files: string[];
+  stylesheets: string[];
   inlineStyle?: { name: string; css: string; signature?: string };
+  stylesheet?: { name: string; href: string };
   placement: StylePlacement;
   target?: StyleTarget;
   nonce?: string;
@@ -51,9 +54,10 @@ type StyleEntry = {
   status: EntryStatus;
   revision: number;
   css?: string;
+  href?: string;
   signature?: string;
   error?: StyleLoadError;
-  element?: HTMLStyleElement;
+  element?: HTMLStyleElement | HTMLLinkElement;
   registryOwner: object;
 };
 
@@ -156,23 +160,48 @@ export const createStyleCollector = (): StyleCollector => {
     collect(style) {
       const collectionKey = `${style.namespace}\u0000${style.key}`;
       const existing = styles.get(collectionKey);
-      if (existing && existing.css !== style.css) {
+      if (
+        existing &&
+        (existing.kind !== style.kind ||
+          (style.kind === "stylesheet"
+            ? existing.href !== style.href
+            : existing.css !== style.css))
+      ) {
         throw new Error(
-          `[styled-atom] Collected style "${style.name}" has conflicting CSS.`,
+          `[styled-atom] Collected style "${style.name}" has conflicting content.`,
         );
       }
-      styles.set(collectionKey, {
-        ...style,
-        signature:
-          existing && existing.signature !== style.signature
-            ? undefined
-            : style.signature,
-      });
+      styles.set(
+        collectionKey,
+        style.kind === "stylesheet"
+          ? style
+          : {
+              ...style,
+              signature:
+                existing &&
+                existing.kind !== "stylesheet" &&
+                existing.signature !== style.signature
+                  ? undefined
+                  : style.signature,
+            },
+      );
     },
     getStyles,
     getStyleTags() {
       return getStyles()
         .map((style) => {
+          if (style.kind === "stylesheet") {
+            const nonce = style.nonce
+              ? ` nonce="${escapeAttribute(style.nonce)}"`
+              : "";
+            return `<link rel="stylesheet" href="${escapeAttribute(
+              style.href,
+            )}" sa-namespace="${escapeAttribute(
+              style.namespace,
+            )}" sa-key="${escapeAttribute(
+              style.key,
+            )}" sa-precedence="${style.precedence}"${nonce}>`;
+          }
           const nonce = style.nonce
             ? ` nonce="${escapeAttribute(style.nonce)}"`
             : "";
@@ -211,6 +240,7 @@ export class StyleRuntime<TFile extends string = string> {
   private defaultNonce?: string;
   private onError?: (error: StyleLoadError) => void;
   private initialStyles = new Map<string, string>();
+  private stylesheets = new Map<string, string>();
   private order = new Map<string, number>();
   private atoms = new Map<string, AtomState>();
   private entries = new Map<string, StyleEntry>();
@@ -230,6 +260,7 @@ export class StyleRuntime<TFile extends string = string> {
     this.onError = options.onError;
     this.setOrder(options.order);
     this.setInitialStyles(options.initialStyles);
+    this.setStylesheets(options.stylesheets);
   }
 
   /** Updates runtime defaults and reconciles every registered atom. */
@@ -247,6 +278,7 @@ export class StyleRuntime<TFile extends string = string> {
     if ("onError" in options) this.onError = options.onError;
     if (options.order) this.setOrder(options.order);
     if (options.initialStyles) this.setInitialStyles(options.initialStyles);
+    if (options.stylesheets) this.setStylesheets(options.stylesheets);
     this.atoms.forEach((atom) => {
       this.updateAtom(atom.id, atom.sourceOptions as StyleAtomOptions<TFile>);
     });
@@ -306,6 +338,7 @@ export class StyleRuntime<TFile extends string = string> {
           precedence: entry.precedence,
           localOwners: entry.refs.size,
           cssLength: entry.css?.length ?? 0,
+          href: entry.href,
           error: entry.error,
         }))
         .sort(
@@ -340,6 +373,39 @@ export class StyleRuntime<TFile extends string = string> {
       }
     });
 
+    normalized.stylesheets.forEach((name) => {
+      const href = this.stylesheets.get(name);
+      if (!href) missing = true;
+      else {
+        styles.push({
+          key: this.publicKey(
+            "stylesheet",
+            name,
+            this.precedenceFor(name, normalized.precedence),
+          ),
+          kind: "stylesheet",
+          name,
+          href,
+          precedence: this.precedenceFor(name, normalized.precedence),
+        });
+      }
+    });
+
+    if (normalized.stylesheet) {
+      const { name, href } = normalized.stylesheet;
+      styles.push({
+        key: this.publicKey(
+          "stylesheet",
+          name,
+          this.precedenceFor(name, normalized.precedence),
+        ),
+        kind: "stylesheet",
+        name,
+        href,
+        precedence: this.precedenceFor(name, normalized.precedence),
+      });
+    }
+
     if (normalized.inlineStyle) {
       const { name, css, signature } = normalized.inlineStyle;
       styles.push({
@@ -359,7 +425,11 @@ export class StyleRuntime<TFile extends string = string> {
     return {
       id,
       status: missing ? "loading" : "ready",
-      files: normalized.files,
+      files: [
+        ...normalized.files,
+        ...normalized.stylesheets,
+        ...(normalized.stylesheet ? [normalized.stylesheet.name] : []),
+      ],
       errors: [],
       styles,
     } satisfies StyleAtomSnapshot;
@@ -397,6 +467,18 @@ export class StyleRuntime<TFile extends string = string> {
   /** Keeps named file atoms mounted until the returned controller is disposed. */
   preload(files: StyleAtomFiles<TFile>, options: Omit<StyleAtomOptions<TFile>, "files"> = {}) {
     return this.registerAtom({ ...options, files, id: this.createId("preload") });
+  }
+
+  /** Keeps named stylesheet assets mounted until the controller is disposed. */
+  preloadStylesheets(
+    files: StyleAtomFiles<TFile>,
+    options: Omit<StyleAtomOptions<TFile>, "stylesheets"> = {},
+  ) {
+    return this.registerAtom({
+      ...options,
+      stylesheets: files,
+      id: this.createId("preload-stylesheet"),
+    });
   }
 
   /** Reloads selected mounted file atoms, or every mounted file when omitted. */
@@ -461,12 +543,20 @@ export class StyleRuntime<TFile extends string = string> {
     const name = options.inlineStyle?.name.trim() ?? "";
     return {
       files: compactList(options.files),
+      stylesheets: compactList(options.stylesheets),
       inlineStyle:
         name && typeof options.inlineStyle?.css === "string"
           ? {
               name,
               css: options.inlineStyle.css,
               signature: options.inlineStyle.signature,
+            }
+          : undefined,
+      stylesheet:
+        options.stylesheet?.name.trim() && options.stylesheet.href.trim()
+          ? {
+              name: options.stylesheet.name.trim(),
+              href: options.stylesheet.href.trim(),
             }
           : undefined,
       placement,
@@ -502,6 +592,52 @@ export class StyleRuntime<TFile extends string = string> {
       nextKeys.add(entry.key);
       nextEntries.push(entry);
     });
+
+    if (!atom.issue) normalized.stylesheets.forEach((name) => {
+      const href = this.stylesheets.get(name);
+      if (!href) {
+        atom.issue = this.reportError({
+          code: "load",
+          source: name,
+          error: new Error(
+            `[styled-atom] No stylesheet URL is configured for "${name}".`,
+          ),
+        });
+        return;
+      }
+      const entry = this.getOrCreateEntry(
+        "stylesheet",
+        name,
+        normalized,
+        undefined,
+        href,
+      );
+      if (entry.href !== href) {
+        entry.href = href;
+        entry.status = "idle";
+        entry.error = undefined;
+      }
+      nextKeys.add(entry.key);
+      nextEntries.push(entry);
+    });
+
+    if (normalized.stylesheet && !atom.issue) {
+      const { name, href } = normalized.stylesheet;
+      const entry = this.getOrCreateEntry(
+        "stylesheet",
+        name,
+        normalized,
+        undefined,
+        href,
+      );
+      if (entry.href !== href) {
+        entry.href = href;
+        entry.status = "idle";
+        entry.error = undefined;
+      }
+      nextKeys.add(entry.key);
+      nextEntries.push(entry);
+    }
 
     if (normalized.inlineStyle && !atom.issue) {
       const { name, css, signature } = normalized.inlineStyle;
@@ -557,6 +693,7 @@ export class StyleRuntime<TFile extends string = string> {
     name: string,
     options: NormalizedOptions,
     css?: string,
+    href?: string,
   ) {
     const targetId = options.placement === "head" ? this.idForTarget(options.target) : "inline";
     const key = `${kind}:${name}:${options.placement}:${targetId}:${options.precedence ?? "default"}`;
@@ -579,6 +716,7 @@ export class StyleRuntime<TFile extends string = string> {
         status: "idle",
         revision: 0,
         css,
+        href,
         signature: options.inlineStyle?.signature,
         registryOwner: {},
       };
@@ -590,6 +728,10 @@ export class StyleRuntime<TFile extends string = string> {
   private ensureLoaded(entry: StyleEntry) {
     if (entry.status === "loading" || entry.status === "ready") return;
     if (entry.kind === "inline") {
+      this.commitEntry(entry);
+      return;
+    }
+    if (entry.kind === "stylesheet") {
       this.commitEntry(entry);
       return;
     }
@@ -631,7 +773,10 @@ export class StyleRuntime<TFile extends string = string> {
   }
 
   private commitEntry(entry: StyleEntry) {
-    entry.status = "ready";
+    const revision =
+      entry.kind === "stylesheet" ? entry.revision + 1 : entry.revision;
+    if (entry.kind === "stylesheet") entry.revision = revision;
+    entry.status = entry.kind === "stylesheet" ? "loading" : "ready";
     entry.error = undefined;
     if (entry.placement === "head") {
       const result = mountRegistryEntry({
@@ -640,12 +785,16 @@ export class StyleRuntime<TFile extends string = string> {
         kind: entry.kind,
         name: entry.name,
         precedence: entry.precedence,
-        css: withSourceUrl(
-          this.sourceURL,
-          entry.css ?? "",
-          entry.kind,
-          entry.name,
-        ),
+        css:
+          entry.kind === "stylesheet"
+            ? undefined
+            : withSourceUrl(
+                this.sourceURL,
+                entry.css ?? "",
+                entry.kind,
+                entry.name,
+              ),
+        href: entry.href,
         signature: entry.signature,
         nonce: entry.nonce,
         target: entry.target,
@@ -656,7 +805,47 @@ export class StyleRuntime<TFile extends string = string> {
         entry.error = this.reportError(result.error);
       } else {
         entry.element = result.element;
+        if (result.ready) {
+          result.ready
+            .then(() => {
+              if (
+                entry.revision !== revision ||
+                !this.entries.has(entry.key)
+              ) {
+                return;
+              }
+              entry.status = "ready";
+              entry.error = undefined;
+              this.refreshAtoms(entry);
+            })
+            .catch((error: unknown) => {
+              if (
+                entry.revision !== revision ||
+                !this.entries.has(entry.key)
+              ) {
+                return;
+              }
+              entry.status = "failed";
+              entry.error = this.reportError({
+                code: "load",
+                source: entry.name,
+                error,
+              });
+              this.refreshAtoms(entry);
+            });
+        } else if (entry.kind === "stylesheet") {
+          entry.status = "ready";
+        }
       }
+    } else if (entry.kind === "stylesheet") {
+      entry.status = "failed";
+      entry.error = this.reportError({
+        code: "target",
+        source: entry.name,
+        error: new Error(
+          "[styled-atom] StaticAtom does not support inline placement. Use a Document, ShadowRoot or element target.",
+        ),
+      });
     }
     this.refreshAtoms(entry);
   }
@@ -681,35 +870,54 @@ export class StyleRuntime<TFile extends string = string> {
       : entries.some((entry) => entry.status === "idle" || entry.status === "loading")
         ? "loading"
         : "ready";
-    const styles = entries.flatMap<MountedStyle>((entry) =>
-      entry.status === "ready" && entry.css !== undefined
-        ? [{
-            key: entry.publicKey,
-            kind: entry.kind,
-            name: entry.name,
-            css: withSourceUrl(
-              this.sourceURL,
-              entry.css,
-              entry.kind,
-              entry.name,
-            ),
-            signature: entry.signature,
-            precedence: entry.precedence,
-          }]
-        : [],
-    );
+    const styles = entries.flatMap<MountedStyle>((entry) => {
+      if (entry.status !== "ready") return [];
+      if (entry.kind === "stylesheet" && entry.href) {
+        return [{
+          key: entry.publicKey,
+          kind: "stylesheet",
+          name: entry.name,
+          href: entry.href,
+          precedence: entry.precedence,
+        }];
+      }
+      if (entry.kind !== "stylesheet" && entry.css !== undefined) {
+        return [{
+          key: entry.publicKey,
+          kind: entry.kind,
+          name: entry.name,
+          css: withSourceUrl(
+            this.sourceURL,
+            entry.css,
+            entry.kind,
+            entry.name,
+          ),
+          signature: entry.signature,
+          precedence: entry.precedence,
+        }];
+      }
+      return [];
+    });
+    const files = [
+      ...atom.options.files,
+      ...atom.options.stylesheets,
+      ...(atom.options.stylesheet ? [atom.options.stylesheet.name] : []),
+    ];
     const snapshot: StyleAtomSnapshot = {
       id: atom.id,
       status,
-      files: atom.options.files,
+      files,
       errors,
       styles,
     };
     const snapshotKey = JSON.stringify({
       status,
-      files: atom.options.files,
+      files,
       errors: errors.map((item) => [item.code, item.source, String(item.error)]),
-      styles: styles.map((style) => [style.key, style.css]),
+      styles: styles.map((style) => [
+        style.key,
+        style.kind === "stylesheet" ? style.href : style.css,
+      ]),
     });
     atom.snapshot = snapshot;
     if (snapshotKey !== atom.snapshotKey) {
@@ -781,6 +989,16 @@ export class StyleRuntime<TFile extends string = string> {
     if (!styles) return;
     Object.entries(styles).forEach(([name, css]) => {
       if (typeof css === "string") this.initialStyles.set(name, css);
+    });
+  }
+
+  private setStylesheets(stylesheets?: StylesheetManifest<TFile>) {
+    if (!stylesheets) return;
+    this.stylesheets.clear();
+    Object.entries(stylesheets).forEach(([name, href]) => {
+      if (typeof href === "string" && href.trim()) {
+        this.stylesheets.set(name, href.trim());
+      }
     });
   }
 
