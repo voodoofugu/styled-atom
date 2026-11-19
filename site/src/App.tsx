@@ -513,6 +513,7 @@ function Footer({
         <nav aria-label="Project links">
           <a href="https://www.npmjs.com/package/styled-atom">npm</a>
           <a href="https://github.com/voodoofugu/styled-atom">github</a>
+          <a href="https://voodoofugu.github.io/">libraries</a>
           <a href="https://resume.voodoofugu.com/?lang=ru">author</a>
         </nav>
       </div>
