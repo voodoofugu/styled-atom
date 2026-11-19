@@ -499,13 +499,9 @@ function Tree({
   );
 }
 
-function Footer({
-  elementRef,
-}: {
-  elementRef: React.Ref<HTMLElement>;
-}) {
+function Footer() {
   return (
-    <footer className="site-footer" ref={elementRef}>
+    <footer className="site-footer">
       <div className="site-footer-inner">
         <div>
           <span>© {new Date().getFullYear()} voodoofugu</span>
@@ -529,31 +525,10 @@ function App() {
     () => new Map(),
   );
   const page = React.useRef<MorphScrollHandle>(null);
-  const navigation = React.useRef<HTMLElement>(null);
-  const footer = React.useRef<HTMLElement>(null);
   const shell = React.useRef<HTMLDivElement>(null);
-  const keepNavigationStill = React.useCallback<
+  const updateScrollState = React.useCallback<
     NonNullable<MorphScrollProps["onScrollPosition"]>
-  >((_left, top, _max, overscroll) => {
-    navigation.current?.style.setProperty(
-      "--docs-scroll-offset",
-      `${top - overscroll.y}px`,
-    );
-    if (navigation.current && footer.current && shell.current) {
-      const headerHeight =
-        Number.parseFloat(
-          getComputedStyle(shell.current).getPropertyValue("--top-bar-height"),
-        ) || 59;
-      const navigationTop = headerHeight + 24;
-      const availableHeight = Math.max(
-        0,
-        footer.current.getBoundingClientRect().top - navigationTop,
-      );
-      navigation.current.style.setProperty(
-        "--docs-nav-available",
-        `${availableHeight}px`,
-      );
-    }
+  >((_left, top) => {
     shell.current?.toggleAttribute("data-scrolled", top > 8);
   }, []);
   const id = route.startsWith("#/") ? route.slice(2) : "";
@@ -598,12 +573,12 @@ function App() {
         <main className="docs-main">
           <ChromeScroll
             controls={{ keys: true }}
-            onScrollPosition={keepNavigationStill}
+            onScrollPosition={updateScrollState}
             ref={page}
           >
             <div className="docs-content">
               <div className="docs-body">
-                <aside className="docs-nav" ref={navigation}>
+                <aside className="docs-nav">
           <input
             aria-label="Search documentation"
             className="docs-search"
@@ -653,7 +628,7 @@ function App() {
                 )}
               </div>
               </div>
-              <Footer elementRef={footer} />
+              <Footer />
             </div>
           </ChromeScroll>
         </main>
